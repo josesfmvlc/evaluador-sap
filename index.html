@@ -7,29 +7,143 @@
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body style="margin:0; background:#f0f4f8; font-family:system-ui,-apple-system,sans-serif">
   <div id="root"></div>
   <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBqQlTk9NwXADHGo2xq6s92rPXc77qeW9M",
+      authDomain: "empleados-sap.firebaseapp.com",
+      projectId: "empleados-sap",
+      storageBucket: "empleados-sap.firebasestorage.app",
+      messagingSenderId: "297958234005",
+      appId: "1:297958234005:web:8f92a6a41506435713489c"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const _auth = firebase.auth();
+    const _db = firebase.firestore();
+    const _COL = "sap-qm-data";
+
     window.storage = {
-      get: function(key) {
-        try { var v = localStorage.getItem(key); return Promise.resolve(v ? {key:key, value:v} : null); }
-        catch(e) { return Promise.reject(e); }
+      get: async function(key) {
+        try {
+          const snap = await _db.collection(_COL).doc(key).get();
+          if (snap.exists) return { key: key, value: snap.data().value };
+          return null;
+        } catch(e) { return null; }
       },
-      set: function(key, value) {
-        try { localStorage.setItem(key, value); return Promise.resolve({key:key, value:value}); }
-        catch(e) { return Promise.reject(e); }
+      set: async function(key, value) {
+        try {
+          var data = value;
+          if (key === "sap-qm-employees") {
+            try {
+              var emps = JSON.parse(value);
+              var photos = {};
+              emps.forEach(function(e) { if(e.foto) photos[e.id] = e.foto; });
+              localStorage.setItem("sap-qm-photos", JSON.stringify(photos));
+              var stripped = emps.map(function(e) { return Object.assign({}, e, {foto: null}); });
+              data = JSON.stringify(stripped);
+            } catch(ex) {}
+          }
+          await _db.collection(_COL).doc(key).set({ value: data });
+          return { key: key, value: value };
+        } catch(e) { return null; }
       },
-      delete: function(key) {
-        try { localStorage.removeItem(key); return Promise.resolve({key:key, deleted:true}); }
-        catch(e) { return Promise.reject(e); }
+      delete: async function(key) {
+        try {
+          await _db.collection(_COL).doc(key).delete();
+          return { key: key, deleted: true };
+        } catch(e) { return null; }
       },
-      list: function(prefix) {
-        try { var keys = Object.keys(localStorage).filter(function(k) { return !prefix || k.startsWith(prefix); }); return Promise.resolve({keys:keys}); }
-        catch(e) { return Promise.reject(e); }
+      list: async function(prefix) {
+        try {
+          var snap = await _db.collection(_COL).get();
+          var keys = snap.docs.map(function(d) { return d.id; })
+            .filter(function(k) { return !prefix || k.startsWith(prefix); });
+          return { keys: keys };
+        } catch(e) { return { keys: [] }; }
+      },
+      restorePhotos: function(employees) {
+        try {
+          var photos = JSON.parse(localStorage.getItem("sap-qm-photos") || "{}");
+          return employees.map(function(e) {
+            return photos[e.id] ? Object.assign({}, e, {foto: photos[e.id]}) : e;
+          });
+        } catch(ex) { return employees; }
       }
     };
+
+    // ── Login screen (rendered before React app) ──────────────
+    window._authReady = new Promise(function(resolve) {
+      _auth.onAuthStateChanged(function(user) {
+        if (user) {
+          document.getElementById('login-screen').style.display = 'none';
+          document.getElementById('root').style.display = 'block';
+          resolve(user);
+        } else {
+          document.getElementById('login-screen').style.display = 'flex';
+          document.getElementById('root').style.display = 'none';
+        }
+      });
+    });
+
+    function doLogin() {
+      var email = document.getElementById('login-email').value;
+      var pass = document.getElementById('login-pass').value;
+      var errEl = document.getElementById('login-error');
+      var btn = document.getElementById('login-btn');
+      errEl.textContent = '';
+      btn.disabled = true;
+      btn.textContent = 'Accediendo...';
+      _auth.signInWithEmailAndPassword(email, pass)
+        .catch(function(err) {
+          btn.disabled = false;
+          btn.textContent = 'Entrar';
+          if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+            errEl.textContent = 'Email o contraseña incorrectos.';
+          } else {
+            errEl.textContent = 'Error: ' + err.message;
+          }
+        });
+    }
+
+    function doLogout() {
+      _auth.signOut();
+    }
+    window.doLogout = doLogout;
   </script>
+
+  <!-- Login screen -->
+  <div id="login-screen" style="display:none; min-height:100vh; background:#f0f4f8; align-items:center; justify-content:center; font-family:system-ui,-apple-system,sans-serif;">
+    <div style="background:white; border-radius:16px; padding:40px; width:360px; max-width:90vw; box-shadow:0 8px 40px rgba(0,0,0,0.12);">
+      <div style="text-align:center; margin-bottom:28px;">
+        <div style="font-size:11px; font-weight:700; color:#2563eb; text-transform:uppercase; letter-spacing:0.1em; margin-bottom:8px;">Evaluación de competencias SAP</div>
+        <div style="font-size:22px; font-weight:800; color:#1a2332;">EvaluadorSAP QM</div>
+        <div style="font-size:13px; color:#8796a5; margin-top:6px;">Accede con tu cuenta</div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:#4a5568; margin-bottom:6px;">Email</label>
+          <input id="login-email" type="email" placeholder="tu@email.com" onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()"
+            style="width:100%; padding:10px 14px; border:1.5px solid #dde3ea; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box; color:#1a2332;"/>
+        </div>
+        <div>
+          <label style="display:block; font-size:12px; font-weight:600; color:#4a5568; margin-bottom:6px;">Contraseña</label>
+          <input id="login-pass" type="password" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"
+            style="width:100%; padding:10px 14px; border:1.5px solid #dde3ea; border-radius:8px; font-size:14px; outline:none; box-sizing:border-box; color:#1a2332;"/>
+        </div>
+        <div id="login-error" style="font-size:12px; color:#dc2626; min-height:16px;"></div>
+        <button id="login-btn" onclick="doLogin()"
+          style="background:#2563eb; color:white; border:none; border-radius:9px; padding:12px; font-size:15px; font-weight:700; cursor:pointer; margin-top:4px;">
+          Entrar
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
 const {
   useState,
@@ -3747,7 +3861,10 @@ function App() {
         const res = await withTimeout(window.storage.get("sap-qm-employees", false));
         if (res && res.value) {
           const saved = JSON.parse(res.value);
-          if (Array.isArray(saved) && saved.length) setEmployees(saved);
+          if (Array.isArray(saved) && saved.length) {
+            const withPhotos = window.storage.restorePhotos ? window.storage.restorePhotos(saved) : saved;
+            setEmployees(withPhotos);
+          }
         }
       } catch (e) {}
       try {
