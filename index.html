@@ -26,6 +26,7 @@
     const _auth = firebase.auth();
     const _db = firebase.firestore();
     const _COL = "sap-qm-data";
+    const INACTIVITY_MS = 15 * 60 * 1000; // 15 minutos
 
     window.storage = {
       get: async function(key) {
@@ -76,18 +77,29 @@
       }
     };
 
-    // ── Login screen (rendered before React app) ──────────────
-    window._authReady = new Promise(function(resolve) {
-      _auth.onAuthStateChanged(function(user) {
-        if (user) {
-          document.getElementById('login-screen').style.display = 'none';
-          document.getElementById('root').style.display = 'block';
-          resolve(user);
-        } else {
-          document.getElementById('login-screen').style.display = 'flex';
-          document.getElementById('root').style.display = 'none';
-        }
-      });
+    // ── Inactivity timeout ─────────────────────────────────────
+    var _inactivityTimer = null;
+    function resetInactivityTimer() {
+      clearTimeout(_inactivityTimer);
+      _inactivityTimer = setTimeout(function() {
+        _auth.signOut();
+      }, INACTIVITY_MS);
+    }
+    ['mousemove','keydown','click','touchstart','scroll'].forEach(function(evt) {
+      document.addEventListener(evt, resetInactivityTimer, true);
+    });
+
+    // ── Auth state ─────────────────────────────────────────────
+    _auth.onAuthStateChanged(function(user) {
+      if (user) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('root').style.display = 'block';
+        resetInactivityTimer();
+      } else {
+        clearTimeout(_inactivityTimer);
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('root').style.display = 'none';
+      }
     });
 
     function doLogin() {
@@ -110,9 +122,7 @@
         });
     }
 
-    function doLogout() {
-      _auth.signOut();
-    }
+    function doLogout() { _auth.signOut(); }
     window.doLogout = doLogout;
   </script>
 
@@ -4371,7 +4381,21 @@ function App() {
       alignItems: "center",
       gap: "6px"
     }
-  }, "⚙ Ajustes"))), /*#__PURE__*/React.createElement("div", {
+  }, "⚙ Ajustes"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => window.doLogout && window.doLogout(),
+    title: "Cerrar sesión",
+    style: {
+      background: C.item,
+      border: `1px solid ${C.border2}`,
+      color: C.muted,
+      borderRadius: "8px",
+      padding: "9px 12px",
+      cursor: "pointer",
+      fontSize: "14px",
+      display: "flex",
+      alignItems: "center"
+    }
+  }, "⏻"))), /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: "1080px",
       margin: "0 auto",
