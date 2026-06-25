@@ -8,9 +8,41 @@
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:#f0f4f8;font-family:system-ui,-apple-system,sans-serif;overflow-y:scroll}
     #root{min-height:100vh}
+    #login-screen{display:none;min-height:100vh;background:#f0f4f8;align-items:center;justify-content:center}
   </style>
 </head>
 <body>
+  <!-- Login screen -->
+  <div id="login-screen">
+    <div style="background:white;border-radius:16px;padding:40px;width:360px;max-width:90vw;box-shadow:0 8px 40px rgba(0,0,0,0.12);">
+      <div style="text-align:center;margin-bottom:28px;">
+        <div style="font-size:11px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;">Evaluación de competencias SAP</div>
+        <div style="font-size:22px;font-weight:800;color:#1a2332;">EvaluadorSAP QM</div>
+        <div style="font-size:13px;color:#8796a5;margin-top:6px;">Accede con tu cuenta</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#4a5568;margin-bottom:6px;">Email</label>
+          <input id="login-email" type="email" placeholder="tu@email.com"
+            onkeydown="if(event.key==='Enter')document.getElementById('login-pass').focus()"
+            style="width:100%;padding:10px 14px;border:1.5px solid #dde3ea;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;color:#1a2332;"/>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:600;color:#4a5568;margin-bottom:6px;">Contraseña</label>
+          <input id="login-pass" type="password" placeholder="••••••••"
+            onkeydown="if(event.key==='Enter')doLogin()"
+            style="width:100%;padding:10px 14px;border:1.5px solid #dde3ea;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;color:#1a2332;"/>
+        </div>
+        <div id="login-error" style="font-size:12px;color:#dc2626;min-height:16px;"></div>
+        <button onclick="doLogin()"
+          style="background:#2563eb;color:white;border:none;border-radius:9px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;">
+          Entrar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- App -->
   <div id="root"></div>
 
   <!-- React + SheetJS -->
@@ -18,74 +50,96 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <!-- Firebase COMPAT (funciona con script tags, no módulos ES) -->
+  <!-- Firebase COMPAT -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
   <script>
-    // Inicializar Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyAvGBqEBmIW4pLPxZ8aGWTJX9XjJXvR7yE",
-      authDomain: "empleados-sap.firebaseapp.com",
-      projectId: "empleados-sap",
-      storageBucket: "empleados-sap.appspot.com",
-      messagingSenderId: "518283176481",
-      appId: "1:518283176481:web:d6dcc9f61cde857d4ca6e0"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const auth = firebase.auth();
-    const localPhotos = {};
+    firebase.initializeApp({
+      apiKey:"AIzaSyAvGBqEBmIW4pLPxZ8aGWTJX9XjJXvR7yE",
+      authDomain:"empleados-sap.firebaseapp.com",
+      projectId:"empleados-sap",
+      storageBucket:"empleados-sap.appspot.com",
+      messagingSenderId:"518283176481",
+      appId:"1:518283176481:web:d6dcc9f61cde857d4ca6e0"
+    });
+    const _db  = firebase.firestore();
+    const _auth = firebase.auth();
+    const _localPhotos = {};
 
-    // Storage usando Firestore (shared) o localStorage (personal)
+    // Storage: Firestore para shared=true, localStorage para shared=false
     window.storage = {
-      set: (k, v, shared = false) => new Promise((res, rej) => {
-        if (shared) {
-          db.collection("shared-data").doc(k).set({ value: v })
-            .then(() => res({ key: k, value: v, shared: true })).catch(rej);
-        } else {
-          try { localStorage.setItem(k, v); res({ key: k, value: v }); } catch(e) { rej(e); }
-        }
+      set: (k,v,shared=false) => new Promise((res,rej) => {
+        if(shared){ _db.collection("shared-data").doc(k).set({value:v}).then(()=>res({key:k,value:v,shared:true})).catch(rej); }
+        else { try{localStorage.setItem(k,v);res({key:k,value:v});}catch(e){rej(e);} }
       }),
-      get: (k, shared = false) => new Promise((res, rej) => {
-        if (shared) {
-          db.collection("shared-data").doc(k).get()
-            .then(d => res(d.exists ? { key: k, value: d.data().value, shared: true } : null)).catch(rej);
-        } else {
-          try { const v = localStorage.getItem(k); res(v ? { key: k, value: v } : null); } catch(e) { rej(e); }
-        }
+      get: (k,shared=false) => new Promise((res,rej) => {
+        if(shared){ _db.collection("shared-data").doc(k).get().then(d=>res(d.exists?{key:k,value:d.data().value,shared:true}:null)).catch(rej); }
+        else { try{const v=localStorage.getItem(k);res(v?{key:k,value:v}:null);}catch(e){rej(e);} }
       }),
-      delete: (k, shared = false) => new Promise((res, rej) => {
-        if (shared) {
-          db.collection("shared-data").doc(k).delete()
-            .then(() => res({ key: k, deleted: true })).catch(rej);
-        } else {
-          try { localStorage.removeItem(k); res({ key: k, deleted: true }); } catch(e) { rej(e); }
-        }
+      delete: (k,shared=false) => new Promise((res,rej) => {
+        if(shared){ _db.collection("shared-data").doc(k).delete().then(()=>res({key:k,deleted:true})).catch(rej); }
+        else { try{localStorage.removeItem(k);res({key:k,deleted:true});}catch(e){rej(e);} }
       }),
-      list: (prefix, shared = false) => new Promise((res, rej) => {
-        if (shared) {
-          db.collection("shared-data")
-            .where(firebase.firestore.FieldPath.documentId(), ">=", prefix)
-            .where(firebase.firestore.FieldPath.documentId(), "<", prefix + "~")
-            .get().then(qs => res({ keys: qs.docs.map(d => d.id) })).catch(rej);
-        } else {
-          try { res({ keys: Object.keys(localStorage).filter(k => k.startsWith(prefix)) }); } catch(e) { rej(e); }
-        }
+      list: (prefix,shared=false) => new Promise((res,rej) => {
+        if(shared){ _db.collection("shared-data").where(firebase.firestore.FieldPath.documentId(),">=",prefix).where(firebase.firestore.FieldPath.documentId(),"<",prefix+"~").get().then(qs=>res({keys:qs.docs.map(d=>d.id)})).catch(rej); }
+        else { try{res({keys:Object.keys(localStorage).filter(k=>k.startsWith(prefix))});}catch(e){rej(e);} }
       }),
-      restorePhotos: (emps) => {
-        emps.forEach(e => { if (localPhotos[e.id]) e.foto = localPhotos[e.id]; });
-        return emps;
-      }
+      restorePhotos: (emps) => { emps.forEach(e=>{if(_localPhotos[e.id])e.foto=_localPhotos[e.id];}); return emps; }
     };
 
-    // Autenticación anónima para acceder a Firestore
-    window._authReady = auth.signInAnonymously()
-      .then(() => { console.log("Firebase: sesión anónima OK"); })
-      .catch(err => { console.warn("Firebase auth error, usando solo localStorage:", err); });
+    // Inactividad 15 min → logout
+    let _inactivityTimer;
+    function resetInactivity(){
+      clearTimeout(_inactivityTimer);
+      _inactivityTimer = setTimeout(()=>{ _auth.signOut(); }, 15*60*1000);
+    }
+    ['click','keydown','mousemove','touchstart'].forEach(ev=>document.addEventListener(ev,resetInactivity,{passive:true}));
 
-    window.doLogout = () => auth.signOut().then(() => window.location.reload());
+    // Login / Logout
+    function doLogin(){
+      const email = document.getElementById('login-email').value.trim();
+      const pass  = document.getElementById('login-pass').value;
+      const errEl = document.getElementById('login-error');
+      const btn   = document.querySelector('#login-screen button');
+      errEl.textContent=''; btn.disabled=true; btn.textContent='Entrando…';
+      _auth.signInWithEmailAndPassword(email, pass)
+        .then(()=>{ btn.disabled=false; btn.textContent='Entrar'; })
+        .catch(err=>{
+          btn.disabled=false; btn.textContent='Entrar';
+          errEl.textContent = (err.code==='auth/wrong-password'||err.code==='auth/user-not-found')
+            ? 'Email o contraseña incorrectos'
+            : 'Error: '+err.message;
+        });
+    }
+    window.doLogout = () => _auth.signOut();
+
+    // Auth state → mostrar login o app
+    let _appMounted = false;
+    let _authResolve;
+    window._authReady = new Promise(r => { _authResolve = r; });
+
+    _auth.onAuthStateChanged(user => {
+      const loginEl = document.getElementById('login-screen');
+      const rootEl  = document.getElementById('root');
+      if(user){
+        loginEl.style.display = 'none';
+        rootEl.style.display  = '';
+        _authResolve();
+        resetInactivity();
+        if(!_appMounted){
+          _appMounted = true;
+          const root = ReactDOM.createRoot(rootEl);
+          root.render(React.createElement(App));
+        }
+      } else {
+        loginEl.style.display = 'flex';
+        rootEl.style.display  = 'none';
+        // Resetear para próximo login
+        window._authReady = new Promise(r => { _authResolve = r; });
+      }
+    });
   </script>
 
   <script>
@@ -4426,8 +4480,6 @@ function App() {
     onClose: () => setShowHistory(false)
   }));
 }
-    const root=ReactDOM.createRoot(document.getElementById('root'));
-    root.render(React.createElement(App));
   </script>
 </body>
 </html>
