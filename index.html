@@ -26,7 +26,12 @@
     const _auth = firebase.auth();
     const _db = firebase.firestore();
     const _COL = "sap-qm-data";
-    const INACTIVITY_MS = 15 * 60 * 1000; // 15 minutos
+    const INACTIVITY_MS = 15 * 60 * 1000;
+
+    // Promise that resolves when Firebase confirms the auth session
+    // React data loading waits for this before reading Firestore
+    var _authReadyResolve;
+    window._authReady = new Promise(function(resolve) { _authReadyResolve = resolve; });
 
     window.storage = {
       get: async function(key) {
@@ -77,21 +82,20 @@
       }
     };
 
-    // ── Inactivity timeout ─────────────────────────────────────
+    // Inactivity timeout
     var _inactivityTimer = null;
     function resetInactivityTimer() {
       clearTimeout(_inactivityTimer);
-      _inactivityTimer = setTimeout(function() {
-        _auth.signOut();
-      }, INACTIVITY_MS);
+      _inactivityTimer = setTimeout(function() { _auth.signOut(); }, INACTIVITY_MS);
     }
     ['mousemove','keydown','click','touchstart','scroll'].forEach(function(evt) {
       document.addEventListener(evt, resetInactivityTimer, true);
     });
 
-    // ── Auth state ─────────────────────────────────────────────
+    // Auth state handler
     _auth.onAuthStateChanged(function(user) {
       if (user) {
+        _authReadyResolve(user); // Unblock React data loading
         document.getElementById('login-screen').style.display = 'none';
         document.getElementById('root').style.display = 'block';
         resetInactivityTimer();
@@ -3868,6 +3872,8 @@ function App() {
     const withTimeout = (p, ms = 2500) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms))]);
     (async () => {
       try {
+        // Wait for Firebase auth to be confirmed before reading Firestore
+        if (window._authReady) await window._authReady;
         const res = await withTimeout(window.storage.get("sap-qm-employees", false));
         if (res && res.value) {
           const saved = JSON.parse(res.value);
