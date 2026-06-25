@@ -12,46 +12,15 @@
 </head>
 <body>
   <div id="root"></div>
-
-  <!-- Firebase -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js"></script>
-  <script>
-    const firebaseConfig={apiKey:"AIzaSyAvGBqEBmIW4pLPxZ8aGWTJX9XjJXvR7yE",authDomain:"empleados-sap.firebaseapp.com",projectId:"empleados-sap",storageBucket:"empleados-sap.appspot.com",messagingSenderId:"518283176481",appId:"1:518283176481:web:d6dcc9f61cde857d4ca6e0"};
-    firebase.initializeApp(firebaseConfig);
-    const db=firebase.firestore();
-    const auth=firebase.auth();
-    const storage={};const localPhotos={};
-    window.storage={
-      set:(k,v,shared=false)=>new Promise((res,rej)=>{if(shared){const col=db.collection("shared-data");col.doc(k).set({value:v}).then(()=>res({key:k,value:v,shared:true})).catch(rej);}else{try{localStorage.setItem(k,v);res({key:k,value:v,shared:false});}catch(e){rej(e);}}}),
-      get:(k,shared=false)=>new Promise((res,rej)=>{if(shared){db.collection("shared-data").doc(k).get().then(d=>{if(d.exists){res({key:k,value:d.data().value,shared:true});}else{res(null);}}).catch(rej);}else{try{const v=localStorage.getItem(k);res(v?{key:k,value:v,shared:false}:null);}catch(e){rej(e);}}}),
-      delete:(k,shared=false)=>new Promise((res,rej)=>{if(shared){db.collection("shared-data").doc(k).delete().then(()=>res({key:k,deleted:true,shared:true})).catch(rej);}else{try{localStorage.removeItem(k);res({key:k,deleted:true,shared:false});}catch(e){rej(e);}}}),
-      list:(prefix,shared=false)=>new Promise((res,rej)=>{if(shared){db.collection("shared-data").where(firebase.firestore.FieldPath.documentId(),">=",prefix).where(firebase.firestore.FieldPath.documentId(),"<",prefix+"~").get().then(qs=>{const keys=qs.docs.map(d=>d.id);res({keys,prefix,shared:true});}).catch(rej);}else{try{const keys=Object.keys(localStorage).filter(k=>k.startsWith(prefix));res({keys,prefix,shared:false});}catch(e){rej(e);}}}),
-      restorePhotos:(emps)=>{emps.forEach(e=>{if(localPhotos[e.id]){e.foto=localPhotos[e.id];}});return emps;}
-    };
-    let localStoragePhotos={};
-    auth.onAuthStateChanged(user=>{
-      if(user){
-        window._authReady=Promise.resolve();
-        db.collection("employees-photos").doc(user.uid).get().then(doc=>{if(doc.exists){Object.assign(localPhotos,doc.data());}});
-      }else{
-        window._authReady=new Promise(res=>{const unsubscribe=auth.onAuthStateChanged(u=>{if(u){Object.assign(localPhotos,{});unsubscribe();res();}});});
-      }
-    });
-    window.doLogout=()=>{auth.signOut().then(()=>{window.location.reload();})};
-  </script>
-
-  <!-- React -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-
-  <!-- SheetJS -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <!-- App compiled -->
   <script>
-const { useState, useRef, useEffect } = React;
+    window.storage={set:(k,v,s=0)=>new Promise((r,j)=>{try{localStorage.setItem(k,v);r({key:k,value:v});}catch(e){j(e);}}),get:(k,s=0)=>new Promise((r,j)=>{try{const v=localStorage.getItem(k);r(v?{key:k,value:v}:null);}catch(e){j(e);}}),delete:(k,s=0)=>new Promise((r,j)=>{try{localStorage.removeItem(k);r({key:k});}catch(e){j(e);}}),list:(p,s=0)=>new Promise((r,j)=>{try{const k=Object.keys(localStorage).filter(x=>x.startsWith(p));r({keys:k});}catch(e){j(e);}}),restorePhotos:(e)=>e};
+    window._authReady=Promise.resolve();
+  </script>
+  <script>
+    const {useState,useRef,useEffect}=React;
 const C = {
   bg: "#f0f4f8",
   card: "#ffffff",
@@ -3805,7 +3774,7 @@ function SettingsView({
 }
 
 // ── Main App ──────────────────────────────────────────────────
-export default function App() {
+function App() {
   const [modules, setModules] = useState([QM_MODULE]);
   const [activeId, setActiveId] = useState("qm-001");
   const [evaluators, setEvaluators] = useState(["Evaluador 1", "Evaluador 2"]);
@@ -4388,8 +4357,8 @@ export default function App() {
     onClose: () => setShowHistory(false)
   }));
 }
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(React.createElement(App));
+    const root=ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(App));
   </script>
 </body>
 </html>
