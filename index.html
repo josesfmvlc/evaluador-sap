@@ -12,7 +12,6 @@
   </style>
 </head>
 <body>
-  <!-- Login screen -->
   <div id="login-screen">
     <div style="background:white;border-radius:16px;padding:40px;width:360px;max-width:90vw;box-shadow:0 8px 40px rgba(0,0,0,0.12);">
       <div style="text-align:center;margin-bottom:28px;">
@@ -42,15 +41,11 @@
     </div>
   </div>
 
-  <!-- App -->
   <div id="root" style="display:none"></div>
 
-  <!-- React + SheetJS -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-  <!-- Firebase COMPAT -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -64,36 +59,32 @@
       messagingSenderId:"297958234005",
       appId:"1:297958234005:web:8f92a6a41506435713489c"
     });
-    const _db  = firebase.firestore();
-    const _auth = firebase.auth();
-    const _localPhotos = {};
+    const _db=firebase.firestore();
+    const _auth=firebase.auth();
+    const _localPhotos={};
 
-    window.storage = {
-      set: (k,v,shared=false) => new Promise((res,rej) => {
-        if(shared){ _db.collection("shared-data").doc(k).set({value:v}).then(()=>res({key:k,value:v,shared:true})).catch(rej); }
-        else { try{localStorage.setItem(k,v);res({key:k,value:v});}catch(e){rej(e);} }
+    window.storage={
+      set:(k,v,shared=false)=>new Promise((res,rej)=>{
+        if(shared){_db.collection("shared-data").doc(k).set({value:v}).then(()=>res({key:k,value:v,shared:true})).catch(rej);}
+        else{try{localStorage.setItem(k,v);res({key:k,value:v});}catch(e){rej(e);}}
       }),
-      get: (k,shared=false) => new Promise((res,rej) => {
-        if(shared){ _db.collection("shared-data").doc(k).get().then(d=>res(d.exists?{key:k,value:d.data().value,shared:true}:null)).catch(rej); }
-        else { try{const v=localStorage.getItem(k);res(v?{key:k,value:v}:null);}catch(e){rej(e);} }
+      get:(k,shared=false)=>new Promise((res,rej)=>{
+        if(shared){_db.collection("shared-data").doc(k).get().then(d=>res(d.exists?{key:k,value:d.data().value,shared:true}:null)).catch(rej);}
+        else{try{const v=localStorage.getItem(k);res(v?{key:k,value:v}:null);}catch(e){rej(e);}}
       }),
-      delete: (k,shared=false) => new Promise((res,rej) => {
-        if(shared){ _db.collection("shared-data").doc(k).delete().then(()=>res({key:k,deleted:true})).catch(rej); }
-        else { try{localStorage.removeItem(k);res({key:k,deleted:true});}catch(e){rej(e);} }
+      delete:(k,shared=false)=>new Promise((res,rej)=>{
+        if(shared){_db.collection("shared-data").doc(k).delete().then(()=>res({key:k,deleted:true})).catch(rej);}
+        else{try{localStorage.removeItem(k);res({key:k,deleted:true});}catch(e){rej(e);}}
       }),
-      list: (prefix,shared=false) => new Promise((res,rej) => {
-        if(shared){ _db.collection("shared-data").where(firebase.firestore.FieldPath.documentId(),">=",prefix).where(firebase.firestore.FieldPath.documentId(),"<",prefix+"~").get().then(qs=>res({keys:qs.docs.map(d=>d.id)})).catch(rej); }
-        else { try{res({keys:Object.keys(localStorage).filter(k=>k.startsWith(prefix))});}catch(e){rej(e);} }
+      list:(prefix,shared=false)=>new Promise((res,rej)=>{
+        if(shared){_db.collection("shared-data").where(firebase.firestore.FieldPath.documentId(),">=",prefix).where(firebase.firestore.FieldPath.documentId(),"<",prefix+"~").get().then(qs=>res({keys:qs.docs.map(d=>d.id)})).catch(rej);}
+        else{try{res({keys:Object.keys(localStorage).filter(k=>k.startsWith(prefix))});}catch(e){rej(e);}}
       }),
-      restorePhotos: (emps) => { emps.forEach(e=>{if(_localPhotos[e.id])e.foto=_localPhotos[e.id];}); return emps; }
+      restorePhotos:(emps)=>{emps.forEach(e=>{if(_localPhotos[e.id])e.foto=_localPhotos[e.id];});return emps;}
     };
 
-    // Inactividad 15 min → logout
     let _inactivityTimer;
-    function resetInactivity(){
-      clearTimeout(_inactivityTimer);
-      _inactivityTimer = setTimeout(()=>_auth.signOut(), 15*60*1000);
-    }
+    function resetInactivity(){clearTimeout(_inactivityTimer);_inactivityTimer=setTimeout(()=>_auth.signOut(),15*60*1000);}
     ['click','keydown','mousemove','touchstart'].forEach(ev=>document.addEventListener(ev,resetInactivity,{passive:true}));
 
     function doLogin(){
@@ -101,37 +92,26 @@
       const pass=document.getElementById('login-pass').value;
       const errEl=document.getElementById('login-error');
       const btn=document.querySelector('#login-screen button');
-      errEl.textContent=''; btn.disabled=true; btn.textContent='Entrando…';
+      errEl.textContent='';btn.disabled=true;btn.textContent='Entrando…';
       _auth.signInWithEmailAndPassword(email,pass)
         .then(()=>{btn.disabled=false;btn.textContent='Entrar';})
-        .catch(err=>{
-          btn.disabled=false; btn.textContent='Entrar';
-          errEl.textContent=(err.code==='auth/wrong-password'||err.code==='auth/user-not-found')
-            ?'Email o contraseña incorrectos':'Error: '+err.message;
-        });
+        .catch(err=>{btn.disabled=false;btn.textContent='Entrar';
+          errEl.textContent=(err.code==='auth/wrong-password'||err.code==='auth/user-not-found')?'Email o contraseña incorrectos':'Error: '+err.message;});
     }
-    window.doLogout = ()=>_auth.signOut();
+    window.doLogout=()=>_auth.signOut();
 
-    let _appMounted=false;
-    let _authResolve;
+    let _appMounted=false,_authResolve;
     window._authReady=new Promise(r=>{_authResolve=r;});
 
     _auth.onAuthStateChanged(user=>{
       const loginEl=document.getElementById('login-screen');
       const rootEl=document.getElementById('root');
       if(user){
-        loginEl.style.display='none';
-        rootEl.style.display='';
-        _authResolve();
-        resetInactivity();
-        if(!_appMounted){
-          _appMounted=true;
-          const root=ReactDOM.createRoot(rootEl);
-          root.render(React.createElement(App));
-        }
-      } else {
-        loginEl.style.display='flex';
-        rootEl.style.display='none';
+        loginEl.style.display='none';rootEl.style.display='';
+        _authResolve();resetInactivity();
+        if(!_appMounted){_appMounted=true;const root=ReactDOM.createRoot(rootEl);root.render(React.createElement(App));}
+      }else{
+        loginEl.style.display='flex';rootEl.style.display='none';
         window._authReady=new Promise(r=>{_authResolve=r;});
       }
     });
@@ -3925,7 +3905,7 @@ function App() {
       try {
         // Wait for Firebase auth to be confirmed before reading Firestore
         if (window._authReady) await window._authReady;
-        const res = await withTimeout(window.storage.get("sap-qm-employees", false));
+        const res = await withTimeout(window.storage.get("sap-qm-employees", true));
         if (res && res.value) {
           const saved = JSON.parse(res.value);
           if (Array.isArray(saved) && saved.length) {
@@ -3935,7 +3915,7 @@ function App() {
         }
       } catch (e) {}
       try {
-        const res = await withTimeout(window.storage.get("sap-qm-eval-history", false));
+        const res = await withTimeout(window.storage.get("sap-qm-eval-history", true));
         if (res && res.value) {
           const saved = JSON.parse(res.value);
           if (Array.isArray(saved)) setEvalHistory(saved);
@@ -3970,7 +3950,7 @@ function App() {
         }
       } catch (e) {}
       try {
-        const res = await withTimeout(window.storage.get("sap-qm-modules", false));
+        const res = await withTimeout(window.storage.get("sap-qm-modules", true));
         if (res && res.value) {
           const saved = JSON.parse(res.value);
           if (Array.isArray(saved) && saved.length && saved.every(m => m && m.id && Array.isArray(m.items))) setModules(saved);
@@ -3984,7 +3964,7 @@ function App() {
   const persistEmployees = async updated => {
     setEmployees(updated);
     try {
-      await window.storage.set("sap-qm-employees", JSON.stringify(updated), false);
+      await window.storage.set("sap-qm-employees", JSON.stringify(updated), true);
     } catch (e) {}
   };
   const addEmployee = emp => persistEmployees([...employees, emp]);
@@ -4052,7 +4032,7 @@ function App() {
   const persistModules = async updated => {
     setModules(updated);
     try {
-      await window.storage.set("sap-qm-modules", JSON.stringify(updated), false);
+      await window.storage.set("sap-qm-modules", JSON.stringify(updated), true);
     } catch (e) {}
   };
   const updateModule = upd => persistModules(modules.map(m => m.id === upd.id ? upd : m));
@@ -4146,7 +4126,7 @@ function App() {
     const updated = [...evalHistory.filter(e => !(e.empleado.id === selectedEmployee.id && e.moduloId === module.id && e.fecha === evalDate)), entry];
     setEvalHistory(updated);
     try {
-      await window.storage.set("sap-qm-eval-history", JSON.stringify(updated), false);
+      await window.storage.set("sap-qm-eval-history", JSON.stringify(updated), true);
     } catch (e) {}
     const t = new Date().toLocaleTimeString("es-ES", {
       hour: "2-digit",
