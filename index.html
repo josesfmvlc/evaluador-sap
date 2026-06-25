@@ -12,13 +12,82 @@
 </head>
 <body>
   <div id="root"></div>
+
+  <!-- React + SheetJS -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <!-- Firebase COMPAT (funciona con script tags, no módulos ES) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
   <script>
-    window.storage={set:(k,v,s=0)=>new Promise((r,j)=>{try{localStorage.setItem(k,v);r({key:k,value:v});}catch(e){j(e);}}),get:(k,s=0)=>new Promise((r,j)=>{try{const v=localStorage.getItem(k);r(v?{key:k,value:v}:null);}catch(e){j(e);}}),delete:(k,s=0)=>new Promise((r,j)=>{try{localStorage.removeItem(k);r({key:k});}catch(e){j(e);}}),list:(p,s=0)=>new Promise((r,j)=>{try{const k=Object.keys(localStorage).filter(x=>x.startsWith(p));r({keys:k});}catch(e){j(e);}}),restorePhotos:(e)=>e};
-    window._authReady=Promise.resolve();
+    // Inicializar Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyAvGBqEBmIW4pLPxZ8aGWTJX9XjJXvR7yE",
+      authDomain: "empleados-sap.firebaseapp.com",
+      projectId: "empleados-sap",
+      storageBucket: "empleados-sap.appspot.com",
+      messagingSenderId: "518283176481",
+      appId: "1:518283176481:web:d6dcc9f61cde857d4ca6e0"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const auth = firebase.auth();
+    const localPhotos = {};
+
+    // Storage usando Firestore (shared) o localStorage (personal)
+    window.storage = {
+      set: (k, v, shared = false) => new Promise((res, rej) => {
+        if (shared) {
+          db.collection("shared-data").doc(k).set({ value: v })
+            .then(() => res({ key: k, value: v, shared: true })).catch(rej);
+        } else {
+          try { localStorage.setItem(k, v); res({ key: k, value: v }); } catch(e) { rej(e); }
+        }
+      }),
+      get: (k, shared = false) => new Promise((res, rej) => {
+        if (shared) {
+          db.collection("shared-data").doc(k).get()
+            .then(d => res(d.exists ? { key: k, value: d.data().value, shared: true } : null)).catch(rej);
+        } else {
+          try { const v = localStorage.getItem(k); res(v ? { key: k, value: v } : null); } catch(e) { rej(e); }
+        }
+      }),
+      delete: (k, shared = false) => new Promise((res, rej) => {
+        if (shared) {
+          db.collection("shared-data").doc(k).delete()
+            .then(() => res({ key: k, deleted: true })).catch(rej);
+        } else {
+          try { localStorage.removeItem(k); res({ key: k, deleted: true }); } catch(e) { rej(e); }
+        }
+      }),
+      list: (prefix, shared = false) => new Promise((res, rej) => {
+        if (shared) {
+          db.collection("shared-data")
+            .where(firebase.firestore.FieldPath.documentId(), ">=", prefix)
+            .where(firebase.firestore.FieldPath.documentId(), "<", prefix + "~")
+            .get().then(qs => res({ keys: qs.docs.map(d => d.id) })).catch(rej);
+        } else {
+          try { res({ keys: Object.keys(localStorage).filter(k => k.startsWith(prefix)) }); } catch(e) { rej(e); }
+        }
+      }),
+      restorePhotos: (emps) => {
+        emps.forEach(e => { if (localPhotos[e.id]) e.foto = localPhotos[e.id]; });
+        return emps;
+      }
+    };
+
+    // Autenticación anónima para acceder a Firestore
+    window._authReady = auth.signInAnonymously()
+      .then(() => { console.log("Firebase: sesión anónima OK"); })
+      .catch(err => { console.warn("Firebase auth error, usando solo localStorage:", err); });
+
+    window.doLogout = () => auth.signOut().then(() => window.location.reload());
   </script>
+
   <script>
     const {useState,useRef,useEffect,useMemo}=React;
 const C = {
