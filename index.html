@@ -847,7 +847,7 @@ function ItemRow({
       display: "flex",
       gap: "8px"
     }
-  }, /*#__PURE__*/React.createElement("span", null, l.code, " \xB7 ", l.name), /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("span", null, l.code, " · ", l.name), /*#__PURE__*/React.createElement("span", {
     style: {
       color: C.muted,
       fontWeight: "400"
@@ -914,7 +914,7 @@ function AmbitoSection({
       color: C.muted,
       flexShrink: 0
     }
-  }, items.length, " crit \xB7 ", tw, "pts"), /*#__PURE__*/React.createElement("div", {
+  }, items.length, " crit · ", tw, "pts"), /*#__PURE__*/React.createElement("div", {
     style: {
       width: "72px",
       height: "5px",
@@ -965,7 +965,7 @@ function AmbitoSection({
       letterSpacing: "0.06em",
       borderBottom: `1px solid ${C.rowBorder}`
     }
-  }, /*#__PURE__*/React.createElement("div", null, "Peso"), /*#__PURE__*/React.createElement("div", null, "Criterio de evaluaci\xF3n"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", null, "Peso"), /*#__PURE__*/React.createElement("div", null, "Criterio de evaluación"), /*#__PURE__*/React.createElement("div", {
     style: {
       textAlign: "center"
     }
@@ -1091,7 +1091,7 @@ function EmployeePicker({
       fontSize: "15px",
       flexShrink: 0
     }
-  }, "\uD83D\uDC64"), /*#__PURE__*/React.createElement("div", {
+  }, "👤"), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
       textAlign: "left"
@@ -1174,7 +1174,7 @@ function EmployeePicker({
       color: C.muted,
       lineHeight: "1.6"
     }
-  }, "No hay empleados todav\xEDa.", /*#__PURE__*/React.createElement("br", null), "A\xF1\xE1delos desde \u2699 Ajustes \u2192 Empleados.") : filtered.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, "No hay empleados todavía.", /*#__PURE__*/React.createElement("br", null), "Añádelos desde ⚙ Ajustes → Empleados.") : filtered.length === 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "20px",
       textAlign: "center",
@@ -1263,7 +1263,7 @@ function EmployeePicker({
         fontSize: "14px",
         fontWeight: "700"
       }
-    }, "\u2713"));
+    }, "✓"));
   }))));
 }
 
@@ -1389,7 +1389,7 @@ function ModuleMultiSelect({
   }, /*#__PURE__*/React.createElement("input", {
     value: newMod,
     onChange: e => setNewMod(e.target.value),
-    placeholder: "A\xF1adir m\xF3dulo...",
+    placeholder: "Añadir módulo...",
     onKeyDown: e => e.key === "Enter" && addNew(),
     style: {
       flex: 1,
@@ -1488,7 +1488,7 @@ function ImportModal({
       color: C.text,
       flex: 1
     }
-  }, "\uD83D\uDCE5 Importar m\xF3dulo desde Excel"), /*#__PURE__*/React.createElement("button", {
+  }, "📥 Importar módulo desde Excel"), /*#__PURE__*/React.createElement("button", {
     onClick: onClose,
     style: {
       background: "transparent",
@@ -1498,7 +1498,7 @@ function ImportModal({
       cursor: "pointer",
       padding: "4px 8px"
     }
-  }, "\u2715")), /*#__PURE__*/React.createElement("p", {
+  }, "✕")), /*#__PURE__*/React.createElement("p", {
     style: {
       fontSize: "13px",
       color: C.text2,
@@ -1506,7 +1506,7 @@ function ImportModal({
       marginBottom: "18px",
       lineHeight: "1.6"
     }
-  }, "El archivo debe tener columnas: ", /*#__PURE__*/React.createElement("strong", null, "Peso \xB7 Descriptivo \xB7 \xC1mbito \xB7 Valoraci\xF3n 1 \xB7 Valoraci\xF3n 2"), ". Compatible con el formato original de la Matriz de Conocimiento T4S."), !preview && /*#__PURE__*/React.createElement("div", {
+  }, "El archivo debe tener columnas: ", /*#__PURE__*/React.createElement("strong", null, "Peso · Descriptivo · Ámbito · Valoración 1 · Valoración 2"), ". Compatible con el formato original de la Matriz de Conocimiento T4S."), !preview && /*#__PURE__*/React.createElement("div", {
     onDragOver: e => {
       e.preventDefault();
       setDragging(true);
@@ -1532,19 +1532,19 @@ function ImportModal({
       fontSize: "40px",
       marginBottom: "10px"
     }
-  }, "\uD83D\uDCC2"), /*#__PURE__*/React.createElement("div", {
+  }, "📂"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "14px",
       fontWeight: "600",
       color: C.text,
       marginBottom: "6px"
     }
-  }, "Arrastra tu archivo aqu\xED"), /*#__PURE__*/React.createElement("div", {
+  }, "Arrastra tu archivo aquí"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "12px",
       color: C.muted
     }
-  }, "o haz clic para seleccionar \xB7 .xlsx / .xls"), /*#__PURE__*/React.createElement("input", {
+  }, "o haz clic para seleccionar · .xlsx / .xls"), /*#__PURE__*/React.createElement("input", {
     ref: fileRef,
     type: "file",
     accept: ".xlsx,.xls",
@@ -1577,12 +1577,12 @@ function ImportModal({
       color: C.green,
       marginBottom: "4px"
     }
-  }, "\u2713 Archivo le\xEDdo correctamente"), /*#__PURE__*/React.createElement("div", {
+  }, "✓ Archivo leído correctamente"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "13px",
       color: "#166534"
     }
-  }, /*#__PURE__*/React.createElement("strong", null, preview.name), " \xB7 ", preview.items.length, " criterios \xB7 ", [...new Set(preview.items.map(i => i.ambito))].length, " \xE1mbitos")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("strong", null, preview.name), " · ", preview.items.length, " criterios · ", [...new Set(preview.items.map(i => i.ambito))].length, " ámbitos")), /*#__PURE__*/React.createElement("div", {
     style: {
       maxHeight: "240px",
       overflowY: "auto",
@@ -1628,7 +1628,7 @@ function ImportModal({
       color: C.muted,
       textAlign: "center"
     }
-  }, "+", preview.items.length - 15, " criterios m\xE1s")), /*#__PURE__*/React.createElement("div", {
+  }, "+", preview.items.length - 15, " criterios más")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: "10px"
@@ -1646,7 +1646,7 @@ function ImportModal({
       fontSize: "14px",
       fontWeight: "600"
     }
-  }, "Importar como nueva pesta\xF1a \u2192"), /*#__PURE__*/React.createElement("button", {
+  }, "Importar como nueva pestaña →"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setPreview(null),
     style: {
       background: C.item,
@@ -1865,7 +1865,7 @@ function ImportEmployeesModal({
       color: "#1a2332",
       flex: 1
     }
-  }, "\uD83D\uDCE5 Importar empleados desde Excel"), /*#__PURE__*/React.createElement("button", {
+  }, "📥 Importar empleados desde Excel"), /*#__PURE__*/React.createElement("button", {
     onClick: onClose,
     style: {
       background: "transparent",
@@ -1875,14 +1875,14 @@ function ImportEmployeesModal({
       cursor: "pointer",
       padding: "4px 8px"
     }
-  }, "\u2715")), /*#__PURE__*/React.createElement("p", {
+  }, "✕")), /*#__PURE__*/React.createElement("p", {
     style: {
       fontSize: "13px",
       color: "#4a5568",
       margin: "0 0 16px",
       lineHeight: 1.6
     }
-  }, "Cabecera esperada: ", /*#__PURE__*/React.createElement("strong", null, "Nom.empleado \xB7 Fecha incorporacion \xB7 Nivel actual \xB7 Experiencia SAP \xB7 Modulo1 \xB7 Modulo2 \xB7 Modulo3 \xB7 Sector \xB7 Ubicaci\xF3n"), /*#__PURE__*/React.createElement("br", null), "Si el nombre coincide con un empleado existente, sus datos se actualizar\xE1n (la foto se conserva)."), !preview && /*#__PURE__*/React.createElement("div", {
+  }, "Cabecera esperada: ", /*#__PURE__*/React.createElement("strong", null, "Nom.empleado · Fecha incorporacion · Nivel actual · Experiencia SAP · Modulo1 · Modulo2 · Modulo3 · Sector · Ubicación"), /*#__PURE__*/React.createElement("br", null), "Si el nombre coincide con un empleado existente, sus datos se actualizarán (la foto se conserva)."), !preview && /*#__PURE__*/React.createElement("div", {
     onDragOver: e => {
       e.preventDefault();
       setDragging(true);
@@ -1908,19 +1908,19 @@ function ImportEmployeesModal({
       fontSize: "40px",
       marginBottom: "10px"
     }
-  }, "\uD83D\uDCC2"), /*#__PURE__*/React.createElement("div", {
+  }, "📂"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "14px",
       fontWeight: "600",
       color: "#1a2332",
       marginBottom: "6px"
     }
-  }, "Arrastra tu archivo aqu\xED"), /*#__PURE__*/React.createElement("div", {
+  }, "Arrastra tu archivo aquí"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "12px",
       color: "#8796a5"
     }
-  }, "o haz clic para seleccionar \xB7 .xlsx / .xls"), /*#__PURE__*/React.createElement("input", {
+  }, "o haz clic para seleccionar · .xlsx / .xls"), /*#__PURE__*/React.createElement("input", {
     ref: fileRef,
     type: "file",
     accept: ".xlsx,.xls",
@@ -1958,7 +1958,7 @@ function ImportEmployeesModal({
       fontWeight: "700",
       color: "#16a34a"
     }
-  }, "\u271A ", newCount, " nuevo", newCount !== 1 ? "s" : "")), updateCount > 0 && /*#__PURE__*/React.createElement("div", {
+  }, "✚ ", newCount, " nuevo", newCount !== 1 ? "s" : "")), updateCount > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       background: "#eff6ff",
       border: "1px solid #bfdbfe",
@@ -1972,7 +1972,7 @@ function ImportEmployeesModal({
       fontWeight: "700",
       color: "#2563eb"
     }
-  }, "\u21BB ", updateCount, " actualizaci\xF3n", updateCount !== 1 ? "es" : ""))), /*#__PURE__*/React.createElement("div", {
+  }, "↻ ", updateCount, " actualización", updateCount !== 1 ? "es" : ""))), /*#__PURE__*/React.createElement("div", {
     style: {
       border: "1px solid #dde3ea",
       borderRadius: "8px",
@@ -1992,7 +1992,7 @@ function ImportEmployeesModal({
       textTransform: "uppercase",
       letterSpacing: "0.06em"
     }
-  }, /*#__PURE__*/React.createElement("div", null), /*#__PURE__*/React.createElement("div", null, "Nombre"), /*#__PURE__*/React.createElement("div", null, "Incorporaci\xF3n"), /*#__PURE__*/React.createElement("div", null, "Nivel"), /*#__PURE__*/React.createElement("div", null, "Exp. SAP"), /*#__PURE__*/React.createElement("div", null, "M\xF3dulos"), /*#__PURE__*/React.createElement("div", null, "Sector / Ubic.")), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", null), /*#__PURE__*/React.createElement("div", null, "Nombre"), /*#__PURE__*/React.createElement("div", null, "Incorporación"), /*#__PURE__*/React.createElement("div", null, "Nivel"), /*#__PURE__*/React.createElement("div", null, "Exp. SAP"), /*#__PURE__*/React.createElement("div", null, "Módulos"), /*#__PURE__*/React.createElement("div", null, "Sector / Ubic.")), /*#__PURE__*/React.createElement("div", {
     style: {
       maxHeight: "320px",
       overflowY: "auto"
@@ -2079,7 +2079,7 @@ function ImportEmployeesModal({
       fontSize: "14px",
       fontWeight: "600"
     }
-  }, "\u2713 Confirmar (", newCount > 0 ? `${newCount} nuevo${newCount !== 1 ? "s" : ""}` : "", newCount > 0 && updateCount > 0 ? " + " : "", updateCount > 0 ? `${updateCount} actualización${updateCount !== 1 ? "es" : ""}` : "", ")"), /*#__PURE__*/React.createElement("button", {
+  }, "✓ Confirmar (", newCount > 0 ? `${newCount} nuevo${newCount !== 1 ? "s" : ""}` : "", newCount > 0 && updateCount > 0 ? " + " : "", updateCount > 0 ? `${updateCount} actualización${updateCount !== 1 ? "es" : ""}` : "", ")"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setPreview(null),
     style: {
       background: "#f8fafc",
@@ -2151,7 +2151,7 @@ function HistoryModal({
       padding: "4px 8px 4px 0",
       fontWeight: "600"
     }
-  }, "\u2190 Atr\xE1s"), /*#__PURE__*/React.createElement("h2", {
+  }, "← Atrás"), /*#__PURE__*/React.createElement("h2", {
     style: {
       margin: 0,
       fontSize: "17px",
@@ -2159,7 +2159,7 @@ function HistoryModal({
       color: C.text,
       flex: 1
     }
-  }, "\uD83D\uDD52 ", empId ? selectedEmp?.nombre : "Histórico de evaluaciones"), /*#__PURE__*/React.createElement("button", {
+  }, "🕒 ", empId ? selectedEmp?.nombre : "Histórico de evaluaciones"), /*#__PURE__*/React.createElement("button", {
     onClick: onClose,
     style: {
       background: "transparent",
@@ -2169,7 +2169,7 @@ function HistoryModal({
       cursor: "pointer",
       padding: "4px 8px"
     }
-  }, "\u2715")), !empId ? /*#__PURE__*/React.createElement("div", {
+  }, "✕")), !empId ? /*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: "14px"
     }
@@ -2280,7 +2280,7 @@ function HistoryModal({
       fontSize: "13px",
       color: C.muted
     }
-  }, "Este empleado todav\xEDa no tiene evaluaciones guardadas.") : /*#__PURE__*/React.createElement("div", {
+  }, "Este empleado todavía no tiene evaluaciones guardadas.") : /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
@@ -2319,7 +2319,7 @@ function HistoryModal({
         color: C.muted,
         marginTop: "2px"
       }
-    }, fmtDate(h.fecha), " \xB7 ", h.evaluadores.join(" · "))), /*#__PURE__*/React.createElement("div", {
+    }, fmtDate(h.fecha), " · ", h.evaluadores.join(" · "))), /*#__PURE__*/React.createElement("div", {
       style: {
         background: color + "20",
         border: `1px solid ${color}50`,
@@ -2330,7 +2330,7 @@ function HistoryModal({
         fontWeight: "800",
         flexShrink: 0
       }
-    }, h.scoreGlobal.toFixed(2), " \xB7 ", h.nivel), /*#__PURE__*/React.createElement("button", {
+    }, h.scoreGlobal.toFixed(2), " · ", h.nivel), /*#__PURE__*/React.createElement("button", {
       disabled: !moduleLoaded,
       onClick: () => moduleLoaded && onLoad(h),
       title: !moduleLoaded ? "Este módulo ya no está cargado como pestaña" : "",
@@ -2591,14 +2591,14 @@ function SettingsView({
       cursor: "pointer",
       fontSize: "13px"
     }
-  }, "\u2190 Volver"), /*#__PURE__*/React.createElement("h2", {
+  }, "← Volver"), /*#__PURE__*/React.createElement("h2", {
     style: {
       margin: 0,
       fontSize: "17px",
       fontWeight: "700",
       color: C.text
     }
-  }, "\u2699 Ajustes \u2014 ", name)), /*#__PURE__*/React.createElement("div", {
+  }, "⚙ Ajustes — ", name)), /*#__PURE__*/React.createElement("div", {
     style: {
       background: C.card,
       borderBottom: `1px solid ${C.border}`,
@@ -2650,7 +2650,7 @@ function SettingsView({
       fontSize: "13px",
       fontWeight: "600"
     }
-  }, "+ A\xF1adir criterio")), /*#__PURE__*/React.createElement("div", {
+  }, "+ Añadir criterio")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
@@ -2707,7 +2707,7 @@ function SettingsView({
       fontSize: "12px",
       color: C.muted
     }
-  }, "\xC1mbito:"), /*#__PURE__*/React.createElement("select", {
+  }, "Ámbito:"), /*#__PURE__*/React.createElement("select", {
     value: editData.ambito,
     onChange: e => setEditData({
       ...editData,
@@ -2830,7 +2830,7 @@ function SettingsView({
       fontSize: "11px",
       color: "#dc2626"
     }
-  }, "\xBFEliminar?"), /*#__PURE__*/React.createElement("button", {
+  }, "¿Eliminar?"), /*#__PURE__*/React.createElement("button", {
     onClick: () => deleteItem(item.id),
     style: {
       background: "#fef2f2",
@@ -2842,7 +2842,7 @@ function SettingsView({
       fontSize: "11px",
       fontWeight: "600"
     }
-  }, "S\xED"), /*#__PURE__*/React.createElement("button", {
+  }, "Sí"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setConfirmDel(null),
     style: {
       background: "transparent",
@@ -2865,7 +2865,7 @@ function SettingsView({
       fontSize: "12px",
       flexShrink: 0
     }
-  }, "\u270F"), /*#__PURE__*/React.createElement("button", {
+  }, "✏"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setConfirmDel(item.id),
     style: {
       background: "transparent",
@@ -2877,7 +2877,7 @@ function SettingsView({
       fontSize: "12px",
       flexShrink: 0
     }
-  }, "\u2715"))))))), tab === "niveles" && /*#__PURE__*/React.createElement("div", {
+  }, "✕"))))))), tab === "niveles" && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
@@ -2920,7 +2920,7 @@ function SettingsView({
       color: l.color,
       fontWeight: "400"
     }
-  }, "\xB7 ", l.years)), /*#__PURE__*/React.createElement("div", {
+  }, "· ", l.years)), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "12px",
       color: C.muted,
@@ -2993,7 +2993,7 @@ function SettingsView({
   }, "Nivel (todos)"), LEVELS.map(l => /*#__PURE__*/React.createElement("option", {
     key: l.v,
     value: l.v
-  }, l.code, " \xB7 ", l.name))), /*#__PURE__*/React.createElement("select", {
+  }, l.code, " · ", l.name))), /*#__PURE__*/React.createElement("select", {
     value: filterConocimiento,
     onChange: e => setFilterConocimiento(e.target.value),
     style: {
@@ -3066,7 +3066,7 @@ function SettingsView({
     }
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "Ubicaci\xF3n (todas)"), allLocations.map(l => /*#__PURE__*/React.createElement("option", {
+  }, "Ubicación (todas)"), allLocations.map(l => /*#__PURE__*/React.createElement("option", {
     key: l,
     value: l
   }, l)))), /*#__PURE__*/React.createElement("div", {
@@ -3082,7 +3082,7 @@ function SettingsView({
       color: C.muted,
       flexShrink: 0
     }
-  }, "Incorporaci\xF3n:"), /*#__PURE__*/React.createElement("input", {
+  }, "Incorporación:"), /*#__PURE__*/React.createElement("input", {
     type: "date",
     value: filterFechaDesde,
     onChange: e => setFilterFechaDesde(e.target.value),
@@ -3101,7 +3101,7 @@ function SettingsView({
       fontSize: "12px",
       color: C.muted
     }
-  }, "\u2192"), /*#__PURE__*/React.createElement("input", {
+  }, "→"), /*#__PURE__*/React.createElement("input", {
     type: "date",
     value: filterFechaHasta,
     onChange: e => setFilterFechaHasta(e.target.value),
@@ -3141,7 +3141,7 @@ function SettingsView({
       fontSize: "12px",
       color: C.muted
     }
-  }, "\u2192"), /*#__PURE__*/React.createElement("input", {
+  }, "→"), /*#__PURE__*/React.createElement("input", {
     type: "date",
     value: filterSapHasta,
     onChange: e => setFilterSapHasta(e.target.value),
@@ -3173,7 +3173,7 @@ function SettingsView({
       cursor: "pointer",
       fontSize: "12px"
     }
-  }, "\u2715 Limpiar filtros"), /*#__PURE__*/React.createElement("button", {
+  }, "✕ Limpiar filtros"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowImportEmps(true),
     style: {
       marginLeft: hasFilters ? "0" : "auto",
@@ -3187,7 +3187,7 @@ function SettingsView({
       fontWeight: "600",
       flexShrink: 0
     }
-  }, "\uD83D\uDCE5 Importar Excel"), /*#__PURE__*/React.createElement("button", {
+  }, "📥 Importar Excel"), /*#__PURE__*/React.createElement("button", {
     onClick: addEmp,
     style: {
       background: C.accent,
@@ -3200,14 +3200,14 @@ function SettingsView({
       fontWeight: "600",
       flexShrink: 0
     }
-  }, "+ A\xF1adir empleado"))), employees.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, "+ Añadir empleado"))), employees.length === 0 ? /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "32px 16px",
       textAlign: "center",
       fontSize: "13px",
       color: C.muted
     }
-  }, "No hay empleados todav\xEDa. A\xF1ade el primero arriba.") : /*#__PURE__*/React.createElement("div", {
+  }, "No hay empleados todavía. Añade el primero arriba.") : /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
@@ -3290,7 +3290,7 @@ function SettingsView({
         cursor: "pointer",
         padding: 0
       }
-    }, "\u270F"), /*#__PURE__*/React.createElement("input", {
+    }, "✏"), /*#__PURE__*/React.createElement("input", {
       ref: photoInputRef,
       type: "file",
       accept: "image/*",
@@ -3364,7 +3364,7 @@ function SettingsView({
         fontSize: "12px",
         color: C.muted
       }
-    }, "Incorporaci\xF3n:"), /*#__PURE__*/React.createElement("input", {
+    }, "Incorporación:"), /*#__PURE__*/React.createElement("input", {
       type: "date",
       value: editEmpData.fechaIncorporacion || "",
       onChange: e => setEditEmpData({
@@ -3442,7 +3442,7 @@ function SettingsView({
         background: "#f8fafc",
         color: "#1e293b"
       }
-    }, l.code, " \xB7 ", l.name)))), /*#__PURE__*/React.createElement("div", {
+    }, l.code, " · ", l.name)))), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
         alignItems: "center",
@@ -3513,7 +3513,7 @@ function SettingsView({
         fontSize: "12px",
         color: C.muted
       }
-    }, "Ubicaci\xF3n:"), /*#__PURE__*/React.createElement(ModuleMultiSelect, {
+    }, "Ubicación:"), /*#__PURE__*/React.createElement(ModuleMultiSelect, {
       value: editEmpData.ubicacion || [],
       onChange: v => setEditEmpData({
         ...editEmpData,
@@ -3521,7 +3521,7 @@ function SettingsView({
       }),
       options: locations,
       onAddOption: addLocation,
-      placeholder: "Seleccionar ubicaci\xF3n"
+      placeholder: "Seleccionar ubicación"
     })), /*#__PURE__*/React.createElement("div", {
       style: {
         display: "flex",
@@ -3604,7 +3604,7 @@ function SettingsView({
         color: C.muted,
         flexShrink: 0
       }
-    }, "Desde ", fmtDate(emp.fechaIncorporacion), " \xB7 ", calcAntiguedad(emp.fechaIncorporacion)), (emp.modulos || []).map(m => /*#__PURE__*/React.createElement("span", {
+    }, "Desde ", fmtDate(emp.fechaIncorporacion), " · ", calcAntiguedad(emp.fechaIncorporacion)), (emp.modulos || []).map(m => /*#__PURE__*/React.createElement("span", {
       key: m,
       style: {
         background: C.item,
@@ -3652,7 +3652,7 @@ function SettingsView({
         fontWeight: "600",
         flexShrink: 0
       }
-    }, "\uD83D\uDCCD", u)), /*#__PURE__*/React.createElement("span", {
+    }, "📍", u)), /*#__PURE__*/React.createElement("span", {
       style: {
         background: empLvl.color + "20",
         border: `1px solid ${empLvl.color}50`,
@@ -3675,7 +3675,7 @@ function SettingsView({
         fontSize: "11px",
         color: "#dc2626"
       }
-    }, "\xBFEliminar?"), /*#__PURE__*/React.createElement("button", {
+    }, "¿Eliminar?"), /*#__PURE__*/React.createElement("button", {
       onClick: () => {
         removeEmployee(emp.id);
         setConfirmDelEmp(null);
@@ -3690,7 +3690,7 @@ function SettingsView({
         fontSize: "11px",
         fontWeight: "600"
       }
-    }, "S\xED"), /*#__PURE__*/React.createElement("button", {
+    }, "Sí"), /*#__PURE__*/React.createElement("button", {
       onClick: () => setConfirmDelEmp(null),
       style: {
         background: "transparent",
@@ -3713,7 +3713,7 @@ function SettingsView({
         fontSize: "12px",
         flexShrink: 0
       }
-    }, "\u270F"), /*#__PURE__*/React.createElement("button", {
+    }, "✏"), /*#__PURE__*/React.createElement("button", {
       onClick: () => setConfirmDelEmp(emp.id),
       style: {
         background: "transparent",
@@ -3725,7 +3725,7 @@ function SettingsView({
         fontSize: "12px",
         flexShrink: 0
       }
-    }, "\u2715"))));
+    }, "✕"))));
   }))), showImportEmps && /*#__PURE__*/React.createElement(ImportEmployeesModal, {
     onImport: emps => {
       bulkAddEmployees(emps);
@@ -3756,7 +3756,7 @@ function SettingsView({
       textTransform: "uppercase",
       letterSpacing: "0.06em"
     }
-  }, "Gestionar Pesta\xF1as"), /*#__PURE__*/React.createElement("div", {
+  }, "Gestionar Pestañas"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
@@ -3783,7 +3783,7 @@ function SettingsView({
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: lbl
-  }, "Renombrar pesta\xF1a"), /*#__PURE__*/React.createElement("input", {
+  }, "Renombrar pestaña"), /*#__PURE__*/React.createElement("input", {
     value: modName,
     onChange: e => setModName(e.target.value),
     placeholder: "Nuevo nombre",
@@ -3806,7 +3806,7 @@ function SettingsView({
       fontWeight: "600",
       alignSelf: "flex-start"
     }
-  }, "\u2713 Renombrar")), modules.length > 1 && /*#__PURE__*/React.createElement("button", {
+  }, "✓ Renombrar")), modules.length > 1 && /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       if (window.confirm("¿Eliminar esta pestaña y todas sus evaluaciones?")) onRemoveModule(module.id);
     },
@@ -3821,7 +3821,7 @@ function SettingsView({
       fontWeight: "600",
       alignSelf: "flex-start"
     }
-  }, "\uD83D\uDDD1 Eliminar pesta\xF1a"))), /*#__PURE__*/React.createElement("div", {
+  }, "🗑 Eliminar pestaña"))), /*#__PURE__*/React.createElement("div", {
     style: {
       background: C.item,
       borderRadius: "10px",
@@ -3868,7 +3868,7 @@ function SettingsView({
       fontWeight: "600",
       alignSelf: "flex-start"
     }
-  }, "Guardar y volver \u21A9"))));
+  }, "Guardar y volver ↩"))));
 }
 
 // ── Main App ──────────────────────────────────────────────────
@@ -3897,18 +3897,19 @@ function HomeScreen({
     src: HIBERUS_LOGO,
     alt: "hiberus",
     style: {
-      height: "30px",
+      height: "60px",
       display: "block"
     }
   }), /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: "15px",
+      fontSize: "12px",
       fontWeight: "700",
-      color: "#1a2332"
+      color: "#1a2332",
+      marginTop: "5px"
     }
-  }, "P\xE1gina de inicio"), /*#__PURE__*/React.createElement("button", {
+  }, "Página de inicio"), /*#__PURE__*/React.createElement("button", {
     onClick: () => window.doLogout && window.doLogout(),
-    title: "Cerrar sesi\xF3n",
+    title: "Cerrar sesión",
     style: {
       marginLeft: "auto",
       width: "34px",
@@ -3923,7 +3924,7 @@ function HomeScreen({
       fontSize: "15px",
       color: "#0b2e59"
     }
-  }, "\uD83D\uDC64")), /*#__PURE__*/React.createElement("div", {
+  }, "👤")), /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: "1200px",
       margin: "0 auto",
@@ -3972,7 +3973,7 @@ function HomeScreen({
       color: "#1a2332",
       lineHeight: "1.3"
     }
-  }, "Evaluaci\xF3n de empleados"), /*#__PURE__*/React.createElement("div", {
+  }, "Evaluación de empleados"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "11.5px",
       color: "#6b7a8c",
@@ -3984,7 +3985,7 @@ function HomeScreen({
       fontSize: "30px",
       color: "#0b2e59"
     }
-  }, "\uD83D\uDCCA")))));
+  }, "📊")))));
 }
 function App() {
   const [currentApp, setCurrentApp] = useState("home");
@@ -4264,7 +4265,7 @@ function App() {
       fontFamily: "system-ui,-apple-system,sans-serif",
       fontSize: "13px"
     }
-  }, "Cargando datos guardados\u2026");
+  }, "Cargando datos guardados…");
   if (view === "settings") return /*#__PURE__*/React.createElement(SettingsView, {
     module: module,
     modules: modules,
@@ -4338,7 +4339,7 @@ function App() {
     },
     onMouseEnter: e => e.currentTarget.style.color = C.accent,
     onMouseLeave: e => e.currentTarget.style.color = C.muted
-  }, "+ Importar m\xF3dulo")), /*#__PURE__*/React.createElement("div", {
+  }, "+ Importar módulo")), /*#__PURE__*/React.createElement("div", {
     style: {
       background: "#fafbfd",
       borderBottom: `1px solid ${C.border}`,
@@ -4373,7 +4374,7 @@ function App() {
       fontSize: "13px",
       color: C.muted
     }
-  }, "\uD83D\uDCC5"), /*#__PURE__*/React.createElement("input", {
+  }, "📅"), /*#__PURE__*/React.createElement("input", {
     type: "date",
     value: evalDate,
     onChange: e => setEvalDate(e.target.value),
@@ -4417,7 +4418,7 @@ function App() {
       gap: "6px",
       flexShrink: 0
     }
-  }, "\uD83D\uDD52 Hist\xF3rico"), /*#__PURE__*/React.createElement("button", {
+  }, "🕒 Histórico"), /*#__PURE__*/React.createElement("button", {
     onClick: saveEvaluation,
     disabled: !selectedEmployee,
     style: {
@@ -4435,7 +4436,7 @@ function App() {
       transition: "all 0.2s",
       flexShrink: 0
     }
-  }, "\uD83D\uDCBE Guardar evaluaci\xF3n"))), /*#__PURE__*/React.createElement("div", {
+  }, "💾 Guardar evaluación"))), /*#__PURE__*/React.createElement("div", {
     style: {
       background: C.card,
       borderBottom: `1px solid ${C.border}`,
@@ -4459,7 +4460,7 @@ function App() {
       letterSpacing: "0.1em",
       marginBottom: "3px"
     }
-  }, "Evaluaci\xF3n de competencias SAP"), /*#__PURE__*/React.createElement("div", {
+  }, "Evaluación de competencias SAP"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "17px",
       fontWeight: "800",
@@ -4472,12 +4473,12 @@ function App() {
       color: C.muted,
       marginTop: "3px"
     }
-  }, evaluators[0], " \xB7 ", evaluators[1], " \xB7 ", items.length, " criterios \xB7 ", totalWeight, " pts", delta > 0.2 && /*#__PURE__*/React.createElement("span", {
+  }, evaluators[0], " · ", evaluators[1], " · ", items.length, " criterios · ", totalWeight, " pts", delta > 0.2 && /*#__PURE__*/React.createElement("span", {
     style: {
       marginLeft: "10px",
       color: "#f59e0b"
     }
-  }, "\u26A0 \u0394", delta.toFixed(2), " entre evaluadores"))), /*#__PURE__*/React.createElement(ScoreGauge, {
+  }, "⚠ Δ", delta.toFixed(2), " entre evaluadores"))), /*#__PURE__*/React.createElement(ScoreGauge, {
     score: score
   }), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -4523,7 +4524,7 @@ function App() {
       alignItems: "center",
       gap: "6px"
     }
-  }, "\u2699 Ajustes"), /*#__PURE__*/React.createElement("button", {
+  }, "⚙ Ajustes"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setCurrentApp("home"),
     title: "Volver al inicio",
     style: {
@@ -4537,9 +4538,9 @@ function App() {
       display: "flex",
       alignItems: "center"
     }
-  }, "\uD83C\uDFE0"), /*#__PURE__*/React.createElement("button", {
+  }, "🏠"), /*#__PURE__*/React.createElement("button", {
     onClick: () => window.doLogout && window.doLogout(),
-    title: "Cerrar sesi\xF3n",
+    title: "Cerrar sesión",
     style: {
       background: C.item,
       border: `1px solid ${C.border2}`,
@@ -4551,7 +4552,7 @@ function App() {
       display: "flex",
       alignItems: "center"
     }
-  }, "\u23FB"))), /*#__PURE__*/React.createElement("div", {
+  }, "⏻"))), /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: "1080px",
       margin: "0 auto",
@@ -4576,7 +4577,7 @@ function App() {
       fontSize: "12px",
       color: C.muted
     }
-  }, "\u2191 Haz clic en cualquier criterio para ver el significado del nivel asignado")), showImport && /*#__PURE__*/React.createElement(ImportModal, {
+  }, "↑ Haz clic en cualquier criterio para ver el significado del nivel asignado")), showImport && /*#__PURE__*/React.createElement(ImportModal, {
     onImport: handleImport,
     onClose: () => setShowImport(false)
   }), showHistory && /*#__PURE__*/React.createElement(HistoryModal, {
@@ -4588,6 +4589,6 @@ function App() {
   }));
 }
 
-</script>
+  </script>
 </body>
 </html>
