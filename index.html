@@ -61,7 +61,6 @@
     });
     const {useState,useRef,useEffect,useMemo}=React;
 const C = {
-const C = {
   bg: "#f0f4f8",
   card: "#ffffff",
   item: "#f8fafc",
@@ -2282,3 +2281,96 @@ function App() {
     onClose: () => setShowHistory(false)
   }));
 }
+
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    let authCheckInterval = null;
+    let lastActivity = Date.now();
+    const INACTIVITY_TIMEOUT = 15 * 60 * 1000;
+    window.addEventListener('click', () => { lastActivity = Date.now(); });
+    window.addEventListener('keydown', () => { lastActivity = Date.now(); });
+
+    const _auth = firebase.auth();
+    window.doLogout = () => _auth.signOut();
+    firebase.firestore().settings({ ignoreUndefinedProperties: true });
+
+    window.storage = {
+      get: async (key, shared = false) => {
+        try {
+          const docId = shared ? 'shared_' + key : 'user_' + key;
+          const docSnap = await firebase.firestore().collection('storage').doc(docId).get();
+          if (docSnap.exists) return { key, value: docSnap.data().value, shared };
+        } catch (e) {}
+        const stored = localStorage.getItem(key);
+        if (stored) return { key, value: stored, shared: false };
+        throw new Error('Not found');
+      },
+      set: async (key, value, shared = false) => {
+        try {
+          const docId = shared ? 'shared_' + key : 'user_' + key;
+          await firebase.firestore().collection('storage').doc(docId).set({ value, ts: new Date() });
+        } catch (e) {}
+        localStorage.setItem(key, value);
+        return { key, value, shared };
+      },
+      delete: async (key, shared = false) => {
+        try {
+          const docId = shared ? 'shared_' + key : 'user_' + key;
+          await firebase.firestore().collection('storage').doc(docId).delete();
+        } catch (e) {}
+        localStorage.removeItem(key);
+        return { key, deleted: true, shared };
+      },
+      list: async (prefix = '', shared = false) => {
+        const keys = [];
+        try {
+          const snapshot = await firebase.firestore().collection('storage').get();
+          snapshot.forEach(doc => {
+            if (prefix && !doc.id.includes(prefix)) return;
+            if (shared && !doc.id.startsWith('shared_')) return;
+            if (!shared && !doc.id.startsWith('user_')) return;
+            keys.push(doc.id.replace(/^(user_|shared_)/, ''));
+          });
+        } catch (e) {}
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (prefix && !k.includes(prefix)) continue;
+          if (!keys.includes(k)) keys.push(k);
+        }
+        return { keys, prefix, shared };
+      }
+    };
+
+    _auth.onAuthStateChanged(user => {
+      if (user) {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('root').style.display = 'block';
+        root.render(React.createElement(App, null));
+        authCheckInterval = setInterval(() => {
+          if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) _auth.signOut();
+        }, 60000);
+      } else {
+        document.getElementById('login-screen').style.display = 'flex';
+        document.getElementById('root').style.display = 'none';
+        if (authCheckInterval) clearInterval(authCheckInterval);
+      }
+    });
+
+    const doLogin = () => {
+      const email = document.getElementById('login-email').value.trim();
+      const pass = document.getElementById('login-pass').value.trim();
+      const err = document.getElementById('login-error');
+      if (!email || !pass) { err.textContent = 'Email y contraseña requeridos'; return; }
+      err.textContent = 'Iniciando sesión…';
+      _auth.signInWithEmailAndPassword(email, pass)
+        .then(() => { err.textContent = ''; })
+        .catch(e => {
+          const msg = e.code === 'auth/user-not-found' ? 'Usuario no encontrado' :
+            e.code === 'auth/wrong-password' ? 'Contraseña incorrecta' :
+            e.code === 'auth/invalid-email' ? 'Email inválido' : e.message;
+          err.textContent = msg;
+        });
+    };
+  </script>
+</body>
+</html>
