@@ -2275,16 +2275,16 @@ function App() {
 
     _auth.onAuthStateChanged(user => {
       if (user) {
-        document.getElementById('login-container').style.display = 'none';
+        document.getElementById('login-screen').style.display = 'none';
         document.getElementById('root').style.display = 'block';
-        root.render(<App />);
+        root.render(React.createElement(App, null));
         authCheckInterval = setInterval(() => {
           if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) {
             _auth.signOut();
           }
         }, 60000);
       } else {
-        document.getElementById('login-container').style.display = 'block';
+        document.getElementById('login-screen').style.display = 'flex';
         document.getElementById('root').style.display = 'none';
         if (authCheckInterval) clearInterval(authCheckInterval);
       }
