@@ -80,7 +80,7 @@
         if(shared){_db.collection("shared-data").where(firebase.firestore.FieldPath.documentId(),">=",prefix).where(firebase.firestore.FieldPath.documentId(),"<",prefix+"~").get().then(qs=>res({keys:qs.docs.map(d=>d.id)})).catch(rej);}
         else{try{res({keys:Object.keys(localStorage).filter(k=>k.startsWith(prefix))});}catch(e){rej(e);}}
       }),
-      restorePhotos:(emps)=>{emps.forEach(e=>{if(_localPhotos[e.id])e.foto=_localPhotos[e.id];});return emps;}
+      restorePhotos:(emps)=>{emps.forEach(e=>{try{const p=localStorage.getItem('sap-qm-photo-'+e.id);if(p)e.foto=p;}catch(_){}});return emps;}
     };
 
     let _inactivityTimer;
@@ -4021,7 +4021,7 @@ function App() {
       try {
         // Wait for Firebase auth to be confirmed before reading Firestore
         if (window._authReady) await window._authReady;
-        const res = await withTimeout(window.storage.get("sap-qm-employees", false));
+        const res = await withTimeout(window.storage.get("sap-qm-employees", true));
         if (res && res.value) {
           const saved = JSON.parse(res.value);
           if (Array.isArray(saved) && saved.length) {
@@ -4080,7 +4080,18 @@ function App() {
   const persistEmployees = async updated => {
     setEmployees(updated);
     try {
-      await window.storage.set("sap-qm-employees", JSON.stringify(updated), false);
+      updated.forEach(e => {
+        if (e.foto) {
+          try {
+            localStorage.setItem("sap-qm-photo-" + e.id, e.foto);
+          } catch (_) {}
+        }
+      });
+      const stripped = updated.map(e => ({
+        ...e,
+        foto: null
+      }));
+      await window.storage.set("sap-qm-employees", JSON.stringify(stripped), true);
     } catch (e) {}
   };
   const addEmployee = emp => persistEmployees([...employees, emp]);
