@@ -232,6 +232,63 @@ function parseExcelModule(ab, fileName) {
     ambitoOrder: [...new Set(items.map(i => i.ambito))]
   };
 }
+const excelDateToISO = v => {
+  if (v == null || v === "") return "";
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === "number") {
+    // fecha serial Excel
+    const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+    return isNaN(d) ? "" : d.toISOString().slice(0, 10);
+  }
+  const s = String(v).trim();
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return "";
+};
+const parseNivel = v => {
+  const m = String(v || "").trim().match(/^(V\d(?:\.\d)?|R)\b/i);
+  return m ? m[1].toUpperCase() : "";
+};
+const normModule = v => {
+  const s = String(v || "").trim();
+  if (!s) return "";
+  return /^sap/i.test(s) ? s : "SAP " + s.toUpperCase();
+};
+function parseEmployeesExcel(ab) {
+  const wb = XLSX.read(new Uint8Array(ab), {
+    type: "array",
+    cellDates: true
+  });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, {
+    header: 1,
+    defval: ""
+  });
+  const emps = [];
+  let uid = Date.now();
+  for (const row of rows) {
+    const nombre = String(row[0] || "").trim();
+    if (!nombre) continue;
+    if (/^nom/i.test(nombre)) continue; // cabecera
+    const mods = [row[4], row[5], row[6]].map(normModule).filter(Boolean);
+    const expRaw = row[3];
+    const expSap = expRaw ? /^\d{4}$/.test(String(expRaw).trim()) ? `${String(expRaw).trim()}-01-01` : excelDateToISO(expRaw) : "";
+    emps.push({
+      id: "emp-" + uid++,
+      nombre,
+      antiguedad: excelDateToISO(row[1]),
+      nivel: parseNivel(row[2]),
+      expSap,
+      module: mods[0] || "",
+      modules: mods,
+      sector: String(row[7] || "").trim(),
+      skill: "",
+      location: String(row[8] || "").trim()
+    });
+  }
+  return emps;
+}
 const QM_MODULE = {
   id: "qm-001",
   name: "SAP QM — Gestión de Calidad",
@@ -1268,6 +1325,7 @@ const SettingsView = ({
   employees,
   addEmployee,
   removeEmployee,
+  onBulkAdd,
   sapModules,
   addSapModule,
   sectors,
@@ -1626,37 +1684,27 @@ const SettingsView = ({
   }, "\uD83D\uDCE4 Importar desde Excel"), /*#__PURE__*/React.createElement("input", {
     ref: bulkInputRef,
     type: "file",
-    accept: ".xlsx",
+    accept: ".xlsx,.xls",
     onChange: e => {
       const f = e.target.files[0];
-      if (f) {
-        const r = new FileReader();
-        r.onload = ev => {
-          const wb = XLSX.read(new Uint8Array(ev.target.result), {
-            type: "array"
-          });
-          const ws = wb.Sheets[wb.SheetNames[0]];
-          const rows = XLSX.utils.sheet_to_json(ws, {
-            header: 1
-          });
-          const newEmps = [];
-          for (const row of rows) {
-            if (row[0]) {
-              newEmps.push({
-                id: "emp-" + Date.now(),
-                nombre: row[0],
-                module: row[1] || "",
-                sector: row[2] || "",
-                skill: row[3] || "",
-                location: row[4] || "",
-                antiguedad: row[5] || ""
-              });
-            }
+      e.target.value = "";
+      if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => {
+        try {
+          const emps = parseEmployeesExcel(ev.target.result);
+          if (!emps.length) {
+            alert("No se encontraron empleados en el archivo");
+            return;
           }
-          setEmployees(prev => [...prev, ...newEmps]);
-        };
-        r.readAsArrayBuffer(f);
-      }
+          const res = onBulkAdd(emps);
+          alert(`Importación completada: ${res.added} nuevos, ${res.updated} actualizados`);
+        } catch (err) {
+          alert("Error al importar: " + err.message);
+        }
+      };
+      r.onerror = () => alert("No se pudo leer el archivo");
+      r.readAsArrayBuffer(f);
     },
     style: {
       display: "none"
@@ -1881,6 +1929,36 @@ function App() {
   const removeEmployee = id => {
     setEmployees(prev => prev.filter(e => e.id !== id));
   };
+  const bulkAddEmployees = emps => {
+    let added = 0,
+      updated = 0;
+    setEmployees(prev => {
+      const byName = new Map(prev.map(e => [e.nombre.trim().toLowerCase(), e]));
+      const result = [...prev];
+      for (const emp of emps) {
+        const key = emp.nombre.trim().toLowerCase();
+        const existing = byName.get(key);
+        if (existing) {
+          const idx = result.findIndex(e => e.id === existing.id);
+          result[idx] = {
+            ...existing,
+            ...emp,
+            id: existing.id
+          };
+          updated++;
+        } else {
+          result.push(emp);
+          byName.set(key, emp);
+          added++;
+        }
+      }
+      return result;
+    });
+    return {
+      added,
+      updated
+    };
+  };
   const removeModule = id => {
     const newMods = modules.filter(m => m.id !== id);
     setModules(newMods);
@@ -1959,6 +2037,7 @@ function App() {
     employees: employees,
     addEmployee: addEmployee,
     removeEmployee: removeEmployee,
+    onBulkAdd: bulkAddEmployees,
     sapModules: sapModules,
     addSapModule: addSapModule,
     sectors: sectors,
@@ -2383,6 +2462,7 @@ function App() {
     onClose: () => setShowHistory(false)
   }));
 }
+
 
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
