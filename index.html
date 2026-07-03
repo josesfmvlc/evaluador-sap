@@ -1511,45 +1511,105 @@ const SettingsView = ({
     }
   }, "\uD83D\uDC65 Empleados"), /*#__PURE__*/React.createElement("div", {
     style: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-      gap: "12px",
+      border: `1px solid ${C.border}`,
+      borderRadius: "8px",
+      overflow: "hidden",
       marginBottom: "20px"
     }
-  }, employees.map(e => /*#__PURE__*/React.createElement("div", {
+  }, employees.map((e, idx) => /*#__PURE__*/React.createElement("div", {
     key: e.id,
     style: {
-      background: C.item,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "8px",
-      padding: "12px"
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      padding: "10px 14px",
+      background: idx % 2 ? C.item : C.card,
+      borderBottom: idx < employees.length - 1 ? `1px solid ${C.rowBorder}` : "none"
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: "12px",
-      fontWeight: "600",
-      marginBottom: "4px"
+      flex: 1,
+      minWidth: "180px"
     }
-  }, e.nombre), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: "11px",
-      color: C.muted,
-      marginBottom: "8px"
+      fontSize: "13px",
+      fontWeight: "600",
+      color: C.text
     }
-  }, e.module), /*#__PURE__*/React.createElement("button", {
+  }, e.nombre), e.nivel && /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: "8px",
+      fontSize: "10px",
+      fontWeight: "700",
+      color: "white",
+      background: C.accent,
+      borderRadius: "4px",
+      padding: "2px 6px"
+    }
+  }, e.nivel)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "14px",
+      flexShrink: 0,
+      fontSize: "11px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "150px",
+      textAlign: "right"
+    }
+  }, (e.modules && e.modules.length ? e.modules : e.module ? [e.module] : []).map((m, j) => /*#__PURE__*/React.createElement("span", {
+    key: j,
+    style: {
+      background: "#e0edff",
+      color: "#1d4ed8",
+      borderRadius: "4px",
+      padding: "2px 6px",
+      marginLeft: "4px",
+      fontWeight: "600"
+    }
+  }, m))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "110px",
+      textAlign: "right"
+    }
+  }, e.skill && /*#__PURE__*/React.createElement("span", {
+    style: {
+      background: "#f3e8ff",
+      color: "#7e22ce",
+      borderRadius: "4px",
+      padding: "2px 6px",
+      fontWeight: "600"
+    }
+  }, e.skill)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "120px",
+      color: C.text2,
+      textAlign: "right"
+    },
+    title: "Fecha de incorporaci\xF3n"
+  }, "\uD83D\uDCC5 ", e.antiguedad ? fmtDate(e.antiguedad) : "—"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "110px",
+      color: C.text2,
+      textAlign: "right"
+    },
+    title: "Experiencia SAP"
+  }, "\uD83E\uDDED ", e.expSap ? fmtDate(e.expSap) : "—"), /*#__PURE__*/React.createElement("button", {
     onClick: () => removeEmployee(e.id),
     style: {
       background: "#fee2e2",
       color: "#dc2626",
       border: "none",
       borderRadius: "6px",
-      padding: "4px 8px",
+      padding: "5px 10px",
       fontSize: "10px",
       fontWeight: "600",
-      cursor: "pointer",
-      width: "100%"
+      cursor: "pointer"
     }
-  }, "Eliminar")))), /*#__PURE__*/React.createElement("div", {
+  }, "Eliminar"))))), /*#__PURE__*/React.createElement("div", {
     style: {
       borderTop: `1px solid ${C.border}`,
       paddingTop: "16px"
@@ -1932,28 +1992,26 @@ function App() {
   const bulkAddEmployees = emps => {
     let added = 0,
       updated = 0;
-    setEmployees(prev => {
-      const byName = new Map(prev.map(e => [e.nombre.trim().toLowerCase(), e]));
-      const result = [...prev];
-      for (const emp of emps) {
-        const key = emp.nombre.trim().toLowerCase();
-        const existing = byName.get(key);
-        if (existing) {
-          const idx = result.findIndex(e => e.id === existing.id);
-          result[idx] = {
-            ...existing,
-            ...emp,
-            id: existing.id
-          };
-          updated++;
-        } else {
-          result.push(emp);
-          byName.set(key, emp);
-          added++;
-        }
+    const byName = new Map(employees.map(e => [e.nombre.trim().toLowerCase(), e]));
+    const result = [...employees];
+    for (const emp of emps) {
+      const key = emp.nombre.trim().toLowerCase();
+      const existing = byName.get(key);
+      if (existing) {
+        const idx = result.findIndex(e => e.id === existing.id);
+        result[idx] = {
+          ...existing,
+          ...emp,
+          id: existing.id
+        };
+        updated++;
+      } else {
+        result.push(emp);
+        byName.set(key, emp);
+        added++;
       }
-      return result;
-    });
+    }
+    setEmployees(result);
     return {
       added,
       updated
