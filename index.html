@@ -326,7 +326,7 @@ const Tag = ({
       display: "inline-block",
       marginRight: "4px"
     }
-  });
+  }, text);
 };
 const MultiSelectDropdown = ({
   label,
@@ -485,6 +485,7 @@ const EmployeeListWithFilters = ({
     antiguedad: [],
     expSap: []
   });
+  const [collapsed, setCollapsed] = useState(true);
   const setF = (k, v) => setFilters(f => ({
     ...f,
     [k]: v
@@ -507,12 +508,22 @@ const EmployeeListWithFilters = ({
       border: `1px solid ${C.border}`
     }
   }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setCollapsed(!collapsed),
     style: {
       fontSize: "14px",
       fontWeight: "700",
-      marginBottom: "16px"
+      marginBottom: collapsed ? "0" : "16px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      userSelect: "none"
     }
-  }, "👥 Empleados (", filtered.length, "/", employees.length, ")"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "12px"
+    }
+  }, collapsed ? "▶" : "▼"), "👥 Empleados (", filtered.length, "/", employees.length, ")"), !collapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: "16px",
       display: "grid",
@@ -719,7 +730,7 @@ const EmployeeListWithFilters = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "🗑")))))));
+  }, "🗑"))))))));
 };
 const ItemListSection = ({
   title,
