@@ -671,7 +671,7 @@ const HomeScreen = ({
       lineHeight: 1,
       padding: "0 4px"
     }
-  }, "\u2261"), /*#__PURE__*/React.createElement("div", {
+  }, "≡"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
@@ -688,7 +688,7 @@ const HomeScreen = ({
       fontWeight: "600",
       letterSpacing: "0.01em"
     }
-  }, "P\xE1gina de inicio"), /*#__PURE__*/React.createElement("div", {
+  }, "Página de inicio"), /*#__PURE__*/React.createElement("div", {
     style: {
       marginLeft: "auto",
       display: "flex",
@@ -708,9 +708,9 @@ const HomeScreen = ({
       cursor: "pointer",
       color: "white"
     }
-  }, "\uD83D\uDC64"), /*#__PURE__*/React.createElement("button", {
+  }, "👤"), /*#__PURE__*/React.createElement("button", {
     onClick: () => window.doLogout && window.doLogout(),
-    title: "Cerrar sesi\xF3n",
+    title: "Cerrar sesión",
     style: {
       background: "none",
       border: "1px solid rgba(255,255,255,0.3)",
@@ -724,7 +724,7 @@ const HomeScreen = ({
       alignItems: "center",
       justifyContent: "center"
     }
-  }, "\u23FB"))), /*#__PURE__*/React.createElement("div", {
+  }, "⏻"))), /*#__PURE__*/React.createElement("div", {
     style: {
       background: "white",
       borderBottom: `1px solid ${FIORI_BORDER}`,
@@ -741,7 +741,7 @@ const HomeScreen = ({
       borderBottom: `2px solid ${FIORI_BLUE}`,
       cursor: "pointer"
     }
-  }, "Mi p\xE1gina de inicio"), /*#__PURE__*/React.createElement("div", {
+  }, "Mi página de inicio"), /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "12px 16px",
       fontSize: "13px",
@@ -759,7 +759,7 @@ const HomeScreen = ({
       color: FIORI_TEXT,
       marginBottom: "20px"
     }
-  }, "Aplicaciones de consultor\xEDa"), /*#__PURE__*/React.createElement("div", {
+  }, "Aplicaciones de consultoría"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       flexWrap: "wrap",
@@ -849,7 +849,7 @@ const ModulePicker = ({
   }
 }, /*#__PURE__*/React.createElement("option", {
   value: ""
-}, "-- Seleccionar m\xF3dulo --"), modules.map(m => /*#__PURE__*/React.createElement("option", {
+}, "-- Seleccionar módulo --"), modules.map(m => /*#__PURE__*/React.createElement("option", {
   key: m.id,
   value: m.id
 }, m.name)));
@@ -955,7 +955,7 @@ const LevelTooltip = ({
     color: level.color,
     marginBottom: "12px"
   }
-}, level.code, " \xB7 ", level.name), /*#__PURE__*/React.createElement("div", {
+}, level.code, " · ", level.name), /*#__PURE__*/React.createElement("div", {
   style: {
     fontSize: "13px",
     color: C.text,
@@ -967,7 +967,7 @@ const LevelTooltip = ({
     fontSize: "12px",
     color: C.muted
   }
-}, "\uD83D\uDCCA ", level.years)));
+}, "📊 ", level.years)));
 const ItemRow = ({
   item,
   ev1,
@@ -1232,7 +1232,7 @@ const HistoryModal = ({
       justifyContent: "space-between",
       alignItems: "center"
     }
-  }, "\uD83D\uDCCB Hist\xF3rico de evaluaciones", /*#__PURE__*/React.createElement("button", {
+  }, "📋 Histórico de evaluaciones", /*#__PURE__*/React.createElement("button", {
     onClick: onClose,
     style: {
       background: "none",
@@ -1240,7 +1240,7 @@ const HistoryModal = ({
       fontSize: "20px",
       cursor: "pointer"
     }
-  }, "\u2715")), /*#__PURE__*/React.createElement("div", {
+  }, "✕")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: "12px",
@@ -1277,7 +1277,7 @@ const HistoryModal = ({
     }
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "-- Todos los m\xF3dulos --"), modules.map(m => /*#__PURE__*/React.createElement("option", {
+  }, "-- Todos los módulos --"), modules.map(m => /*#__PURE__*/React.createElement("option", {
     key: m.id,
     value: m.id
   }, m.name)))), filtered.length === 0 ? /*#__PURE__*/React.createElement("div", {
@@ -1311,7 +1311,7 @@ const HistoryModal = ({
       fontSize: "12px",
       color: C.muted
     }
-  }, modules.find(m => m.id === e.moduloId)?.name, " \xB7 ", fmtDate(e.fecha)))))));
+  }, modules.find(m => m.id === e.moduloId)?.name, " · ", fmtDate(e.fecha)))))));
 };
 const ImportModal = ({
   onImport,
@@ -1348,13 +1348,13 @@ const ImportModal = ({
       fontWeight: "700",
       marginBottom: "12px"
     }
-  }, "\uD83D\uDCE5 Importar m\xF3dulo"), /*#__PURE__*/React.createElement("div", {
+  }, "📥 Importar módulo"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "13px",
       color: C.muted,
       marginBottom: "20px"
     }
-  }, "Sube un archivo Excel con: Peso | Descripci\xF3n | \xC1mbito | Puntuaci\xF3n V1 | Puntuaci\xF3n V2"), /*#__PURE__*/React.createElement("input", {
+  }, "Sube un archivo Excel con: Peso | Descripción | Ámbito | Puntuación V1 | Puntuación V2"), /*#__PURE__*/React.createElement("input", {
     ref: inputRef,
     type: "file",
     accept: ".xlsx,.xls",
@@ -1459,7 +1459,7 @@ const EditEmployeeModal = ({
       fontWeight: "700",
       marginBottom: "16px"
     }
-  }, "\u270F\uFE0F Editar empleado"), /*#__PURE__*/React.createElement("div", {
+  }, "✏️ Editar empleado"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr",
@@ -1487,18 +1487,18 @@ const EditEmployeeModal = ({
     value: n
   }, n || "—")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: lbl
-  }, "Ubicaci\xF3n"), /*#__PURE__*/React.createElement("select", {
+  }, "Ubicación"), /*#__PURE__*/React.createElement("select", {
     value: form.location || "",
     onChange: e => set("location", e.target.value),
     style: inp
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "\u2014"), [...new Set([...locations, form.location].filter(Boolean))].map(l => /*#__PURE__*/React.createElement("option", {
+  }, "—"), [...new Set([...locations, form.location].filter(Boolean))].map(l => /*#__PURE__*/React.createElement("option", {
     key: l,
     value: l
   }, l)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: lbl
-  }, "Fecha incorporaci\xF3n"), /*#__PURE__*/React.createElement("input", {
+  }, "Fecha incorporación"), /*#__PURE__*/React.createElement("input", {
     type: "date",
     value: form.antiguedad || "",
     onChange: e => set("antiguedad", e.target.value),
@@ -1518,7 +1518,7 @@ const EditEmployeeModal = ({
     style: inp
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "\u2014"), [...new Set([...sectors, form.sector].filter(Boolean))].map(s => /*#__PURE__*/React.createElement("option", {
+  }, "—"), [...new Set([...sectors, form.sector].filter(Boolean))].map(s => /*#__PURE__*/React.createElement("option", {
     key: s,
     value: s
   }, s)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
@@ -1529,7 +1529,7 @@ const EditEmployeeModal = ({
     style: inp
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "\u2014"), [...new Set([...skills, form.skill].filter(Boolean))].map(s => /*#__PURE__*/React.createElement("option", {
+  }, "—"), [...new Set([...skills, form.skill].filter(Boolean))].map(s => /*#__PURE__*/React.createElement("option", {
     key: s,
     value: s
   }, s)))), /*#__PURE__*/React.createElement("div", {
@@ -1538,7 +1538,7 @@ const EditEmployeeModal = ({
     }
   }, /*#__PURE__*/React.createElement("label", {
     style: lbl
-  }, "M\xF3dulos SAP"), /*#__PURE__*/React.createElement("div", {
+  }, "Módulos SAP"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       flexWrap: "wrap",
@@ -1597,7 +1597,7 @@ const EditEmployeeModal = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "\uD83D\uDCBE Guardar"))));
+  }, "💾 Guardar"))));
 };
 const SettingsView = ({
   modules,
@@ -1688,12 +1688,12 @@ const SettingsView = ({
       cursor: "pointer",
       fontSize: "13px"
     }
-  }, "\u2190 Atr\xE1s"), /*#__PURE__*/React.createElement("div", {
+  }, "← Atrás"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "14px",
       fontWeight: "700"
     }
-  }, "\u2699 Ajustes")), /*#__PURE__*/React.createElement("div", {
+  }, "⚙ Ajustes")), /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: "1080px",
       margin: "0 auto",
@@ -1713,7 +1713,7 @@ const SettingsView = ({
       fontWeight: "700",
       marginBottom: "16px"
     }
-  }, "\uD83D\uDCE6 M\xF3dulos"), /*#__PURE__*/React.createElement("div", {
+  }, "📦 Módulos"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
@@ -1780,7 +1780,7 @@ const SettingsView = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "\uD83D\uDCE5 Importar m\xF3dulo")), /*#__PURE__*/React.createElement("div", {
+  }, "📥 Importar módulo")), /*#__PURE__*/React.createElement("div", {
     style: {
       background: C.card,
       borderRadius: "12px",
@@ -1804,7 +1804,7 @@ const SettingsView = ({
     style: {
       fontSize: "12px"
     }
-  }, empCollapsed ? "▶" : "▼"), "\uD83D\uDC65 Empleados", /*#__PURE__*/React.createElement("span", {
+  }, empCollapsed ? "▶" : "▼"), "👥 Empleados", /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: "12px",
       color: C.muted,
@@ -1848,7 +1848,7 @@ const SettingsView = ({
       minWidth: "150px",
       textAlign: "right"
     }
-  }, "M\xF3dulos"), /*#__PURE__*/React.createElement("div", {
+  }, "Módulos"), /*#__PURE__*/React.createElement("div", {
     style: {
       minWidth: "110px",
       textAlign: "right"
@@ -1858,7 +1858,7 @@ const SettingsView = ({
       minWidth: "120px",
       textAlign: "right"
     }
-  }, "F. incorporaci\xF3n"), /*#__PURE__*/React.createElement("div", {
+  }, "F. Incorporación T4S"), /*#__PURE__*/React.createElement("div", {
     style: {
       minWidth: "110px",
       textAlign: "right"
@@ -1868,7 +1868,7 @@ const SettingsView = ({
       width: "96px",
       textAlign: "center"
     }
-  }, "Acciones"))), employees.map((e, idx) => /*#__PURE__*/React.createElement("div", {
+  }, "Acciones"))), [...employees].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((e, idx) => /*#__PURE__*/React.createElement("div", {
     key: e.id,
     style: {
       display: "flex",
@@ -1928,15 +1928,15 @@ const SettingsView = ({
       color: C.text2,
       textAlign: "right"
     },
-    title: "Fecha de incorporaci\xF3n"
-  }, "\uD83D\uDCC5 ", e.antiguedad ? fmtDate(e.antiguedad) : "—"), /*#__PURE__*/React.createElement("div", {
+    title: "Fecha de incorporación"
+  }, "📅 ", e.antiguedad ? fmtDate(e.antiguedad) : "—"), /*#__PURE__*/React.createElement("div", {
     style: {
       minWidth: "110px",
       color: C.text2,
       textAlign: "right"
     },
     title: "Experiencia SAP"
-  }, "\uD83E\uDDED ", e.expSap ? fmtDate(e.expSap) : "—"), /*#__PURE__*/React.createElement("div", {
+  }, "🧭 ", e.expSap ? e.expSap.slice(0, 4) : "—"), /*#__PURE__*/React.createElement("div", {
     style: {
       width: "96px",
       display: "flex",
@@ -1956,7 +1956,7 @@ const SettingsView = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "\u270F\uFE0F"), /*#__PURE__*/React.createElement("button", {
+  }, "✏️"), /*#__PURE__*/React.createElement("button", {
     onClick: () => removeEmployee(e.id),
     title: "Eliminar",
     style: {
@@ -1969,7 +1969,7 @@ const SettingsView = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "\uD83D\uDDD1")))))), /*#__PURE__*/React.createElement("div", {
+  }, "🗑")))))), /*#__PURE__*/React.createElement("div", {
     style: {
       borderTop: `1px solid ${C.border}`,
       paddingTop: "16px"
@@ -1981,7 +1981,7 @@ const SettingsView = ({
       color: C.muted,
       marginBottom: "12px"
     }
-  }, "A\xF1adir empleado"), /*#__PURE__*/React.createElement("div", {
+  }, "Añadir empleado"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "repeat(2, 1fr)",
@@ -2013,7 +2013,7 @@ const SettingsView = ({
     }
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "M\xF3dulo"), sapModules.map(s => /*#__PURE__*/React.createElement("option", {
+  }, "Módulo"), sapModules.map(s => /*#__PURE__*/React.createElement("option", {
     key: s,
     value: s
   }, s))), /*#__PURE__*/React.createElement("select", {
@@ -2061,11 +2061,11 @@ const SettingsView = ({
     }
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "Ubicaci\xF3n"), locations.map(l => /*#__PURE__*/React.createElement("option", {
+  }, "Ubicación"), locations.map(l => /*#__PURE__*/React.createElement("option", {
     key: l,
     value: l
   }, l))), /*#__PURE__*/React.createElement("input", {
-    placeholder: "Antig\xFCedad (YYYY-MM-DD)",
+    placeholder: "Antigüedad (YYYY-MM-DD)",
     value: newEmpAntiguedad,
     onChange: e => setNewEmpAntiguedad(e.target.value),
     style: {
@@ -2089,7 +2089,7 @@ const SettingsView = ({
       cursor: "pointer",
       marginRight: "8px"
     }
-  }, "\u2795 A\xF1adir"), /*#__PURE__*/React.createElement("button", {
+  }, "➕ Añadir"), /*#__PURE__*/React.createElement("button", {
     onClick: () => bulkInputRef.current?.click(),
     style: {
       background: C.item,
@@ -2101,7 +2101,7 @@ const SettingsView = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "\uD83D\uDCE4 Importar desde Excel"), /*#__PURE__*/React.createElement("input", {
+  }, "📤 Importar desde Excel"), /*#__PURE__*/React.createElement("input", {
     ref: bulkInputRef,
     type: "file",
     accept: ".xlsx,.xls",
@@ -2248,7 +2248,7 @@ const SettingsView = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "A\xF1adir"))))));
+  }, "Añadir"))))));
 };
 function App() {
   const [currentApp, setCurrentApp] = useState("eval");
@@ -2460,7 +2460,7 @@ function App() {
       fontFamily: "system-ui,-apple-system,sans-serif",
       fontSize: "13px"
     }
-  }, "Cargando datos guardados\u2026");
+  }, "Cargando datos guardados…");
   if (view === "settings") return /*#__PURE__*/React.createElement(SettingsView, {
     modules: modules,
     onRemoveModule: removeModule,
@@ -2518,7 +2518,7 @@ function App() {
       alignItems: "center",
       gap: "6px"
     }
-  }, "\u2699 Ajustes"), /*#__PURE__*/React.createElement("button", {
+  }, "⚙ Ajustes"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowHistory(true),
     style: {
       background: C.item,
@@ -2533,7 +2533,7 @@ function App() {
       alignItems: "center",
       gap: "6px"
     }
-  }, "\uD83D\uDD52 Hist\xF3rico"), /*#__PURE__*/React.createElement("button", {
+  }, "🕒 Histórico"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setCurrentApp("home"),
     style: {
       background: C.item,
@@ -2544,7 +2544,7 @@ function App() {
       cursor: "pointer",
       fontSize: "13px"
     }
-  }, "\uD83C\uDFE0"), /*#__PURE__*/React.createElement("button", {
+  }, "🏠"), /*#__PURE__*/React.createElement("button", {
     onClick: () => window.doLogout && window.doLogout(),
     style: {
       background: C.item,
@@ -2555,7 +2555,7 @@ function App() {
       cursor: "pointer",
       fontSize: "13px"
     }
-  }, "\u23FB")), /*#__PURE__*/React.createElement("div", {
+  }, "⏻")), /*#__PURE__*/React.createElement("div", {
     style: {
       flex: 1,
       display: "flex",
@@ -2582,7 +2582,7 @@ function App() {
       letterSpacing: "0.12em",
       marginBottom: "8px"
     }
-  }, "Evaluaci\xF3n de competencias SAP"), /*#__PURE__*/React.createElement("div", {
+  }, "Evaluación de competencias SAP"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "22px",
       fontWeight: "800",
@@ -2590,7 +2590,7 @@ function App() {
       marginBottom: "32px",
       letterSpacing: "-0.02em"
     }
-  }, "Nueva evaluaci\xF3n"), /*#__PURE__*/React.createElement("div", {
+  }, "Nueva evaluación"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       flexDirection: "column",
@@ -2620,7 +2620,7 @@ function App() {
       letterSpacing: "0.08em",
       marginBottom: "8px"
     }
-  }, "M\xF3dulo"), /*#__PURE__*/React.createElement(ModulePicker, {
+  }, "Módulo"), /*#__PURE__*/React.createElement(ModulePicker, {
     modules: modules,
     selected: selectedModule,
     onSelect: handleSelectModule
@@ -2631,7 +2631,7 @@ function App() {
       color: C.muted,
       textAlign: "center"
     }
-  }, "Seleccione empleado y m\xF3dulo para comenzar la evaluaci\xF3n")))) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "Seleccione empleado y módulo para comenzar la evaluación")))) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       background: "#fafbfd",
       borderBottom: `1px solid ${C.border}`,
@@ -2661,7 +2661,7 @@ function App() {
       textTransform: "uppercase",
       letterSpacing: "0.08em"
     }
-  }, "M\xF3dulo"), /*#__PURE__*/React.createElement(ModulePicker, {
+  }, "Módulo"), /*#__PURE__*/React.createElement(ModulePicker, {
     modules: modules,
     selected: selectedModule,
     onSelect: handleSelectModule
@@ -2676,7 +2676,7 @@ function App() {
       fontSize: "13px",
       color: C.muted
     }
-  }, "\uD83D\uDCC5"), /*#__PURE__*/React.createElement("input", {
+  }, "📅"), /*#__PURE__*/React.createElement("input", {
     type: "date",
     value: evalDate,
     onChange: e => setEvalDate(e.target.value),
@@ -2718,7 +2718,7 @@ function App() {
       alignItems: "center",
       gap: "6px"
     }
-  }, "\uD83D\uDD52 Hist\xF3rico"), /*#__PURE__*/React.createElement("button", {
+  }, "🕒 Histórico"), /*#__PURE__*/React.createElement("button", {
     onClick: saveEvaluation,
     disabled: !selectedEmployee,
     style: {
@@ -2735,7 +2735,7 @@ function App() {
       gap: "6px",
       transition: "all 0.2s"
     }
-  }, "\uD83D\uDCBE Guardar evaluaci\xF3n"))), /*#__PURE__*/React.createElement("div", {
+  }, "💾 Guardar evaluación"))), /*#__PURE__*/React.createElement("div", {
     style: {
       background: C.card,
       borderBottom: `1px solid ${C.border}`,
@@ -2759,7 +2759,7 @@ function App() {
       letterSpacing: "0.1em",
       marginBottom: "3px"
     }
-  }, "Evaluaci\xF3n de competencias SAP"), /*#__PURE__*/React.createElement("div", {
+  }, "Evaluación de competencias SAP"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "17px",
       fontWeight: "800",
@@ -2772,12 +2772,12 @@ function App() {
       color: C.muted,
       marginTop: "3px"
     }
-  }, evaluators[0], " \xB7 ", evaluators[1], " \xB7 ", items.length, " criterios \xB7 ", totalWeight, " pts", delta > 0.2 && /*#__PURE__*/React.createElement("span", {
+  }, evaluators[0], " · ", evaluators[1], " · ", items.length, " criterios · ", totalWeight, " pts", delta > 0.2 && /*#__PURE__*/React.createElement("span", {
     style: {
       marginLeft: "10px",
       color: "#f59e0b"
     }
-  }, "\u26A0 \u0394", delta.toFixed(2), " entre evaluadores"))), /*#__PURE__*/React.createElement(ScoreGauge, {
+  }, "⚠ Δ", delta.toFixed(2), " entre evaluadores"))), /*#__PURE__*/React.createElement(ScoreGauge, {
     score: score
   }), /*#__PURE__*/React.createElement("div", {
     style: {
@@ -2823,7 +2823,7 @@ function App() {
       alignItems: "center",
       gap: "6px"
     }
-  }, "\u2699 Ajustes"), /*#__PURE__*/React.createElement("button", {
+  }, "⚙ Ajustes"), /*#__PURE__*/React.createElement("button", {
     onClick: () => {
       setSelectedEmployee(null);
       setSelectedModule(null);
@@ -2838,7 +2838,7 @@ function App() {
       cursor: "pointer",
       fontSize: "15px"
     }
-  }, "\uD83D\uDD04"), /*#__PURE__*/React.createElement("button", {
+  }, "🔄"), /*#__PURE__*/React.createElement("button", {
     onClick: () => setCurrentApp("home"),
     style: {
       background: C.item,
@@ -2849,7 +2849,7 @@ function App() {
       cursor: "pointer",
       fontSize: "15px"
     }
-  }, "\uD83C\uDFE0"), /*#__PURE__*/React.createElement("button", {
+  }, "🏠"), /*#__PURE__*/React.createElement("button", {
     onClick: () => window.doLogout && window.doLogout(),
     style: {
       background: C.item,
@@ -2860,7 +2860,7 @@ function App() {
       cursor: "pointer",
       fontSize: "14px"
     }
-  }, "\u23FB"))), /*#__PURE__*/React.createElement("div", {
+  }, "⏻"))), /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: "1080px",
       margin: "0 auto",
@@ -2885,7 +2885,7 @@ function App() {
       fontSize: "12px",
       color: C.muted
     }
-  }, "\u2191 Haz clic en cualquier criterio para ver el significado del nivel asignado"))), showImport && /*#__PURE__*/React.createElement(ImportModal, {
+  }, "↑ Haz clic en cualquier criterio para ver el significado del nivel asignado"))), showImport && /*#__PURE__*/React.createElement(ImportModal, {
     onImport: handleImport,
     onClose: () => setShowImport(false)
   }), showHistory && /*#__PURE__*/React.createElement(HistoryModal, {
@@ -2896,8 +2896,6 @@ function App() {
     onClose: () => setShowHistory(false)
   }));
 }
-
-
 
     const root = ReactDOM.createRoot(document.getElementById('root'));
     let authCheckInterval = null;
