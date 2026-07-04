@@ -328,6 +328,144 @@ const Tag = ({
     }
   });
 };
+const MultiSelectDropdown = ({
+  label,
+  options,
+  selected,
+  onChange
+}) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = e => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const filteredOpts = options.filter(o => String(o).toLowerCase().includes(search.toLowerCase()));
+  const toggle = v => onChange(selected.includes(v) ? selected.filter(x => x !== v) : [...selected, v]);
+  const allSel = filteredOpts.length > 0 && filteredOpts.every(o => selected.includes(o));
+  const toggleAll = () => onChange(allSel ? selected.filter(s => !filteredOpts.includes(s)) : [...new Set([...selected, ...filteredOpts])]);
+  return /*#__PURE__*/React.createElement("div", {
+    ref: ref,
+    style: {
+      position: "relative"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setOpen(!open),
+    style: {
+      background: selected.length ? "#e0edff" : C.bg,
+      border: `1px solid ${selected.length ? C.accent : C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      cursor: "pointer",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      userSelect: "none",
+      color: selected.length ? C.accent : C.text,
+      fontWeight: selected.length ? "600" : "400",
+      whiteSpace: "nowrap",
+      overflow: "hidden"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      overflow: "hidden",
+      textOverflow: "ellipsis"
+    }
+  }, label, selected.length > 0 ? ` (${selected.length})` : ""), /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: "6px",
+      fontSize: "10px"
+    }
+  }, "▾")), open && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      top: "calc(100% + 4px)",
+      left: 0,
+      zIndex: 500,
+      background: C.card,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "8px",
+      boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+      minWidth: "220px",
+      maxWidth: "280px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    autoFocus: true,
+    placeholder: "Buscar...",
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1.5px solid ${C.accent}`,
+      borderRadius: "6px",
+      padding: "7px 10px",
+      fontSize: "12px",
+      outline: "none",
+      boxSizing: "border-box"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxHeight: "220px",
+      overflowY: "auto",
+      borderTop: `1px solid ${C.rowBorder}`,
+      borderBottom: `1px solid ${C.rowBorder}`
+    }
+  }, filteredOpts.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "12px",
+      textAlign: "center",
+      color: C.muted,
+      fontSize: "11px"
+    }
+  }, "Sin resultados") : filteredOpts.map(o => /*#__PURE__*/React.createElement("label", {
+    key: o,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "7px 12px",
+      fontSize: "12px",
+      cursor: "pointer",
+      background: selected.includes(o) ? "#f0f7ff" : "transparent"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: selected.includes(o),
+    onChange: () => toggle(o)
+  }), o))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "8px 12px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    onClick: toggleAll,
+    style: {
+      fontSize: "12px",
+      color: C.accent,
+      cursor: "pointer",
+      fontWeight: "600"
+    }
+  }, allSel ? "Deseleccionar todo" : "Seleccionar todo"), selected.length > 0 && /*#__PURE__*/React.createElement("span", {
+    onClick: () => onChange([]),
+    style: {
+      fontSize: "11px",
+      color: C.muted,
+      cursor: "pointer"
+    }
+  }, "Limpiar"))));
+};
 const EmployeeListWithFilters = ({
   employees,
   sapModules,
@@ -344,19 +482,21 @@ const EmployeeListWithFilters = ({
     nivel: [],
     module: [],
     skill: [],
-    antiguedad: "",
-    expSap: ""
+    antiguedad: [],
+    expSap: []
   });
-  const toggleFilter = (field, val) => setFilters(f => ({
+  const setF = (k, v) => setFilters(f => ({
     ...f,
-    [field]: f[field].includes(val) ? f[field].filter(x => x !== val) : [...f[field], val]
+    [k]: v
   }));
   const allNiveles = [...new Set(employees.map(e => e.nivel).filter(Boolean))].sort();
   const allModules = [...new Set(employees.flatMap(e => e.modules && e.modules.length ? e.modules : e.module ? [e.module] : []))].filter(Boolean).sort();
   const allSkills = [...new Set(employees.map(e => e.skill).filter(Boolean))].sort();
+  const allAntig = [...new Set(employees.map(e => e.antiguedad ? e.antiguedad.slice(0, 4) : "").filter(Boolean))].sort();
+  const allExp = [...new Set(employees.map(e => e.expSap ? e.expSap.slice(0, 4) : "").filter(Boolean))].sort();
   const filtered = employees.filter(e => {
     const modList = e.modules && e.modules.length ? e.modules : e.module ? [e.module] : [];
-    return (!filters.nombre || e.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) && (!filters.nivel.length || filters.nivel.includes(e.nivel || "")) && (!filters.module.length || modList.some(m => filters.module.includes(m))) && (!filters.skill.length || filters.skill.includes(e.skill || "")) && (!filters.antiguedad || !e.antiguedad || (filters.antiguedad === "antes" ? e.antiguedad < today() : e.antiguedad >= today())) && (!filters.expSap || !e.expSap || (filters.expSap === "antes" ? e.expSap < today() : e.expSap >= today()));
+    return (!filters.nombre || e.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) && (!filters.nivel.length || filters.nivel.includes(e.nivel || "")) && (!filters.module.length || modList.some(m => filters.module.includes(m))) && (!filters.skill.length || filters.skill.includes(e.skill || "")) && (!filters.antiguedad.length || filters.antiguedad.includes(e.antiguedad ? e.antiguedad.slice(0, 4) : "")) && (!filters.expSap.length || filters.expSap.includes(e.expSap ? e.expSap.slice(0, 4) : ""));
   });
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -372,20 +512,17 @@ const EmployeeListWithFilters = ({
       fontWeight: "700",
       marginBottom: "16px"
     }
-  }, "👥 Empleados (", employees.length, ")"), /*#__PURE__*/React.createElement("div", {
+  }, "👥 Empleados (", filtered.length, "/", employees.length, ")"), /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: "16px",
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-      gap: "10px"
+      gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+      gap: "8px"
     }
   }, /*#__PURE__*/React.createElement("input", {
     placeholder: "Buscar nombre...",
     value: filters.nombre,
-    onChange: e => setFilters(f => ({
-      ...f,
-      nombre: e.target.value
-    })),
+    onChange: e => setF("nombre", e.target.value),
     style: {
       background: C.bg,
       border: `1px solid ${C.border2}`,
@@ -394,152 +531,32 @@ const EmployeeListWithFilters = ({
       fontSize: "12px",
       outline: "none"
     }
-  }), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: "11px",
-      fontWeight: "600",
-      color: C.muted,
-      marginBottom: "-6px"
-    }
-  }, "Nivel: ", filters.nivel.length > 0 && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: "10px",
-      color: C.accent
-    }
-  }, "(", filters.nivel.length, ")")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "6px"
-    }
-  }, allNiveles.map(n => /*#__PURE__*/React.createElement("label", {
-    key: n,
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: "4px",
-      fontSize: "11px",
-      background: filters.nivel.includes(n) ? "#e0edff" : C.item,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "4px",
-      padding: "4px 8px",
-      cursor: "pointer"
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "checkbox",
-    checked: filters.nivel.includes(n),
-    onChange: () => toggleFilter("nivel", n)
-  }), n))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: "11px",
-      fontWeight: "600",
-      color: C.muted,
-      marginBottom: "-6px"
-    }
-  }, "Módulo: ", filters.module.length > 0 && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: "10px",
-      color: C.accent
-    }
-  }, "(", filters.module.length, ")")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "6px"
-    }
-  }, allModules.map(m => /*#__PURE__*/React.createElement("label", {
-    key: m,
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: "4px",
-      fontSize: "11px",
-      background: filters.module.includes(m) ? "#e0edff" : C.item,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "4px",
-      padding: "4px 8px",
-      cursor: "pointer"
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "checkbox",
-    checked: filters.module.includes(m),
-    onChange: () => toggleFilter("module", m)
-  }), m))), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: "11px",
-      fontWeight: "600",
-      color: C.muted,
-      marginBottom: "-6px"
-    }
-  }, "Skill: ", filters.skill.length > 0 && /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: "10px",
-      color: C.accent
-    }
-  }, "(", filters.skill.length, ")")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexWrap: "wrap",
-      gap: "6px"
-    }
-  }, allSkills.map(s => /*#__PURE__*/React.createElement("label", {
-    key: s,
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: "4px",
-      fontSize: "11px",
-      background: filters.skill.includes(s) ? "#e0edff" : C.item,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "4px",
-      padding: "4px 8px",
-      cursor: "pointer"
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    type: "checkbox",
-    checked: filters.skill.includes(s),
-    onChange: () => toggleFilter("skill", s)
-  }), s))), /*#__PURE__*/React.createElement("select", {
-    value: filters.antiguedad,
-    onChange: e => setFilters(f => ({
-      ...f,
-      antiguedad: e.target.value
-    })),
-    style: {
-      background: C.bg,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "6px",
-      padding: "8px 10px",
-      fontSize: "12px",
-      outline: "none"
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "Incorporación: Todas"), /*#__PURE__*/React.createElement("option", {
-    value: "antes"
-  }, "Antes de hoy"), /*#__PURE__*/React.createElement("option", {
-    value: "desde"
-  }, "Desde hoy")), /*#__PURE__*/React.createElement("select", {
-    value: filters.expSap,
-    onChange: e => setFilters(f => ({
-      ...f,
-      expSap: e.target.value
-    })),
-    style: {
-      background: C.bg,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "6px",
-      padding: "8px 10px",
-      fontSize: "12px",
-      outline: "none"
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "Exp. SAP: Todas"), /*#__PURE__*/React.createElement("option", {
-    value: "antes"
-  }, "Antes de hoy"), /*#__PURE__*/React.createElement("option", {
-    value: "desde"
-  }, "Desde hoy"))), /*#__PURE__*/React.createElement("div", {
+  }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
+    label: "Nivel",
+    options: allNiveles,
+    selected: filters.nivel,
+    onChange: v => setF("nivel", v)
+  }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
+    label: "Módulo",
+    options: allModules,
+    selected: filters.module,
+    onChange: v => setF("module", v)
+  }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
+    label: "Skill",
+    options: allSkills,
+    selected: filters.skill,
+    onChange: v => setF("skill", v)
+  }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
+    label: "F. Incorporación",
+    options: allAntig,
+    selected: filters.antiguedad,
+    onChange: v => setF("antiguedad", v)
+  }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
+    label: "Exp. SAP",
+    options: allExp,
+    selected: filters.expSap,
+    onChange: v => setF("expSap", v)
+  })), /*#__PURE__*/React.createElement("div", {
     style: {
       border: `1px solid ${C.border}`,
       borderRadius: "8px",
@@ -1760,7 +1777,6 @@ function App() {
     }
   }, "⚙️ Ajustes"))));
 }
-
     let _auth=firebase.auth();
     const storage={
       get:async(key,shared)=>{try{const v=localStorage.getItem(key);return v?{key,value:v,shared}:null;}catch{return null;}},
