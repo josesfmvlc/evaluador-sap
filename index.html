@@ -1118,134 +1118,6 @@ const EditEmployeeModal = ({
     }
   }, "💾 Guardar"))));
 };
-const SearchableSelect = ({
-  options,
-  value,
-  onChange,
-  placeholder = "Seleccionar..."
-}) => {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-  const ref = useRef(null);
-  useEffect(() => {
-    const h = e => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, []);
-  const selected = options.find(o => o.id === value);
-  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase())).sort((a, b) => a.label.localeCompare(b.label));
-  const handleSelect = opt => {
-    onChange(opt.id);
-    setSearch("");
-    setOpen(false);
-  };
-  return /*#__PURE__*/React.createElement("div", {
-    ref: ref,
-    style: {
-      position: "relative"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    onClick: () => {
-      setOpen(!open);
-      setSearch("");
-    },
-    style: {
-      width: "100%",
-      background: C.bg,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "6px",
-      padding: "8px 10px",
-      fontSize: "12px",
-      cursor: "pointer",
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      userSelect: "none",
-      color: selected ? C.text : C.muted
-    }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap"
-    }
-  }, selected ? selected.label : placeholder), /*#__PURE__*/React.createElement("span", {
-    style: {
-      marginLeft: "6px",
-      fontSize: "10px",
-      flexShrink: 0
-    }
-  }, "▾")), open && /*#__PURE__*/React.createElement("div", {
-    style: {
-      position: "absolute",
-      top: "calc(100% + 4px)",
-      left: 0,
-      right: 0,
-      zIndex: 500,
-      background: C.card,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "8px",
-      boxShadow: "0 8px 24px rgba(0,0,0,0.15)"
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "8px"
-    }
-  }, /*#__PURE__*/React.createElement("input", {
-    autoFocus: true,
-    placeholder: "Buscar empleado...",
-    value: search,
-    onChange: e => setSearch(e.target.value),
-    style: {
-      width: "100%",
-      background: C.bg,
-      border: `1.5px solid ${C.accent}`,
-      borderRadius: "6px",
-      padding: "7px 10px",
-      fontSize: "12px",
-      outline: "none",
-      boxSizing: "border-box"
-    }
-  })), /*#__PURE__*/React.createElement("div", {
-    style: {
-      maxHeight: "240px",
-      overflowY: "auto",
-      borderTop: `1px solid ${C.rowBorder}`
-    }
-  }, value && /*#__PURE__*/React.createElement("div", {
-    onClick: () => handleSelect({
-      id: "",
-      label: ""
-    }),
-    style: {
-      padding: "8px 12px",
-      fontSize: "12px",
-      color: C.muted,
-      cursor: "pointer",
-      borderBottom: `1px solid ${C.rowBorder}`
-    }
-  }, placeholder), filtered.length === 0 ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "12px",
-      textAlign: "center",
-      color: C.muted,
-      fontSize: "11px"
-    }
-  }, "Sin resultados") : filtered.map(o => /*#__PURE__*/React.createElement("div", {
-    key: o.id,
-    onClick: () => handleSelect(o),
-    style: {
-      padding: "9px 12px",
-      fontSize: "12px",
-      cursor: "pointer",
-      background: o.id === value ? "#f0f7ff" : "transparent",
-      color: C.text,
-      borderBottom: `1px solid ${C.rowBorder}`
-    }
-  }, o.label)))));
-};
 const HomeScreen = ({
   onEnterApp,
   onLogout
@@ -1716,10 +1588,34 @@ function App() {
   useEffect(() => {
     (async () => {
       try {
-        const [mod, eval_, emp, his, sap, sec, ski, loc] = await Promise.all([window.storage.get("sap-qm-modules", false).catch(() => null), window.storage.get("sap-qm-evaluators", false).catch(() => null), window.storage.get("sap-qm-employees", false).catch(() => null), window.storage.get("sap-qm-eval-history", false).catch(() => null), window.storage.get("sap-qm-sap-modules", false).catch(() => null), window.storage.get("sap-qm-sectors", false).catch(() => null), window.storage.get("sap-qm-skills", false).catch(() => null), window.storage.get("sap-qm-locations", false).catch(() => null)]);
+        const db = firebase.firestore();
+        let empList = null;
+        try {
+          const empDoc = await db.collection("appData").doc("employees").get();
+          if (empDoc.exists && empDoc.data().list) {
+            empList = empDoc.data().list;
+          }
+        } catch (e) {
+          console.error("Firestore read error:", e);
+        }
+        if (!empList) {
+          const localEmp = await window.storage.get("sap-qm-employees", false).catch(() => null);
+          if (localEmp?.value) {
+            try {
+              empList = JSON.parse(localEmp.value);
+              await db.collection("appData").doc("employees").set({
+                list: empList
+              });
+              console.log("Empleados migrados a Firestore:", empList.length);
+            } catch (e) {
+              console.error("Migration error:", e);
+            }
+          }
+        }
+        if (empList) setEmployees(empList);
+        const [mod, eval_, his, sap, sec, ski, loc] = await Promise.all([window.storage.get("sap-qm-modules", false).catch(() => null), window.storage.get("sap-qm-evaluators", false).catch(() => null), window.storage.get("sap-qm-eval-history", false).catch(() => null), window.storage.get("sap-qm-sap-modules", false).catch(() => null), window.storage.get("sap-qm-sectors", false).catch(() => null), window.storage.get("sap-qm-skills", false).catch(() => null), window.storage.get("sap-qm-locations", false).catch(() => null)]);
         if (mod?.value) setModules(JSON.parse(mod.value));
         if (eval_?.value) setEvaluators(JSON.parse(eval_.value));
-        if (emp?.value) setEmployees(JSON.parse(emp.value));
         if (his?.value) setEvalHistory(JSON.parse(his.value));
         if (sap?.value) setSapModules(JSON.parse(sap.value));
         if (sec?.value) setSectors(JSON.parse(sec.value));
@@ -1736,7 +1632,15 @@ function App() {
     if (!dataReady) return;
     (async () => {
       try {
-        await Promise.all([window.storage.set("sap-qm-modules", JSON.stringify(modules), false), window.storage.set("sap-qm-evaluators", JSON.stringify(evaluators), false), window.storage.set("sap-qm-employees", JSON.stringify(employees), false), window.storage.set("sap-qm-eval-history", JSON.stringify(evalHistory), false), window.storage.set("sap-qm-sap-modules", JSON.stringify(sapModules), false), window.storage.set("sap-qm-sectors", JSON.stringify(sectors), false), window.storage.set("sap-qm-skills", JSON.stringify(skills), false), window.storage.set("sap-qm-locations", JSON.stringify(locations), false)]);
+        const db = firebase.firestore();
+        const empSinFotos = employees.map(({
+          photo,
+          ...rest
+        }) => rest);
+        await db.collection("appData").doc("employees").set({
+          list: empSinFotos
+        });
+        await Promise.all([window.storage.set("sap-qm-modules", JSON.stringify(modules), false), window.storage.set("sap-qm-evaluators", JSON.stringify(evaluators), false), window.storage.set("sap-qm-eval-history", JSON.stringify(evalHistory), false), window.storage.set("sap-qm-sap-modules", JSON.stringify(sapModules), false), window.storage.set("sap-qm-sectors", JSON.stringify(sectors), false), window.storage.set("sap-qm-skills", JSON.stringify(skills), false), window.storage.set("sap-qm-locations", JSON.stringify(locations), false)]);
       } catch (e) {
         console.error("Save error:", e);
       }
@@ -2004,18 +1908,28 @@ function App() {
       color: C.muted,
       marginBottom: "6px"
     }
-  }, "EMPLEADO"), /*#__PURE__*/React.createElement(SearchableSelect, {
-    options: [...employees].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
-      id: e.id,
-      label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}`
-    })),
+  }, "EMPLEADO"), /*#__PURE__*/React.createElement("select", {
     value: selectedEmployee?.id || "",
-    onChange: id => {
-      const emp = employees.find(x => x.id === id);
-      setSelectedEmployee(emp || null);
+    onChange: e => {
+      const emp = employees.find(x => x.id === e.target.value);
+      setSelectedEmployee(emp);
       setItems(selectedModule?.items || []);
+    },
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none"
     }
-  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Seleccionar..."), employees.map(e => /*#__PURE__*/React.createElement("option", {
+    key: e.id,
+    value: e.id
+  }, e.nombre, " ", e.nivel ? `(${e.nivel})` : "")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: {
       display: "block",
       fontSize: "11px",
