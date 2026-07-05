@@ -1206,100 +1206,6 @@ const EditEmployeeModal = ({
     }
   }, "💾 Guardar"))));
 };
-const EvaluationView = ({module: mod, employee, evalDate, evaluators, onSave}) => {
-  const initScores = () => {
-    const s = {};
-    for (const item of mod.items) s[item.id] = {e1: item.v1||4, e2: item.v2||4};
-    return s;
-  };
-  const [scores, setScores] = useState(initScores);
-  const [collapseAmb, setCollapseAmb] = useState({});
-  const [saved, setSaved] = useState(false);
-  const setScore = (id, ev, val) => setScores(s => ({...s, [id]: {...s[id], [ev]: parseInt(val)}}));
-  const toggleAmb = a => setCollapseAmb(c => ({...c, [a]: !c[a]}));
-  const ambitoOrder = (mod.ambitoOrder && mod.ambitoOrder.length ? mod.ambitoOrder : [...new Set(mod.items.map(i => i.ambito))]);
-  const byAmbito = mod.items.reduce((acc, item) => {(acc[item.ambito]=acc[item.ambito]||[]).push(item); return acc;}, {});
-  const totalPeso = mod.items.reduce((s, i) => s + i.peso, 0);
-  const weightedSum = mod.items.reduce((s, i) => {const sc = scores[i.id]||{e1:4,e2:4}; return s + i.peso * ((sc.e1+sc.e2)/2);}, 0);
-  const globalScore = totalPeso > 0 ? weightedSum/totalPeso : 0;
-  const globalLvl = getLvl(Math.round(globalScore));
-  const handleSave = () => {
-    onSave({fecha: evalDate, empleado: employee, moduloId: mod.id, moduloNombre: mod.name, scores, globalScore, globalLevel: globalLvl.code});
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
-  };
-  return React.createElement(React.Fragment, null,
-    React.createElement("div", {style: {background: C.card, borderRadius: "12px", padding: "16px 20px", marginBottom: "16px", border: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px"}},
-      React.createElement("div", {style: {display: "flex", alignItems: "center", gap: "16px"}},
-        React.createElement("div", null,
-          React.createElement("div", {style: {fontSize: "11px", color: C.muted, fontWeight: "700", textTransform: "uppercase", marginBottom: "2px"}}, "Puntuación Global"),
-          React.createElement("div", {style: {fontSize: "28px", fontWeight: "800", color: globalLvl.color, lineHeight: "1"}}, globalLvl.code),
-          React.createElement("div", {style: {fontSize: "11px", color: C.text2, marginTop: "2px"}}, globalLvl.name)
-        ),
-        React.createElement("div", {style: {background: C.bg, borderRadius: "8px", padding: "8px 14px", textAlign: "center"}},
-          React.createElement("div", {style: {fontSize: "11px", color: C.muted, marginBottom: "2px"}}, "Valor"),
-          React.createElement("div", {style: {fontSize: "20px", fontWeight: "700", color: C.text}}, globalScore.toFixed(2))
-        )
-      ),
-      React.createElement("button", {
-        onClick: handleSave,
-        style: {background: saved ? C.green : C.accent, color: "white", border: "none", borderRadius: "8px", padding: "10px 24px", fontSize: "13px", fontWeight: "700", cursor: "pointer"}
-      }, saved ? "✅ Guardado" : "💾 Guardar evaluación")
-    ),
-    ...ambitoOrder.filter(a => byAmbito[a] && byAmbito[a].length).map(ambito => {
-      const items = byAmbito[ambito];
-      const tp = items.reduce((s, i) => s + i.peso, 0);
-      const ws = items.reduce((s, i) => {const sc = scores[i.id]||{e1:4,e2:4}; return s + i.peso * ((sc.e1+sc.e2)/2);}, 0);
-      const ambitoAvg = tp > 0 ? ws/tp : 0;
-      const isCollapsed = collapseAmb[ambito];
-      return React.createElement("div", {key: ambito, style: {background: C.card, borderRadius: "10px", marginBottom: "8px", border: `1px solid ${C.border}`, overflow: "hidden"}},
-        React.createElement("div", {
-          onClick: () => toggleAmb(ambito),
-          style: {padding: "11px 16px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "space-between", background: C.expandBg, userSelect: "none"}
-        },
-          React.createElement("div", {style: {display: "flex", alignItems: "center", gap: "8px"}},
-            React.createElement("span", {style: {fontSize: "11px"}}, isCollapsed ? "▶" : "▼"),
-            React.createElement("span", {style: {fontSize: "13px", fontWeight: "700", color: C.text}}, ambito),
-            React.createElement("span", {style: {fontSize: "11px", color: C.muted}}, "("+items.length+")")
-          ),
-          React.createElement("span", {style: {fontSize: "12px", fontWeight: "700", color: getLvl(Math.round(ambitoAvg)).color}}, "Ø "+getLvl(Math.round(ambitoAvg)).code+" ("+ambitoAvg.toFixed(1)+")")
-        ),
-        !isCollapsed && React.createElement("div", null,
-          React.createElement("div", {style: {display: "grid", gridTemplateColumns: "1fr 60px 120px 120px", padding: "6px 16px", background: "#f8fafc", borderBottom: `1px solid ${C.rowBorder}`, fontSize: "10px", fontWeight: "700", color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em"}},
-            React.createElement("div", null, "Criterio"),
-            React.createElement("div", {style: {textAlign: "center"}}, "Peso"),
-            React.createElement("div", {style: {textAlign: "center"}}, evaluators[0] || "Eval. 1"),
-            React.createElement("div", {style: {textAlign: "center"}}, evaluators[1] || "Eval. 2")
-          ),
-          ...items.map((item, idx) => {
-            const sc = scores[item.id] || {e1:4, e2:4};
-            return React.createElement("div", {
-              key: item.id,
-              style: {display: "grid", gridTemplateColumns: "1fr 60px 120px 120px", padding: "10px 16px", alignItems: "center", background: idx % 2 ? C.item : C.card, borderBottom: idx < items.length - 1 ? `1px solid ${C.rowBorder}` : "none"}
-            },
-              React.createElement("div", {style: {fontSize: "12px", color: C.text, lineHeight: "1.4", paddingRight: "8px"}}, item.desc),
-              React.createElement("div", {style: {textAlign: "center", fontSize: "12px", fontWeight: "700", color: C.accent}}, item.peso+"%"),
-              React.createElement("div", {style: {display: "flex", justifyContent: "center"}},
-                React.createElement("select", {
-                  value: sc.e1,
-                  onChange: e => setScore(item.id, "e1", e.target.value),
-                  style: {background: C.bg, border: `2px solid ${getColor(sc.e1)}`, borderRadius: "6px", padding: "4px 6px", fontSize: "12px", fontWeight: "700", color: getColor(sc.e1), outline: "none", cursor: "pointer", width: "70px"}
-                }, ...LEVELS.map(l => React.createElement("option", {key: l.v, value: l.v}, l.code)))
-              ),
-              React.createElement("div", {style: {display: "flex", justifyContent: "center"}},
-                React.createElement("select", {
-                  value: sc.e2,
-                  onChange: e => setScore(item.id, "e2", e.target.value),
-                  style: {background: C.bg, border: `2px solid ${getColor(sc.e2)}`, borderRadius: "6px", padding: "4px 6px", fontSize: "12px", fontWeight: "700", color: getColor(sc.e2), outline: "none", cursor: "pointer", width: "70px"}
-                }, ...LEVELS.map(l => React.createElement("option", {key: l.v, value: l.v}, l.code)))
-              )
-            );
-          })
-        )
-      );
-    })
-  );
-};
 const SearchableSelect = ({
   options,
   value,
@@ -1570,6 +1476,7 @@ const SettingsView = ({
   modules,
   onRemoveModule,
   onAddModule,
+  onEditModule,
   evaluators,
   setEvaluators,
   employees,
@@ -1593,6 +1500,8 @@ const SettingsView = ({
   onLogout
 }) => {
   const [modulosCollapsed, setModulosCollapsed] = useState(true);
+  const [editingModId, setEditingModId] = useState(null);
+  const [editingModVal, setEditingModVal] = useState("");
   const [newEvalName, setNewEvalName] = useState("");
   const [newSapModule, setNewSapModule] = useState("");
   const [newSector, setNewSector] = useState("");
@@ -1704,7 +1613,7 @@ const SettingsView = ({
     style: {
       fontSize: "14px",
       fontWeight: "700",
-      marginBottom: modulosCollapsed ? "0" : "16px",
+      marginBottom: modulosCollapsed ? "0" : "12px",
       cursor: "pointer",
       display: "flex",
       alignItems: "center",
@@ -1715,41 +1624,113 @@ const SettingsView = ({
     style: {
       fontSize: "12px"
     }
-  }, modulosCollapsed ? "▶" : "▼"), "📦 Módulos (", modules.length, ")"), !modulosCollapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, modulosCollapsed ? "▶" : "▼"), "📦 Excel de evaluación (", modules.length, ")"), !modulosCollapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-      gap: "12px",
-      marginBottom: "16px"
-    }
-  }, modules.map(m => /*#__PURE__*/React.createElement("div", {
-    key: m.id,
-    style: {
-      background: C.item,
-      border: `1px solid ${C.border2}`,
+      border: `1px solid ${C.border}`,
       borderRadius: "8px",
-      padding: "12px",
+      overflow: "hidden",
+      marginBottom: "12px"
+    }
+  }, modules.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px",
+      textAlign: "center",
+      color: C.muted,
       fontSize: "12px"
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, "Sin módulos importados") : modules.map((m, idx) => /*#__PURE__*/React.createElement("div", {
+    key: m.id,
     style: {
-      fontWeight: "600",
-      marginBottom: "8px"
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "10px 14px",
+      background: idx % 2 ? C.item : C.card,
+      borderBottom: idx < modules.length - 1 ? `1px solid ${C.rowBorder}` : "none"
     }
-  }, m.name), /*#__PURE__*/React.createElement("button", {
+  }, editingModId === m.id ? /*#__PURE__*/React.createElement("input", {
+    autoFocus: true,
+    value: editingModVal,
+    onChange: e => setEditingModVal(e.target.value),
+    style: {
+      flex: 1,
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "6px 8px",
+      fontSize: "12px",
+      outline: "none"
+    }
+  }) : /*#__PURE__*/React.createElement("span", {
+    style: {
+      flex: 1,
+      fontSize: "13px",
+      color: C.text,
+      fontWeight: "500"
+    }
+  }, m.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "6px",
+      marginLeft: "12px"
+    }
+  }, editingModId === m.id ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      onEditModule(m.id, editingModVal);
+      setEditingModId(null);
+    },
+    style: {
+      background: "#dcfce7",
+      color: "#16a34a",
+      border: "none",
+      borderRadius: "6px",
+      padding: "4px 8px",
+      fontSize: "10px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "✓"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setEditingModId(null),
+    style: {
+      background: C.item,
+      color: C.text2,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "4px 8px",
+      fontSize: "10px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "✕")) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      setEditingModId(m.id);
+      setEditingModVal(m.name);
+    },
+    title: "Editar",
+    style: {
+      background: "#e0edff",
+      color: "#1d4ed8",
+      border: "none",
+      borderRadius: "6px",
+      padding: "4px 8px",
+      fontSize: "10px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "✏️"), /*#__PURE__*/React.createElement("button", {
     onClick: () => onRemoveModule(m.id),
+    title: "Eliminar",
     style: {
       background: "#fee2e2",
       color: "#dc2626",
       border: "none",
       borderRadius: "6px",
-      padding: "6px 10px",
-      fontSize: "11px",
+      padding: "4px 8px",
+      fontSize: "10px",
       fontWeight: "600",
-      cursor: "pointer",
-      width: "100%"
+      cursor: "pointer"
     }
-  }, "Eliminar")))), /*#__PURE__*/React.createElement("input", {
+  }, "🗑")))))), /*#__PURE__*/React.createElement("input", {
     ref: importInputRef,
     type: "file",
     accept: ".xlsx",
@@ -1761,7 +1742,7 @@ const SettingsView = ({
           try {
             const mod = parseExcelModule(ev.target.result, f.name);
             onAddModule(mod);
-            alert(`Módulo "${mod.name}" importado con ${mod.items.length} criterios.`);
+            alert(`Excel "${mod.name}" importado con ${mod.items.length} criterios.`);
           } catch (err) {
             alert("Error: " + err.message);
           }
@@ -1785,7 +1766,7 @@ const SettingsView = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "📥 Importar módulo"))), /*#__PURE__*/React.createElement(EmployeeListWithFilters, {
+  }, "📥 Importar Excel"))), /*#__PURE__*/React.createElement(EmployeeListWithFilters, {
     employees: employees,
     sapModules: sapModules,
     sectors: sectors,
@@ -2021,9 +2002,6 @@ function App() {
   const removeLocation = name => {
     setLocations(locations.filter(l => l !== name));
   };
-  const saveEvaluation = eval => {
-    setEvalHistory(prev => [eval, ...prev]);
-  };
   if (!dataReady) return /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "20px",
@@ -2038,6 +2016,10 @@ function App() {
     modules: modules,
     onRemoveModule: id => setModules(modules.filter(m => m.id !== id)),
     onAddModule: mod => setModules(prev => [...prev, mod]),
+    onEditModule: (id, newName) => setModules(modules.map(m => m.id === id ? {
+      ...m,
+      name: newName
+    } : m)),
     evaluators: evaluators,
     setEvaluators: setEvaluators,
     employees: employees,
@@ -2230,7 +2212,15 @@ function App() {
     onChange: id => {
       const emp = employees.find(x => x.id === id) || null;
       setSelectedEmployee(emp);
-      setItems(selectedModule?.items || []);
+      // Calcular módulos disponibles para el nuevo empleado
+      const empMods = emp ? emp.modulos || emp.modules || [] : [];
+      const normMod = n => n.replace(/^SAP\s+/i, "").trim().toUpperCase();
+      const available = emp ? modules.filter(m => empMods.some(em => normMod(m.name) === normMod(em) || m.name.toUpperCase() === em.toUpperCase())) : modules;
+      // Resetear módulo si el actual no está disponible para el nuevo empleado
+      if (selectedModule && !available.find(m => m.id === selectedModule.id)) {
+        setSelectedModule(null);
+        setItems([]);
+      }
     },
     placeholder: "Seleccionar..."
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
@@ -2259,10 +2249,15 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "Seleccionar..."), modules.map(m => /*#__PURE__*/React.createElement("option", {
-    key: m.id,
-    value: m.id
-  }, m.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  }, "Seleccionar..."), (() => {
+    const empMods = selectedEmployee ? selectedEmployee.modulos || selectedEmployee.modules || [] : [];
+    const normMod = n => n.replace(/^SAP\s+/i, "").trim().toUpperCase();
+    const available = selectedEmployee ? modules.filter(m => empMods.some(em => normMod(m.name) === normMod(em) || m.name.toUpperCase() === em.toUpperCase())) : modules;
+    return available.map(m => /*#__PURE__*/React.createElement("option", {
+      key: m.id,
+      value: m.id
+    }, m.name));
+  })())), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: {
       display: "block",
       fontSize: "11px",
@@ -2287,14 +2282,13 @@ function App() {
     style: {
       marginTop: "16px"
     }
-  }, React.createElement(EvaluationView, {
-    key: selectedEmployee.id + "-" + selectedModule.id,
-    module: selectedModule,
-    employee: selectedEmployee,
-    evalDate: evalDate,
-    evaluators: evaluators,
-    onSave: saveEvaluation
-  })) : /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600",
+      marginBottom: "12px"
+    }
+  }, "📋 ", selectedModule.name, " - ", selectedEmployee.nombre)) : /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "20px",
       textAlign: "center",
@@ -2355,26 +2349,6 @@ function App() {
     }
   }, "⚙️ Ajustes"))));
 }
-
-
-    let _auth=firebase.auth();
-    const storage={
-      get:async(key,shared)=>{try{const v=localStorage.getItem(key);return v?{key,value:v,shared}:null;}catch{return null;}},
-      set:async(key,value,shared)=>{try{localStorage.setItem(key,value);return{key,value,shared};}catch{return null;}},
-      delete:async(key,shared)=>{try{localStorage.removeItem(key);return{key,deleted:true,shared};}catch{return null;}},
-      list:async(prefix,shared)=>{try{const keys=[];for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(!prefix||k.startsWith(prefix))keys.push(k);}return{keys,prefix,shared};}catch{return null;}}
-    };
-    window.storage=storage;
-    const root=ReactDOM.createRoot(document.getElementById("root"));
-    const loginScreen=document.getElementById("login-screen");
-    const rootEl=document.getElementById("root");
-    let inactivityTimeout;
-    function resetInactivityTimer(){clearTimeout(inactivityTimeout);inactivityTimeout=setTimeout(()=>_auth.signOut(),15*60*1000);}
-    document.addEventListener("mousemove",resetInactivityTimer);
-    document.addEventListener("keypress",resetInactivityTimer);
-    window.doLogout=()=>_auth.signOut();
-    function doLogin(){const email=document.getElementById("login-email").value;const pass=document.getElementById("login-pass").value;const err=document.getElementById("login-error");if(!email||!pass){err.textContent="Por favor rellena los campos";return;}err.textContent="";_auth.signInWithEmailAndPassword(email,pass).then(u=>{loginScreen.style.display="none";rootEl.style.display="block";root.render(React.createElement(App));resetInactivityTimer();}).catch(e=>{console.error("Login error:",e);err.textContent=e.message.replace(/Firebase: /,"");});}
-    _auth.onAuthStateChanged(user=>{if(user){loginScreen.style.display="none";rootEl.style.display="block";root.render(React.createElement(App));resetInactivityTimer();}else{loginScreen.style.display="flex";rootEl.style.display="none";}});
   </script>
 </body>
 </html>
