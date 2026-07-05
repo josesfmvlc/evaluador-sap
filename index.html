@@ -1476,7 +1476,6 @@ const SettingsView = ({
   modules,
   onRemoveModule,
   onAddModule,
-  onEditModule,
   evaluators,
   setEvaluators,
   employees,
@@ -1500,8 +1499,6 @@ const SettingsView = ({
   onLogout
 }) => {
   const [modulosCollapsed, setModulosCollapsed] = useState(true);
-  const [editingModId, setEditingModId] = useState(null);
-  const [editingModVal, setEditingModVal] = useState("");
   const [newEvalName, setNewEvalName] = useState("");
   const [newSapModule, setNewSapModule] = useState("");
   const [newSector, setNewSector] = useState("");
@@ -1613,7 +1610,7 @@ const SettingsView = ({
     style: {
       fontSize: "14px",
       fontWeight: "700",
-      marginBottom: modulosCollapsed ? "0" : "12px",
+      marginBottom: modulosCollapsed ? "0" : "16px",
       cursor: "pointer",
       display: "flex",
       alignItems: "center",
@@ -1624,113 +1621,41 @@ const SettingsView = ({
     style: {
       fontSize: "12px"
     }
-  }, modulosCollapsed ? "▶" : "▼"), "📦 Excel de evaluación (", modules.length, ")"), !modulosCollapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, modulosCollapsed ? "▶" : "▼"), "📦 Módulos (", modules.length, ")"), !modulosCollapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
-      border: `1px solid ${C.border}`,
-      borderRadius: "8px",
-      overflow: "hidden",
-      marginBottom: "12px"
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+      gap: "12px",
+      marginBottom: "16px"
     }
-  }, modules.length === 0 ? /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "16px",
-      textAlign: "center",
-      color: C.muted,
-      fontSize: "12px"
-    }
-  }, "Sin módulos importados") : modules.map((m, idx) => /*#__PURE__*/React.createElement("div", {
+  }, modules.map(m => /*#__PURE__*/React.createElement("div", {
     key: m.id,
     style: {
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      padding: "10px 14px",
-      background: idx % 2 ? C.item : C.card,
-      borderBottom: idx < modules.length - 1 ? `1px solid ${C.rowBorder}` : "none"
-    }
-  }, editingModId === m.id ? /*#__PURE__*/React.createElement("input", {
-    autoFocus: true,
-    value: editingModVal,
-    onChange: e => setEditingModVal(e.target.value),
-    style: {
-      flex: 1,
-      background: C.bg,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "6px",
-      padding: "6px 8px",
-      fontSize: "12px",
-      outline: "none"
-    }
-  }) : /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1,
-      fontSize: "13px",
-      color: C.text,
-      fontWeight: "500"
-    }
-  }, m.name), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: "6px",
-      marginLeft: "12px"
-    }
-  }, editingModId === m.id ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      onEditModule(m.id, editingModVal);
-      setEditingModId(null);
-    },
-    style: {
-      background: "#dcfce7",
-      color: "#16a34a",
-      border: "none",
-      borderRadius: "6px",
-      padding: "4px 8px",
-      fontSize: "10px",
-      fontWeight: "600",
-      cursor: "pointer"
-    }
-  }, "✓"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setEditingModId(null),
-    style: {
       background: C.item,
-      color: C.text2,
       border: `1px solid ${C.border2}`,
-      borderRadius: "6px",
-      padding: "4px 8px",
-      fontSize: "10px",
-      fontWeight: "600",
-      cursor: "pointer"
+      borderRadius: "8px",
+      padding: "12px",
+      fontSize: "12px"
     }
-  }, "✕")) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      setEditingModId(m.id);
-      setEditingModVal(m.name);
-    },
-    title: "Editar",
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
-      background: "#e0edff",
-      color: "#1d4ed8",
-      border: "none",
-      borderRadius: "6px",
-      padding: "4px 8px",
-      fontSize: "10px",
       fontWeight: "600",
-      cursor: "pointer"
+      marginBottom: "8px"
     }
-  }, "✏️"), /*#__PURE__*/React.createElement("button", {
+  }, m.name), /*#__PURE__*/React.createElement("button", {
     onClick: () => onRemoveModule(m.id),
-    title: "Eliminar",
     style: {
       background: "#fee2e2",
       color: "#dc2626",
       border: "none",
       borderRadius: "6px",
-      padding: "4px 8px",
-      fontSize: "10px",
+      padding: "6px 10px",
+      fontSize: "11px",
       fontWeight: "600",
-      cursor: "pointer"
+      cursor: "pointer",
+      width: "100%"
     }
-  }, "🗑")))))), /*#__PURE__*/React.createElement("input", {
+  }, "Eliminar")))), /*#__PURE__*/React.createElement("input", {
     ref: importInputRef,
     type: "file",
     accept: ".xlsx",
@@ -1742,7 +1667,7 @@ const SettingsView = ({
           try {
             const mod = parseExcelModule(ev.target.result, f.name);
             onAddModule(mod);
-            alert(`Excel "${mod.name}" importado con ${mod.items.length} criterios.`);
+            alert(`Módulo "${mod.name}" importado con ${mod.items.length} criterios.`);
           } catch (err) {
             alert("Error: " + err.message);
           }
@@ -1766,7 +1691,7 @@ const SettingsView = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "📥 Importar Excel"))), /*#__PURE__*/React.createElement(EmployeeListWithFilters, {
+  }, "📥 Importar módulo"))), /*#__PURE__*/React.createElement(EmployeeListWithFilters, {
     employees: employees,
     sapModules: sapModules,
     sectors: sectors,
@@ -2016,10 +1941,6 @@ function App() {
     modules: modules,
     onRemoveModule: id => setModules(modules.filter(m => m.id !== id)),
     onAddModule: mod => setModules(prev => [...prev, mod]),
-    onEditModule: (id, newName) => setModules(modules.map(m => m.id === id ? {
-      ...m,
-      name: newName
-    } : m)),
     evaluators: evaluators,
     setEvaluators: setEvaluators,
     employees: employees,
@@ -2042,6 +1963,13 @@ function App() {
     onBack: () => setView("eval"),
     onLogout: () => window.doLogout()
   });
+  const _empMods = selectedEmployee
+    ? (selectedEmployee.modules?.length ? selectedEmployee.modules : selectedEmployee.module ? [selectedEmployee.module] : [])
+    : [];
+  const availableModules = _empMods.length
+    ? modules.filter(m => _empMods.some(em => em.toLowerCase() === m.name.toLowerCase()))
+    : modules;
+  const displayModules = availableModules.length ? availableModules : modules;
   return /*#__PURE__*/React.createElement("div", {
     style: {
       minHeight: "100vh",
@@ -2212,7 +2140,8 @@ function App() {
     onChange: id => {
       const emp = employees.find(x => x.id === id) || null;
       setSelectedEmployee(emp);
-      setItems(selectedModule?.items || []);
+      setSelectedModule(null);
+      setItems([]);
     },
     placeholder: "Seleccionar..."
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
@@ -2241,7 +2170,7 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "Seleccionar..."), modules.map(m => /*#__PURE__*/React.createElement("option", {
+  }, "Seleccionar..."), displayModules.map(m => /*#__PURE__*/React.createElement("option", {
     key: m.id,
     value: m.id
   }, m.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
@@ -2336,7 +2265,6 @@ function App() {
     }
   }, "⚙️ Ajustes"))));
 }
-
 
 
     let _auth=firebase.auth();
