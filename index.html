@@ -2125,7 +2125,7 @@ function App() {
       marginBottom: "6px"
     }
   }, "EMPLEADO"), /*#__PURE__*/React.createElement(SearchableSelect, {
-    options: employees.map(e => ({
+    options: employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
       value: e.id,
       label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}`
     })),
