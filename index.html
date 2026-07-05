@@ -1212,6 +1212,392 @@ const EditEmployeeModal = ({
     }
   }, "💾 Guardar"))));
 };
+const NIVELES_FULL = [{
+  code: "V1",
+  name: "Junior funcional",
+  color: "#ef4444",
+  years: "≤ 2 años",
+  proyectos: "Apoya en todas las fases de un proyecto.",
+  conocimiento: "Comienza a conocer los procesos del módulo. Ejecuta flujos de las Best Practices/Scope Items.",
+  autonomia: "Necesita supervisión total.",
+  tutor: "No aplica.",
+  eficiencia: "Nunca a tiempo, nunca en forma.",
+  preventa: "No aplica.",
+  jp: "No aplica.",
+  arquitectura: "No aplica.",
+  formacion: "No aplica."
+}, {
+  code: "V2.1",
+  name: "Funcional",
+  color: "#f97316",
+  years: "2 – 3/4 años",
+  proyectos: "Participa activamente en las actividades de proyecto. Interacción con el cliente.",
+  conocimiento: "Ejecuta con total fluidez procesos de Best Practices/Scope Items. Conocimiento de parametrización e integración con el resto de módulos.",
+  autonomia: "Necesita apoyo.",
+  tutor: "Tutoriza becarios.",
+  eficiencia: "Casi nunca en tiempo y forma.",
+  preventa: "Toma datos en WS y sesiones de preventa. Asiste a Learning Journeys. Prepara Presentación y Demo en sistema.",
+  jp: "No aplica.",
+  arquitectura: "Conoce todos los procesos e integraciones de su módulo principal.",
+  formacion: "Puede formar en remoto en algunos procesos de su módulo principal."
+}, {
+  code: "V2.2",
+  name: "Senior I",
+  color: "#eab308",
+  years: "3/4 – 6 años",
+  proyectos: "Realización con dependencia.",
+  conocimiento: "Conocimiento de parametrización e integración. Requiere apoyo en workarounds, mejoras y desarrollos. Apoya en la generación de píldoras y productos.",
+  autonomia: "Consulta frecuente.",
+  tutor: "Tutoriza becarios.",
+  eficiencia: "En ocasiones en tiempo y forma.",
+  preventa: "Toma datos en WS. Prepara y defiende Demo con cliente. Mantiene juego de datos y reutiliza.",
+  jp: "Jefe de Proyecto en pequeños proyectos de base instalada. Sigue y cierra imputaciones sin problemas.",
+  arquitectura: "Conoce y es referente en procesos e integraciones de su módulo principal y módulos adyacentes.",
+  formacion: "Puede formar en todos los procesos de su módulo. Puede dar formación presencial en cliente."
+}, {
+  code: "V3.1",
+  name: "Senior I.1",
+  color: "#84cc16",
+  years: "6 – 7 años",
+  proyectos: "Realización con autonomía.",
+  conocimiento: "Conocimiento de parametrización e integración. Capacidad de mejoras o nuevos desarrollos desde el estándar. Genera píldoras, productos y workarounds.",
+  autonomia: "Consulta poco.",
+  tutor: "Tutoriza a becarios, Juniors y Funcionales.",
+  eficiencia: "Generalmente en tiempo y forma.",
+  preventa: "Puede liderar preventas. Defiende demo con cliente con actitud comercial correcta. Gestiona oportunidades.",
+  jp: "Jefe de Proyecto en proyectos de envergadura en base instalada y proyectos NNN/Grow/Rise.",
+  arquitectura: "Referente en procesos, integraciones y módulos adyacentes. Controla especificaciones de integración.",
+  formacion: "Puede dar formación en su módulo y varios módulos. Puede dar Formación oficial SAP."
+}, {
+  code: "V3.2",
+  name: "Senior II",
+  color: "#22c55e",
+  years: "7 – 8 años",
+  proyectos: "Realización con autonomía y decisión.",
+  conocimiento: "Capacidad completa de mejoras y nuevos desarrollos desde el estándar. Genera y coordina píldoras, productos y workarounds.",
+  autonomia: "Totalmente independiente, consulta puntual.",
+  tutor: "Tutoriza a becarios, Juniors, Funcionales y Seniors.",
+  eficiencia: "Casi siempre en tiempo y forma.",
+  preventa: "Lidera preventas. Gestiona oportunidades con comerciales. Realiza visitas a clientes para identificar oportunidades de negocio.",
+  jp: "Gestiona más de un proyecto simultáneamente. Jefe de Proyecto en proyectos NNN/Grow/Rise de envergadura.",
+  arquitectura: "Conoce otras soluciones integradas con SAP, entornos on-prem, public cloud y ecosistema SAP.",
+  formacion: "Formación en módulo principal y varios módulos. Formación oficial SAP. Puede dar formación en idioma no nativo."
+}, {
+  code: "V4.1",
+  name: "Senior III",
+  color: "#14b8a6",
+  years: "8 – 10 años",
+  proyectos: "Realización con autonomía, decisión y solución de imprevistos.",
+  conocimiento: "Lidera la generación de píldoras, productos y workarounds. Capacidad plena de mejoras y nuevos desarrollos.",
+  autonomia: "Totalmente independiente.",
+  tutor: "Tutoriza a todos los niveles.",
+  eficiencia: "Prácticamente siempre en tiempo y forma.",
+  preventa: "Coordina con comercial visitas a clientes. Contribuye activamente a identificar oportunidades en base instalada y NNN.",
+  jp: "Gestiona proyectos de Upgrade/Move. Jefe de Proyecto en proyectos de máxima envergadura.",
+  arquitectura: "Conoce otras soluciones integradas con SAP, entornos on-prem, public cloud, ecosistema SAP y otros fabricantes.",
+  formacion: "Formación en todos los módulos. Formación oficial SAP en remoto y presencial en idioma no nativo."
+}, {
+  code: "V4.2",
+  name: "Senior IV",
+  color: "#818cf8",
+  years: "10 – 12 años",
+  proyectos: "Realización con autonomía, decisión en entornos complejos y solución de imprevistos.",
+  conocimiento: "Lidera y coordina la generación de píldoras, productos y workarounds. Promueve mejoras y nuevos desarrollos.",
+  autonomia: "Es referente del módulo.",
+  tutor: "Transmite su conocimiento a todos los niveles.",
+  eficiencia: "Casi siempre en tiempo y forma.",
+  preventa: "Coordina activamente la gestión de oportunidades en base instalada y NNN. Responsable de sistemas demo y documentación de preventa.",
+  jp: "Jefe de Proyecto con clientes nuevos y de base instalada. Guía a otros JPs y gestiona cartera de proyectos.",
+  arquitectura: "Controla todo tipo de integraciones y arquitectura de sistemas. Conoce LEAN IX para gestión de arquitectura.",
+  formacion: "Multicertificado. Puede dar formaciones oficiales en SAP."
+}, {
+  code: "V4.3",
+  name: "Experto",
+  color: "#a855f7",
+  years: "> 12 años",
+  proyectos: "Realización con autonomía, decisión en entornos muy complejos y resolución de cualquier imprevisto.",
+  conocimiento: "Promueve en el equipo la generación de píldoras, productos y workarounds. Referente absoluto del módulo.",
+  autonomia: "Es responsable del módulo.",
+  tutor: "Transmite su conocimiento a todos los niveles.",
+  eficiencia: "Infalible.",
+  preventa: "Puede ser líder de preventa sectorial o de solución.",
+  jp: "Es o puede ser Advisor de Sector.",
+  arquitectura: "Es un arquitecto de soluciones SAP.",
+  formacion: "Multicertificado. Podría dedicarse profesionalmente a dar clases oficiales de SAP."
+}];
+const COLS_BASICO = [{
+  key: "years",
+  label: "📅 Años Exp. SAP"
+}, {
+  key: "proyectos",
+  label: "🏗️ Exp. en Proyectos"
+}, {
+  key: "conocimiento",
+  label: "📚 Conocimiento Módulo"
+}, {
+  key: "autonomia",
+  label: "🎯 Autonomía"
+}, {
+  key: "tutor",
+  label: "🧑‍🏫 Tutor"
+}];
+const COLS_EXTRA = [{
+  key: "eficiencia",
+  label: "⚡ Eficiencia"
+}, {
+  key: "preventa",
+  label: "🤝 Preventa"
+}, {
+  key: "jp",
+  label: "📋 Jefatura Proyecto"
+}, {
+  key: "arquitectura",
+  label: "🏛️ Arquitectura"
+}, {
+  key: "formacion",
+  label: "🎓 Formación"
+}];
+const NivelesModal = ({
+  onClose
+}) => {
+  const [tab, setTab] = useState("basico");
+  const [sel, setSel] = useState(null);
+  const cols = tab === "basico" ? COLS_BASICO : COLS_EXTRA;
+  const tbtnStyle = active => ({
+    flex: 1,
+    padding: "11px 8px",
+    border: "none",
+    cursor: "pointer",
+    fontWeight: "700",
+    fontSize: "13px",
+    background: active ? C.card : "transparent",
+    color: active ? C.accent : C.muted,
+    borderBottom: active ? `2px solid ${C.accent}` : "2px solid transparent",
+    transition: "all 0.15s"
+  });
+  return React.createElement("div", {
+    onClick: e => {
+      if (e.target === e.currentTarget) onClose();
+    },
+    style: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: "rgba(0,0,0,0.7)",
+      zIndex: 9999,
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "center",
+      padding: "20px 10px",
+      overflowY: "auto"
+    }
+  }, React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "14px",
+      width: "100%",
+      maxWidth: "1150px",
+      boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
+      overflow: "hidden",
+      marginBottom: "20px"
+    }
+  },
+  // Header
+  React.createElement("div", {
+    style: {
+      background: "#354a5e",
+      padding: "16px 20px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between"
+    }
+  }, React.createElement("div", null, React.createElement("div", {
+    style: {
+      color: "white",
+      fontSize: "17px",
+      fontWeight: "800",
+      letterSpacing: "-0.3px"
+    }
+  }, "📊 Definición de Niveles Hiberus"), React.createElement("div", {
+    style: {
+      color: "rgba(255,255,255,0.55)",
+      fontSize: "11px",
+      marginTop: "3px"
+    }
+  }, "Haz clic en un nivel para destacarlo · Cierra clicando fuera del panel")), React.createElement("button", {
+    onClick: onClose,
+    style: {
+      background: "rgba(255,255,255,0.15)",
+      border: "none",
+      color: "white",
+      width: "30px",
+      height: "30px",
+      borderRadius: "8px",
+      cursor: "pointer",
+      fontSize: "15px",
+      fontWeight: "700",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }
+  }, "✕")),
+  // Level pills strip
+  React.createElement("div", {
+    style: {
+      background: "#2a3a4c",
+      padding: "10px 20px",
+      display: "flex",
+      gap: "6px",
+      flexWrap: "wrap",
+      alignItems: "center"
+    }
+  }, React.createElement("span", {
+    style: {
+      color: "rgba(255,255,255,0.45)",
+      fontSize: "11px",
+      fontWeight: "600",
+      marginRight: "4px"
+    }
+  }, "Ir a:"), ...NIVELES_FULL.map(lvl => React.createElement("button", {
+    key: lvl.code,
+    onClick: () => setSel(sel === lvl.code ? null : lvl.code),
+    style: {
+      background: sel === lvl.code ? lvl.color : lvl.color + "30",
+      color: sel === lvl.code ? "white" : lvl.color,
+      border: `1px solid ${lvl.color}`,
+      borderRadius: "20px",
+      padding: "3px 11px",
+      fontSize: "11px",
+      fontWeight: "700",
+      cursor: "pointer",
+      transition: "all 0.15s"
+    }
+  }, lvl.code + " " + lvl.name))),
+  // Tabs
+  React.createElement("div", {
+    style: {
+      display: "flex",
+      borderBottom: `1px solid ${C.border}`,
+      background: C.bg
+    }
+  }, React.createElement("button", {
+    onClick: () => setTab("basico"),
+    style: tbtnStyle(tab === "basico")
+  }, "📋 Criterios Principales"), React.createElement("button", {
+    onClick: () => setTab("extra"),
+    style: tbtnStyle(tab === "extra")
+  }, "🔍 Competencias Avanzadas")),
+  // Table
+  React.createElement("div", {
+    style: {
+      overflowX: "auto"
+    }
+  }, React.createElement("table", {
+    style: {
+      width: "100%",
+      borderCollapse: "collapse",
+      fontSize: "12px"
+    }
+  }, React.createElement("thead", null, React.createElement("tr", null, React.createElement("th", {
+    style: {
+      padding: "10px 16px",
+      background: "#354a5e",
+      color: "white",
+      fontWeight: "800",
+      textAlign: "left",
+      minWidth: "130px",
+      position: "sticky",
+      left: 0,
+      zIndex: 2
+    }
+  }, "Nivel"), ...cols.map(col => React.createElement("th", {
+    key: col.key,
+    style: {
+      padding: "10px 14px",
+      background: "#354a5e",
+      color: "white",
+      fontWeight: "700",
+      textAlign: "left",
+      minWidth: "175px"
+    }
+  }, col.label)))), React.createElement("tbody", null, ...NIVELES_FULL.map((lvl, idx) => {
+    const isSel = sel === lvl.code;
+    const rowBg = isSel ? lvl.color + "1a" : idx % 2 === 0 ? C.bg : C.card;
+    return React.createElement("tr", {
+      key: lvl.code,
+      onClick: () => setSel(isSel ? null : lvl.code),
+      style: {
+        cursor: "pointer",
+        background: rowBg,
+        outline: isSel ? `2px solid ${lvl.color}` : "none",
+        outlineOffset: "-2px",
+        transition: "background 0.2s"
+      }
+    }, React.createElement("td", {
+      style: {
+        padding: "11px 16px",
+        position: "sticky",
+        left: 0,
+        background: rowBg,
+        zIndex: 1,
+        borderRight: `3px solid ${lvl.color}`,
+        borderBottom: `1px solid ${C.border}`
+      }
+    }, React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "8px"
+      }
+    }, React.createElement("div", {
+      style: {
+        width: "9px",
+        height: "9px",
+        borderRadius: "50%",
+        background: lvl.color,
+        flexShrink: 0
+      }
+    }), React.createElement("div", null, React.createElement("div", {
+      style: {
+        fontWeight: "800",
+        color: lvl.color,
+        fontSize: "12px",
+        lineHeight: "1.2"
+      }
+    }, lvl.code), React.createElement("div", {
+      style: {
+        fontSize: "10px",
+        color: C.text2,
+        fontWeight: "600",
+        lineHeight: "1.2"
+      }
+    }, lvl.name)))), ...cols.map(col => React.createElement("td", {
+      key: col.key,
+      style: {
+        padding: "10px 14px",
+        color: C.text,
+        verticalAlign: "top",
+        lineHeight: "1.5",
+        borderBottom: `1px solid ${C.border}`
+      }
+    }, lvl[col.key])));
+  })))),
+  // Footer note
+  React.createElement("div", {
+    style: {
+      padding: "10px 20px",
+      borderTop: `1px solid ${C.border}`,
+      background: C.bg
+    }
+  }, React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: C.muted
+    }
+  }, "💡 Datos extraídos del Marco de Niveles Hiberus. La escala de valoración V1→V4.3 corresponde a los valores 1–8 en el sistema de evaluación."))));
+};
 const EvaluationView = ({
   module: mod,
   employee,
@@ -1230,6 +1616,7 @@ const EvaluationView = ({
   const [scores, setScores] = useState(initScores);
   const [collapseAmb, setCollapseAmb] = useState({});
   const [saved, setSaved] = useState(false);
+  const [showNiveles, setShowNiveles] = useState(false);
   const setScore = (id, ev, val) => setScores(s => ({
     ...s,
     [id]: {
@@ -1328,7 +1715,29 @@ const EvaluationView = ({
       fontWeight: "700",
       color: C.text
     }
-  }, globalScore.toFixed(2)))), React.createElement("button", {
+  }, globalScore.toFixed(2)))), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "8px",
+      alignItems: "center"
+    }
+  }, React.createElement("button", {
+    onClick: () => setShowNiveles(true),
+    title: "Ver definición de niveles",
+    style: {
+      background: C.bg,
+      color: C.text2,
+      border: `1px solid ${C.border}`,
+      borderRadius: "8px",
+      padding: "10px 14px",
+      fontSize: "13px",
+      fontWeight: "700",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "5px"
+    }
+  }, "📊 Niveles"), React.createElement("button", {
     onClick: handleSave,
     style: {
       background: saved ? C.green : C.accent,
@@ -1340,7 +1749,9 @@ const EvaluationView = ({
       fontWeight: "700",
       cursor: "pointer"
     }
-  }, saved ? "✅ Guardado" : "💾 Guardar evaluación")), ...ambitoOrder.filter(a => byAmbito[a] && byAmbito[a].length).map(ambito => {
+  }, saved ? "✅ Guardado" : "💾 Guardar evaluación"))), showNiveles && React.createElement(NivelesModal, {
+    onClose: () => setShowNiveles(false)
+  }), ...ambitoOrder.filter(a => byAmbito[a] && byAmbito[a].length).map(ambito => {
     const items = byAmbito[ambito];
     const tp = items.reduce((s, i) => s + i.peso, 0);
     const ws = items.reduce((s, i) => {
@@ -2660,20 +3071,6 @@ function App() {
       cursor: "pointer"
     }
   }, "⚙️ Ajustes"))));
-}
-
-function doLogin() {
-  var email = document.getElementById('login-email').value.trim();
-  var pass = document.getElementById('login-pass').value;
-  var errEl = document.getElementById('login-error');
-  errEl.textContent = '';
-  _auth.signInWithEmailAndPassword(email, pass).catch(function(e) {
-    errEl.textContent = 'Email o contraseña incorrectos';
-  });
-}
-function resetInactivity() {
-  clearTimeout(inactivityTimeout);
-  inactivityTimeout = setTimeout(function(){ _auth.signOut(); }, 15 * 60 * 1000);
 }
 _auth.onAuthStateChanged(function(user) {
   if (user) {
