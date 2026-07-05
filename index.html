@@ -472,7 +472,8 @@ const EmployeeListWithFilters = ({
   editingEmp,
   setEditingEmp,
   removeEmployee,
-  updateEmployee
+  updateEmployee,
+  onBulkAdd
 }) => {
   const [filters, setFilters] = useState({
     nombre: "",
@@ -483,10 +484,30 @@ const EmployeeListWithFilters = ({
     expSap: []
   });
   const [collapsed, setCollapsed] = useState(true);
+  const [importMsg, setImportMsg] = useState("");
+  const bulkRef = useRef(null);
   const setF = (k, v) => setFilters(f => ({
     ...f,
     [k]: v
   }));
+  const handleBulkImport = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      try {
+        const emps = parseEmployeesExcel(ev.target.result);
+        const res = onBulkAdd(emps);
+        setImportMsg(`✅ ${res.added} añadidos, ${res.updated} actualizados`);
+        setTimeout(() => setImportMsg(""), 4000);
+      } catch (err) {
+        setImportMsg("❌ Error: " + err.message);
+        setTimeout(() => setImportMsg(""), 4000);
+      }
+    };
+    r.readAsArrayBuffer(f);
+    e.target.value = "";
+  };
   const allNiveles = [...new Set(employees.map(e => e.nivel).filter(Boolean))].sort();
   const allModules = [...new Set(employees.flatMap(e => e.modules && e.modules.length ? e.modules : e.module ? [e.module] : []))].filter(Boolean).sort();
   const allSkills = [...new Set(employees.map(e => e.skill).filter(Boolean))].sort();
@@ -505,11 +526,17 @@ const EmployeeListWithFilters = ({
       border: `1px solid ${C.border}`
     }
   }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginBottom: collapsed ? "0" : "16px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
     onClick: () => setCollapsed(!collapsed),
     style: {
       fontSize: "14px",
       fontWeight: "700",
-      marginBottom: collapsed ? "0" : "16px",
       cursor: "pointer",
       display: "flex",
       alignItems: "center",
@@ -520,7 +547,41 @@ const EmployeeListWithFilters = ({
     style: {
       fontSize: "12px"
     }
-  }, collapsed ? "▶" : "▼"), "👥 Empleados (", filtered.length, "/", employees.length, ")"), !collapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, collapsed ? "▶" : "▼"), "👥 Empleados (", filtered.length, "/", employees.length, ")"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px"
+    }
+  }, importMsg && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "11px",
+      color: importMsg.startsWith("✅") ? C.green : "#dc2626"
+    }
+  }, importMsg), /*#__PURE__*/React.createElement("input", {
+    ref: bulkRef,
+    type: "file",
+    accept: ".xlsx",
+    onChange: handleBulkImport,
+    style: {
+      display: "none"
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      bulkRef.current?.click();
+    },
+    style: {
+      background: C.accent,
+      color: "white",
+      border: "none",
+      borderRadius: "6px",
+      padding: "6px 12px",
+      fontSize: "11px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "📥 Importar Excel"))), !collapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: "16px",
       display: "grid",
@@ -1485,7 +1546,8 @@ const SettingsView = ({
     editingEmp: editingEmp,
     setEditingEmp: setEditingEmp,
     removeEmployee: removeEmployee,
-    updateEmployee: updateEmployee
+    updateEmployee: updateEmployee,
+    onBulkAdd: onBulkAdd
   }), editingEmp && /*#__PURE__*/React.createElement(EditEmployeeModal, {
     emp: editingEmp,
     sapModules: sapModules,
