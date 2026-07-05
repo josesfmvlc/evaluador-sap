@@ -2661,6 +2661,34 @@ function App() {
     }
   }, "⚙️ Ajustes"))));
 }
+
+function doLogin() {
+  var email = document.getElementById('login-email').value.trim();
+  var pass = document.getElementById('login-pass').value;
+  var errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  _auth.signInWithEmailAndPassword(email, pass).catch(function(e) {
+    errEl.textContent = 'Email o contraseña incorrectos';
+  });
+}
+function resetInactivity() {
+  clearTimeout(inactivityTimeout);
+  inactivityTimeout = setTimeout(function(){ _auth.signOut(); }, 15 * 60 * 1000);
+}
+_auth.onAuthStateChanged(function(user) {
+  if (user) {
+    loginScreen.style.display = 'none';
+    rootEl.style.display = 'block';
+    root.render(React.createElement(App));
+    resetInactivity();
+    ['mousemove','keydown','click','scroll'].forEach(function(e){ document.addEventListener(e, resetInactivity); });
+  } else {
+    loginScreen.style.display = 'flex';
+    rootEl.style.display = 'none';
+    clearTimeout(inactivityTimeout);
+  }
+});
+window.doLogout = function(){ _auth.signOut(); };
   </script>
 </body>
 </html>
