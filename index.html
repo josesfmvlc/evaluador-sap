@@ -59,6 +59,19 @@
     const _db = firebase.firestore();
     const _auth = firebase.auth();
     let inactivityTimeout;
+    function resetInactivity() {
+      clearTimeout(inactivityTimeout);
+      inactivityTimeout = setTimeout(function() { _auth.signOut(); }, 15 * 60 * 1000);
+    }
+    function doLogin() {
+      var email = document.getElementById('login-email').value;
+      var pass = document.getElementById('login-pass').value;
+      var errEl = document.getElementById('login-error');
+      errEl.textContent = '';
+      _auth.signInWithEmailAndPassword(email, pass).catch(function() {
+        errEl.textContent = 'Credenciales incorrectas. Inténtalo de nuevo.';
+      });
+    }
     const loginScreen = document.getElementById("login-screen");
     const rootEl = document.getElementById("root");
     const root = ReactDOM.createRoot(rootEl);
@@ -1692,17 +1705,30 @@ const EvaluationView = ({
     }
   }, globalScore.toFixed(1)), React.createElement("div", {
     style: {
-      fontSize: "12px",
+      fontSize: "11px",
       color: C.text2,
-      marginTop: "3px",
-      fontWeight: "600"
+      marginTop: "2px"
     }
-  }, React.createElement("span", {
+  }, globalLvl.name)), React.createElement("div", {
     style: {
-      color: globalLvl.color,
-      fontWeight: "800"
+      background: C.bg,
+      borderRadius: "8px",
+      padding: "8px 14px",
+      textAlign: "center"
     }
-  }, globalLvl.code), " · ", globalLvl.name))), React.createElement("div", {
+  }, React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: C.muted,
+      marginBottom: "2px"
+    }
+  }, "Valor"), React.createElement("div", {
+    style: {
+      fontSize: "20px",
+      fontWeight: "700",
+      color: C.text
+    }
+  }, globalScore.toFixed(2)))), React.createElement("div", {
     style: {
       display: "flex",
       gap: "8px",
@@ -3059,6 +3085,20 @@ function App() {
     }
   }, "⚙️ Ajustes"))));
 }
+_auth.onAuthStateChanged(function(user) {
+  if (user) {
+    loginScreen.style.display = 'none';
+    rootEl.style.display = 'block';
+    root.render(React.createElement(App));
+    resetInactivity();
+    ['mousemove','keydown','click','scroll'].forEach(function(e){ document.addEventListener(e, resetInactivity); });
+  } else {
+    loginScreen.style.display = 'flex';
+    rootEl.style.display = 'none';
+    clearTimeout(inactivityTimeout);
+  }
+});
+window.doLogout = function(){ _auth.signOut(); };
   </script>
 </body>
 </html>
