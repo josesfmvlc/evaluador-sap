@@ -40,16 +40,13 @@
       </div>
     </div>
   </div>
-
   <div id="root" style="display:none"></div>
-
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-
   <script>
     firebase.initializeApp({
       apiKey: "AIzaSyBqQlTk9NwXADHGo2xq6s92rPXc77qeW9M",
@@ -744,6 +741,7 @@ const ItemListSection = ({
 }) => {
   const [editingId, setEditingId] = useState(null);
   const [editValue, setEditValue] = useState("");
+  const [collapsed, setCollapsed] = useState(true);
   const handleEdit = item => {
     setEditingId(item.id || item);
     setEditValue(item.name || item);
@@ -761,12 +759,22 @@ const ItemListSection = ({
       border: `1px solid ${C.border}`
     }
   }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setCollapsed(!collapsed),
     style: {
       fontSize: "14px",
       fontWeight: "700",
-      marginBottom: "12px"
+      marginBottom: collapsed ? "0" : "12px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      userSelect: "none"
     }
-  }, title), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "12px"
+    }
+  }, collapsed ? "▶" : "▼"), title, " (", items?.length || 0, ")"), !collapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       border: `1px solid ${C.border}`,
       borderRadius: "8px",
@@ -899,7 +907,7 @@ const ItemListSection = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "Añadir")));
+  }, "Añadir"))));
 };
 const NIVEL_OPTS = ["", "V1", "V2", "V2.1", "V2.2", "V3", "V3.1", "V3.2", "V4", "V4.1", "V4.2", "V4.3", "R"];
 const EditEmployeeModal = ({
@@ -1134,6 +1142,7 @@ const SettingsView = ({
   removeLocation,
   onBack
 }) => {
+  const [modulosCollapsed, setModulosCollapsed] = useState(true);
   const [newEvalName, setNewEvalName] = useState("");
   const [newSapModule, setNewSapModule] = useState("");
   const [newSector, setNewSector] = useState("");
@@ -1225,12 +1234,22 @@ const SettingsView = ({
       border: `1px solid ${C.border}`
     }
   }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setModulosCollapsed(!modulosCollapsed),
     style: {
       fontSize: "14px",
       fontWeight: "700",
-      marginBottom: "16px"
+      marginBottom: modulosCollapsed ? "0" : "16px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      userSelect: "none"
     }
-  }, "📦 Módulos"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "12px"
+    }
+  }, modulosCollapsed ? "▶" : "▼"), "📦 Módulos (", modules.length, ")"), !modulosCollapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
@@ -1297,7 +1316,7 @@ const SettingsView = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "📥 Importar módulo")), /*#__PURE__*/React.createElement(EmployeeListWithFilters, {
+  }, "📥 Importar módulo"))), /*#__PURE__*/React.createElement(EmployeeListWithFilters, {
     employees: employees,
     sapModules: sapModules,
     sectors: sectors,
