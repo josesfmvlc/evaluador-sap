@@ -239,6 +239,8 @@ const excelDateToISO = v => {
   }
   if (typeof v === "number") {
     if (v <= 0) return "";
+    // Si es un año (ej: 2018), devolverlo directamente
+    if (Number.isInteger(v) && v >= 1950 && v <= 2100) return `${v}-01-01`;
     const d = new Date(Math.round((v - 25569) * 86400 * 1000));
     if (isNaN(d)) return "";
     const y = d.getFullYear();
