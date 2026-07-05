@@ -1260,6 +1260,1967 @@ const HomeScreen = ({
 const SettingsView = ({
   modules,
   onRemoveModule,
+  onAddModule,
+  evaluators,
+  setEvaluators,
+  employees,
+  addEmployee,
+  removeEmployee,
+  updateEmployee,
+  onBulkAdd,
+  sapModules,
+  addSapModule,
+  removeSapModule,
+  sectors,
+  addSector,
+  removeSector,
+  skills,
+  addSkill,
+  removeSkill,
+  locations,
+  addLocation,
+  removeLocation,
+  onBack,
+  onLogout
+}) => {
+  const [modulosCollapsed, setModulosCollapsed] = useState(true);
+  const [newEvalName, setNewEvalName] = useState("");
+  const [newSapModule, setNewSapModule] = useState("");
+  const [newSector, setNewSector] = useState("");
+  const [newSkill, setNewSkill] = useState("");
+  const [newLocation, setNewLocation] = useState("");
+  const [newEmpName, setNewEmpName] = useState("");
+  const [newEmpModule, setNewEmpModule] = useState("");
+  const [newEmpSector, setNewEmpSector] = useState("");
+  const [newEmpSkill, setNewEmpSkill] = useState("");
+  const [newEmpLocation, setNewEmpLocation] = useState("");
+  const [newEmpAntiguedad, setNewEmpAntiguedad] = useState("");
+  const bulkInputRef = useRef(null);
+  const importInputRef = useRef(null);
+  const [editingEmp, setEditingEmp] = useState(null);
+  const addEmp = () => {
+    if (newEmpName && newEmpModule) {
+      addEmployee({
+        nombre: newEmpName,
+        module: newEmpModule,
+        sector: newEmpSector,
+        skill: newEmpSkill,
+        location: newEmpLocation,
+        antiguedad: newEmpAntiguedad
+      });
+      setNewEmpName("");
+      setNewEmpModule("");
+      setNewEmpSector("");
+      setNewEmpSkill("");
+      setNewEmpLocation("");
+      setNewEmpAntiguedad("");
+    }
+  };
+  const addEval = () => {
+    if (newEvalName) {
+      setEvaluators([...evaluators, newEvalName]);
+      setNewEvalName("");
+    }
+  };
+  const removeEval = idx => {
+    setEvaluators(evaluators.filter((_, i) => i !== idx));
+  };
+  const handleImportModule = () => {
+    importInputRef.current?.click();
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: C.bg,
+      color: C.text,
+      fontFamily: "system-ui,-apple-system,sans-serif"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderBottom: `1px solid ${C.border}`,
+      padding: "12px 24px",
+      display: "flex",
+      gap: "8px",
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: C.item,
+      border: `1px solid ${C.border2}`,
+      color: C.text,
+      borderRadius: "8px",
+      padding: "8px 14px",
+      cursor: "pointer",
+      fontSize: "13px"
+    }
+  }, "← Atrás"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "14px",
+      fontWeight: "700"
+    }
+  }, "⚙ Ajustes"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: onLogout,
+    style: {
+      background: "#fee2e2",
+      border: "none",
+      color: "#dc2626",
+      borderRadius: "6px",
+      padding: "6px 14px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "Cerrar sesión")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: "1080px",
+      margin: "0 auto",
+      padding: "20px 16px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "12px",
+      padding: "20px",
+      marginBottom: "20px",
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setModulosCollapsed(!modulosCollapsed),
+    style: {
+      fontSize: "14px",
+      fontWeight: "700",
+      marginBottom: modulosCollapsed ? "0" : "16px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "12px"
+    }
+  }, modulosCollapsed ? "▶" : "▼"), "📦 Módulos (", modules.length, ")"), !modulosCollapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+      gap: "12px",
+      marginBottom: "16px"
+    }
+  }, modules.map(m => /*#__PURE__*/React.createElement("div", {
+    key: m.id,
+    style: {
+      background: C.item,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "8px",
+      padding: "12px",
+      fontSize: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      marginBottom: "8px"
+    }
+  }, m.name), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onRemoveModule(m.id),
+    style: {
+      background: "#fee2e2",
+      color: "#dc2626",
+      border: "none",
+      borderRadius: "6px",
+      padding: "6px 10px",
+      fontSize: "11px",
+      fontWeight: "600",
+      cursor: "pointer",
+      width: "100%"
+    }
+  }, "Eliminar")))), /*#__PURE__*/React.createElement("input", {
+    ref: importInputRef,
+    type: "file",
+    accept: ".xlsx",
+    onChange: e => {
+      const f = e.target.files[0];
+      if (f) {
+        const r = new FileReader();
+        r.onload = ev => {
+          try {
+            const mod = parseExcelModule(ev.target.result, f.name);
+            onAddModule(mod);
+            alert(`Módulo "${mod.name}" importado con ${mod.items.length} criterios.`);
+          } catch (err) {
+            alert("Error: " + err.message);
+          }
+        };
+        r.readAsArrayBuffer(f);
+      }
+      e.target.value = "";
+    },
+    style: {
+      display: "none"
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: handleImportModule,
+    style: {
+      background: C.accent,
+      color: "white",
+      border: "none",
+      borderRadius: "8px",
+      padding: "10px 16px",
+      fontSize: "13px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "📥 Importar módulo"))), /*#__PURE__*/React.createElement(EmployeeListWithFilters, {
+    employees: employees,
+    sapModules: sapModules,
+    sectors: sectors,
+    skills: skills,
+    locations: locations,
+    editingEmp: editingEmp,
+    setEditingEmp: setEditingEmp,
+    removeEmployee: removeEmployee,
+    updateEmployee: updateEmployee
+  }), editingEmp && /*#__PURE__*/React.createElement(EditEmployeeModal, {
+    emp: editingEmp,
+    sapModules: sapModules,
+    sectors: sectors,
+    skills: skills,
+    locations: locations,
+    onSave: data => updateEmployee(editingEmp.id, data),
+    onClose: () => setEditingEmp(null)
+  }), /*#__PURE__*/React.createElement(ItemListSection, {
+    title: "👨 Evaluadores",
+    items: evaluators.map((e, i) => ({
+      id: i,
+      name: e
+    })),
+    value: newEvalName,
+    setValue: setNewEvalName,
+    onAdd: addEval,
+    onRemove: removeEval,
+    showEdit: false
+  }), /*#__PURE__*/React.createElement(ItemListSection, {
+    title: "🔷 Módulos SAP",
+    items: sapModules,
+    value: newSapModule,
+    setValue: setNewSapModule,
+    onAdd: () => {
+      if (newSapModule) {
+        addSapModule(newSapModule);
+        setNewSapModule("");
+      }
+    },
+    onRemove: removeSapModule
+  }), /*#__PURE__*/React.createElement(ItemListSection, {
+    title: "🏢 Sectores",
+    items: sectors,
+    value: newSector,
+    setValue: setNewSector,
+    onAdd: () => {
+      if (newSector) {
+        addSector(newSector);
+        setNewSector("");
+      }
+    },
+    onRemove: removeSector
+  }), /*#__PURE__*/React.createElement(ItemListSection, {
+    title: "💡 Skills",
+    items: skills,
+    value: newSkill,
+    setValue: setNewSkill,
+    onAdd: () => {
+      if (newSkill) {
+        addSkill(newSkill);
+        setNewSkill("");
+      }
+    },
+    onRemove: removeSkill
+  }), /*#__PURE__*/React.createElement(ItemListSection, {
+    title: "📍 Ubicaciones",
+    items: locations,
+    value: newLocation,
+    setValue: setNewLocation,
+    onAdd: () => {
+      if (newLocation) {
+        addLocation(newLocation);
+        setNewLocation("");
+      }
+    },
+    onRemove: removeLocation
+  })));
+};
+function App() {
+  const [appScreen, setAppScreen] = useState("home");
+  const [currentApp, setCurrentApp] = useState("eval");
+  const [dataReady, setDataReady] = useState(false);
+  const [modules, setModules] = useState([QM_MODULE]);
+  const [evaluators, setEvaluators] = useState(["Evaluador 1", "Evaluador 2"]);
+  const [employees, setEmployees] = useState([{
+    id: "emp-1",
+    nombre: "Empleado 1",
+    module: "SAP QM",
+    sector: "",
+    skill: "",
+    location: "",
+    antiguedad: ""
+  }]);
+  const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [selectedModule, setSelectedModule] = useState(null);
+  const [evalDate, setEvalDate] = useState(today());
+  const [view, setView] = useState("eval");
+  const [items, setItems] = useState([]);
+  const [collapseKey, setCollapseKey] = useState(0);
+  const [allCollapsed, setAllCollapsed] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [evalHistory, setEvalHistory] = useState([]);
+  const [savedMsg, setSavedMsg] = useState("");
+  const [sapModules, setSapModules] = useState(DEFAULT_SAP_MODULES);
+  const [sectors, setSectors] = useState(DEFAULT_SECTORS);
+  const [skills, setSkills] = useState(DEFAULT_SKILLS);
+  const [locations, setLocations] = useState(DEFAULT_LOCATIONS);
+  useEffect(() => {
+    (async () => {
+      try {
+        const [mod, eval_, emp, his, sap, sec, ski, loc] = await Promise.all([window.storage.get("sap-qm-modules", false).catch(() => null), window.storage.get("sap-qm-evaluators", false).catch(() => null), window.storage.get("sap-qm-employees", false).catch(() => null), window.storage.get("sap-qm-eval-history", false).catch(() => null), window.storage.get("sap-qm-sap-modules", false).catch(() => null), window.storage.get("sap-qm-sectors", false).catch(() => null), window.storage.get("sap-qm-skills", false).catch(() => null), window.storage.get("sap-qm-locations", false).catch(() => null)]);
+        if (mod?.value) setModules(JSON.parse(mod.value));
+        if (eval_?.value) setEvaluators(JSON.parse(eval_.value));
+        if (emp?.value) setEmployees(JSON.parse(emp.value));
+        if (his?.value) setEvalHistory(JSON.parse(his.value));
+        if (sap?.value) setSapModules(JSON.parse(sap.value));
+        if (sec?.value) setSectors(JSON.parse(sec.value));
+        if (ski?.value) setSkills(JSON.parse(ski.value));
+        if (loc?.value) setLocations(JSON.parse(loc.value));
+        setDataReady(true);
+      } catch (e) {
+        console.error("Load error:", e);
+        setDataReady(true);
+      }
+    })();
+  }, []);
+  useEffect(() => {
+    if (!dataReady) return;
+    (async () => {
+      try {
+        await Promise.all([window.storage.set("sap-qm-modules", JSON.stringify(modules), false), window.storage.set("sap-qm-evaluators", JSON.stringify(evaluators), false), window.storage.set("sap-qm-employees", JSON.stringify(employees), false), window.storage.set("sap-qm-eval-history", JSON.stringify(evalHistory), false), window.storage.set("sap-qm-sap-modules", JSON.stringify(sapModules), false), window.storage.set("sap-qm-sectors", JSON.stringify(sectors), false), window.storage.set("sap-qm-skills", JSON.stringify(skills), false), window.storage.set("sap-qm-locations", JSON.stringify(locations), false)]);
+      } catch (e) {
+        console.error("Save error:", e);
+      }
+    })();
+  }, [dataReady, modules, evaluators, employees, evalHistory, sapModules, sectors, skills, locations]);
+  const addEmployee = emp => {
+    const id = "emp-" + Date.now();
+    setEmployees([...employees, {
+      ...emp,
+      id
+    }]);
+  };
+  const removeEmployee = id => {
+    setEmployees(employees.filter(e => e.id !== id));
+  };
+  const updateEmployee = (id, data) => {
+    setEmployees(employees.map(e => e.id === id ? {
+      ...data,
+      id
+    } : e));
+  };
+  const onBulkAdd = emps => {
+    const added = emps.filter(e => !employees.find(x => x.nombre.toLowerCase() === e.nombre.toLowerCase())).length;
+    const updated = emps.filter(e => employees.find(x => x.nombre.toLowerCase() === e.nombre.toLowerCase())).length;
+    const newEmps = [...employees];
+    for (const emp of emps) {
+      const idx = newEmps.findIndex(e => e.nombre.toLowerCase() === emp.nombre.toLowerCase());
+      if (idx >= 0) {
+        newEmps[idx] = {
+          ...newEmps[idx],
+          ...emp
+        };
+      } else {
+        newEmps.push({
+          ...emp,
+          id: "emp-" + Date.now() + Math.random()
+        });
+      }
+    }
+    ;
+    setEmployees(newEmps);
+    return {
+      added,
+      updated
+    };
+  };
+  const addSapModule = name => {
+    setSapModules([...sapModules, name]);
+  };
+  const removeSapModule = name => {
+    setSapModules(sapModules.filter(s => s !== name));
+  };
+  const addSector = name => {
+    setSectors([...sectors, name]);
+  };
+  const removeSector = name => {
+    setSectors(sectors.filter(s => s !== name));
+  };
+  const addSkill = name => {
+    setSkills([...skills, name]);
+  };
+  const removeSkill = name => {
+    setSkills(skills.filter(s => s !== name));
+  };
+  const addLocation = name => {
+    setLocations([...locations, name]);
+  };
+  const removeLocation = name => {
+    setLocations(locations.filter(l => l !== name));
+  };
+  if (!dataReady) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "20px",
+      textAlign: "center"
+    }
+  }, "Cargando...");
+  if (appScreen === "home") return /*#__PURE__*/React.createElement(HomeScreen, {
+    onEnterApp: () => setAppScreen("evaluator"),
+    onLogout: () => window.doLogout()
+  });
+  if (view === "settings") return /*#__PURE__*/React.createElement(SettingsView, {
+    modules: modules,
+    onRemoveModule: id => setModules(modules.filter(m => m.id !== id)),
+    onAddModule: mod => setModules(prev => [...prev, mod]),
+    evaluators: evaluators,
+    setEvaluators: setEvaluators,
+    employees: employees,
+    addEmployee: addEmployee,
+    removeEmployee: removeEmployee,
+    updateEmployee: updateEmployee,
+    onBulkAdd: onBulkAdd,
+    sapModules: sapModules,
+    addSapModule: addSapModule,
+    removeSapModule: removeSapModule,
+    sectors: sectors,
+    addSector: addSector,
+    removeSector: removeSector,
+    skills: skills,
+    addSkill: addSkill,
+    removeSkill: removeSkill,
+    locations: locations,
+    addLocation: addLocation,
+    removeLocation: removeLocation,
+    onBack: () => setView("eval"),
+    onLogout: () => window.doLogout()
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: C.bg,
+      color: C.text,
+      fontFamily: "system-ui,-apple-system,sans-serif"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#354a5e",
+      color: "white",
+      padding: "0 24px",
+      height: "44px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setAppScreen("home"),
+    title: "Inicio",
+    style: {
+      background: "rgba(255,255,255,0.12)",
+      border: "1px solid rgba(255,255,255,0.25)",
+      color: "white",
+      borderRadius: "6px",
+      padding: "4px 10px",
+      fontSize: "16px",
+      cursor: "pointer",
+      lineHeight: 1
+    }
+  }, "🏠"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "1px",
+      height: "22px",
+      background: "rgba(255,255,255,0.3)"
+    }
+  }), /*#__PURE__*/React.createElement("svg", {
+    viewBox: "0 0 120 40",
+    style: {
+      height: "28px",
+      width: "auto"
+    }
+  }, /*#__PURE__*/React.createElement("text", {
+    x: "10",
+    y: "26",
+    fontSize: "20",
+    fontWeight: "700",
+    fill: "white"
+  }, "Hiberus"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600"
+    }
+  }, "EvaluadorSAP QM"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => window.doLogout(),
+    style: {
+      background: "rgba(255,255,255,0.12)",
+      border: "1px solid rgba(255,255,255,0.3)",
+      color: "white",
+      borderRadius: "6px",
+      padding: "5px 12px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "Cerrar sesión"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderBottom: `1px solid ${C.border}`,
+      background: C.card,
+      display: "flex",
+      gap: "0"
+    }
+  }, [{
+    id: "eval",
+    label: "📊 Evaluación"
+  }, {
+    id: "history",
+    label: "📜 Histórico"
+  }].map(tab => /*#__PURE__*/React.createElement("button", {
+    key: tab.id,
+    onClick: () => setView(tab.id),
+    style: {
+      flex: 1,
+      padding: "12px",
+      border: "none",
+      background: "transparent",
+      cursor: "pointer",
+      fontSize: "13px",
+      fontWeight: view === tab.id ? "700" : "500",
+      borderBottom: view === tab.id ? `3px solid ${C.accent}` : "3px solid transparent",
+      color: view === tab.id ? C.accent : C.text2,
+      transition: "all 0.2s"
+    }
+  }, tab.label))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: "1080px",
+      margin: "0 auto",
+      padding: "20px 16px"
+    }
+  }, view === "eval" && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+      gap: "16px",
+      marginBottom: "24px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setCurrentApp("eval"),
+    style: {
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: "12px",
+      padding: "20px",
+      cursor: "pointer",
+      transition: "all 0.2s",
+      opacity: currentApp === "eval" ? 1 : 0.7
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "28px",
+      marginBottom: "8px"
+    }
+  }, "📊"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "14px",
+      fontWeight: "700"
+    }
+  }, "Evaluación de empleados"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "12px",
+      padding: "20px",
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+      gap: "12px",
+      marginBottom: "16px"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      marginBottom: "6px"
+    }
+  }, "EMPLEADO"), /*#__PURE__*/React.createElement("select", {
+    value: selectedEmployee?.id || "",
+    onChange: e => {
+      const emp = employees.find(x => x.id === e.target.value);
+      setSelectedEmployee(emp);
+      setItems(selectedModule?.items || []);
+    },
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none"
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Seleccionar..."), employees.map(e => /*#__PURE__*/React.createElement("option", {
+    key: e.id,
+    value: e.id
+  }, e.nombre, " ", e.nivel ? `(${e.nivel})` : "")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      marginBottom: "6px"
+    }
+  }, "MÓDULO"), /*#__PURE__*/React.createElement("select", {
+    value: selectedModule?.id || "",
+    onChange: e => {
+      const mod = modules.find(x => x.id === e.target.value);
+      setSelectedModule(mod);
+      setItems(mod?.items || []);
+    },
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none"
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Seleccionar..."), modules.map(m => /*#__PURE__*/React.createElement("option", {
+    key: m.id,
+    value: m.id
+  }, m.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      marginBottom: "6px"
+    }
+  }, "FECHA EVALUACIÓN"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: evalDate,
+    onChange: e => setEvalDate(e.target.value),
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none"
+    }
+  }))), selectedEmployee && selectedModule ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: "16px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600",
+      marginBottom: "12px"
+    }
+  }, "📋 ", selectedModule.name, " - ", selectedEmployee.nombre)) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "20px",
+      textAlign: "center",
+      color: C.muted,
+      fontSize: "12px"
+    }
+  }, "Selecciona empleado y módulo para comenzar"))), view === "history" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "12px",
+      padding: "20px",
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "14px",
+      fontWeight: "700",
+      marginBottom: "12px"
+    }
+  }, "📜 Histórico de evaluaciones"), evalHistory.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "20px",
+      textAlign: "center",
+      color: C.muted,
+      fontSize: "12px"
+    }
+  }, "Sin evaluaciones registradas") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px"
+    }
+  }, evalHistory.map((h, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      padding: "10px",
+      borderBottom: `1px solid ${C.border}`,
+      background: C.item
+    }
+  }, h.empleado?.nombre, " - ", h.moduloNombre, " (", fmtDate(h.fecha), ")")))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: "24px",
+      padding: "16px",
+      background: C.item,
+      borderRadius: "12px",
+      border: `1px solid ${C.border}`,
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setView("settings"),
+    style: {
+      background: C.accent,
+      color: "white",
+      border: "none",
+      borderRadius: "8px",
+      padding: "10px 20px",
+      fontSize: "13px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "⚙️ Ajustes"))));
+}
+const C = {
+  bg: "#f0f4f8",
+  card: "#ffffff",
+  item: "#f8fafc",
+  border: "#dde3ea",
+  border2: "#c8d3de",
+  text: "#1a2332",
+  text2: "#4a5568",
+  muted: "#8796a5",
+  accent: "#2563eb",
+  track: "#e2e8f0",
+  rowBorder: "#eaeff4",
+  expandBg: "#eef2f7",
+  green: "#16a34a",
+  greenBg: "#f0fdf4",
+  greenBorder: "#bbf7d0"
+};
+const LEVELS = [{
+  v: 1,
+  code: "V1",
+  name: "Junior funcional",
+  years: "≤2 años",
+  color: "#ef4444",
+  desc: "Apoya bajo supervisión total. Ejecuta flujos estándar de Best Practices."
+}, {
+  v: 2,
+  code: "V2.1",
+  name: "Funcional",
+  years: "2-3 años",
+  color: "#f97316",
+  desc: "Participa activamente. Parametrización básica e integración. Necesita apoyo."
+}, {
+  v: 3,
+  code: "V2.2",
+  name: "Senior I",
+  years: "3-6 años",
+  color: "#eab308",
+  desc: "Realización con dependencia. Apoya en workarounds. Consulta frecuente."
+}, {
+  v: 4,
+  code: "V3.1",
+  name: "Senior I.1",
+  years: "6-7 años",
+  color: "#84cc16",
+  desc: "Realización con autonomía. Genera píldoras. Define con el cliente. Consulta puntual."
+}, {
+  v: 5,
+  code: "V3.2",
+  name: "Senior II",
+  years: "7-8 años",
+  color: "#22c55e",
+  desc: "Autonomía y decisión. Propone mejoras al cliente. Conoce sectores de negocio."
+}, {
+  v: 6,
+  code: "V4.1",
+  name: "Senior III",
+  years: "8-10 años",
+  color: "#14b8a6",
+  desc: "Referente de negocio y SAP. Autonomía, decisión y resolución de imprevistos."
+}, {
+  v: 7,
+  code: "V4.2",
+  name: "Senior IV",
+  years: "10-12 años",
+  color: "#818cf8",
+  desc: "Referente del módulo. Entornos complejos. Coordina y transmite a todos los niveles."
+}, {
+  v: 8,
+  code: "V4.3",
+  name: "Experto",
+  years: ">12 años",
+  color: "#a855f7",
+  desc: "Responsable del módulo. Referente sectorial. Máximo nivel de conocimiento SAP."
+}];
+const getLvl = v => LEVELS[Math.min(7, Math.max(0, Math.round(v) - 1))];
+const getColor = v => getLvl(v).color;
+const today = () => new Date().toISOString().slice(0, 10);
+const fmtDate = iso => {
+  if (!iso) return "";
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+};
+const resizePhoto = (file, maxDim = 160, quality = 0.85) => new Promise((resolve, reject) => {
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width,
+        h = img.height;
+      if (w > h) {
+        if (w > maxDim) {
+          h = Math.round(h * maxDim / w);
+          w = maxDim;
+        }
+      } else {
+        if (h > maxDim) {
+          w = Math.round(w * maxDim / h);
+          h = maxDim;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => reject(new Error("No se pudo leer la imagen"));
+    img.src = e.target.result;
+  };
+  reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+  reader.readAsDataURL(file);
+});
+const DEFAULT_SAP_MODULES = ["SAP QM", "SAP MM", "SAP CO", "SAP FI", "SAP PP", "SAP EWM"];
+const DEFAULT_SECTORS = ["Industria de procesos", "Manufacturing", "Servicios y Hoteles", "Estructura"];
+const DEFAULT_SKILLS = ["Preventa", "Jefatura de proyecto", "Arquitectura", "Formación"];
+const DEFAULT_LOCATIONS = ["Valencia", "Barcelona", "Madrid"];
+const QM_AMBITO_ORDER = ["Planificación de Calidad", "Inspección de Calidad", "Notificaciones de Calidad", "Certificados de Calidad", "Gestión de Lotes", "Gestión de Muestras", "Gestión de Auditorías", "FMEA y Plan de Control", "Gestión de Cambios de Datos", "Estudio de Estabilidad", "Integración con MM", "Integración con PP", "Integración con EWM", "Integración con SD", "Integración con CO", "Cargas", "OSS / Notas SAP", "Conocimiento General"];
+const VMAP = {
+  "V1": 1,
+  "V2.1": 2,
+  "V2.2": 3,
+  "V3.1": 4,
+  "V3.2": 5,
+  "V4.1": 6,
+  "V4.2": 7,
+  "V4.3": 8
+};
+const parseVal = v => {
+  if (typeof v === "number" && v >= 1 && v <= 8) return Math.round(v);
+  if (typeof v === "string") {
+    const t = v.trim();
+    if (VMAP[t]) return VMAP[t];
+    const n = parseFloat(t);
+    if (!isNaN(n) && n >= 1 && n <= 8) return Math.round(n);
+  }
+  return 4;
+};
+function parseExcelModule(ab, fileName) {
+  const wb = XLSX.read(new Uint8Array(ab), {
+    type: "array"
+  });
+  const sn = wb.SheetNames.find(n => /matriz|conocimiento/i.test(n)) || wb.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], {
+    header: 1,
+    defval: ""
+  });
+  const items = [];
+  let uid = Date.now();
+  for (const row of rows) {
+    const peso = parseFloat(row[0]);
+    if (!peso || peso <= 0 || isNaN(peso)) continue;
+    const desc = String(row[1] || "").trim(),
+      ambito = String(row[2] || "").trim();
+    if (!desc || !ambito || desc.length < 4) continue;
+    if (/^(valoraci|desviaci|nivel)/i.test(desc)) continue;
+    items.push({
+      id: uid++,
+      peso,
+      desc,
+      ambito,
+      v1: parseVal(row[3]),
+      v2: parseVal(row[4])
+    });
+  }
+  const name = sn.replace(/conocimiento[\s_]*/i, "").replace(/[\s_]*matriz[\s_]*/i, " ").replace(/[\s_]+/g, " ").trim() || fileName.replace(/\.(xlsx?|xls)$/i, "");
+  return {
+    id: "mod-" + Date.now(),
+    name: name || "Módulo importado",
+    items,
+    ambitoOrder: [...new Set(items.map(i => i.ambito))]
+  };
+}
+const excelDateToISO = v => {
+  if (v == null || v === "") return "";
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
+  if (typeof v === "number") {
+    const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+    return isNaN(d) ? "" : d.toISOString().slice(0, 10);
+  }
+  const s = String(v).trim();
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return "";
+};
+const parseNivel = v => {
+  const m = String(v || "").trim().match(/^(V\d(?:\.\d)?|R)\b/i);
+  return m ? m[1].toUpperCase() : "";
+};
+function parseEmployeesExcel(ab) {
+  const wb = XLSX.read(new Uint8Array(ab), {
+    type: "array"
+  });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, {
+    header: 1,
+    defval: ""
+  });
+  const emps = [];
+  const headers = rows[0].map(h => String(h || "").trim().toLowerCase());
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r[0]) continue;
+    const nombre = String(r[0] || "").trim();
+    if (!nombre) continue;
+    const idx = {
+      nivel: headers.indexOf("nivel"),
+      module: headers.indexOf("módulo"),
+      sector: headers.indexOf("sector"),
+      skill: headers.indexOf("skill"),
+      location: headers.indexOf("ubicación"),
+      antiguedad: headers.indexOf("antigüedad"),
+      expSap: headers.indexOf("experiencia sap")
+    };
+    const emp = {
+      id: "emp-" + Date.now() + Math.random(),
+      nombre,
+      nivel: parseNivel(r[idx.nivel]),
+      module: String(r[idx.module] || "").trim(),
+      sector: String(r[idx.sector] || "").trim(),
+      skill: String(r[idx.skill] || "").trim(),
+      location: String(r[idx.location] || "").trim(),
+      antiguedad: excelDateToISO(r[idx.antiguedad]),
+      expSap: excelDateToISO(r[idx.expSap])
+    };
+    emps.push(emp);
+  }
+  return emps;
+}
+const QM_MODULE = {
+  id: "mod-qm",
+  name: "SAP QM",
+  items: [{
+    id: 1,
+    peso: 5,
+    desc: "Planificación de inspecciones",
+    ambito: "Planificación de Calidad",
+    v1: 3,
+    v2: 4
+  }, {
+    id: 2,
+    peso: 5,
+    desc: "Gestión de lotes",
+    ambito: "Gestión de Lotes",
+    v1: 2,
+    v2: 3
+  }],
+  ambitoOrder: ["Planificación de Calidad", "Gestión de Lotes"]
+};
+const Tag = ({
+  text
+}) => {
+  const colors = ["#fecaca", "#fed7aa", "#fef08a", "#dcfce7", "#d1fae5", "#cffafe", "#dbeafe", "#e9d5ff", "#fce7f3", "#fecdd3"];
+  const h = text.split("").reduce((a, b) => a + b.charCodeAt(0), 0) % colors.length;
+  return /*#__PURE__*/React.createElement("span", {
+    style: {
+      background: colors[h],
+      color: "#000",
+      borderRadius: "4px",
+      padding: "2px 6px",
+      fontSize: "11px",
+      fontWeight: "600",
+      whiteSpace: "nowrap",
+      display: "inline-block",
+      marginRight: "4px"
+    }
+  }, text);
+};
+const MultiSelectDropdown = ({
+  label,
+  options,
+  selected,
+  onChange
+}) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = e => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const filteredOpts = options.filter(o => String(o).toLowerCase().includes(search.toLowerCase()));
+  const toggle = v => onChange(selected.includes(v) ? selected.filter(x => x !== v) : [...selected, v]);
+  const allSel = filteredOpts.length > 0 && filteredOpts.every(o => selected.includes(o));
+  const toggleAll = () => onChange(allSel ? selected.filter(s => !filteredOpts.includes(s)) : [...new Set([...selected, ...filteredOpts])]);
+  return /*#__PURE__*/React.createElement("div", {
+    ref: ref,
+    style: {
+      position: "relative"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setOpen(!open),
+    style: {
+      background: selected.length ? "#e0edff" : C.bg,
+      border: `1px solid ${selected.length ? C.accent : C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      cursor: "pointer",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      userSelect: "none",
+      color: selected.length ? C.accent : C.text,
+      fontWeight: selected.length ? "600" : "400",
+      whiteSpace: "nowrap",
+      overflow: "hidden"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      overflow: "hidden",
+      textOverflow: "ellipsis"
+    }
+  }, label, selected.length > 0 ? ` (${selected.length})` : ""), /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: "6px",
+      fontSize: "10px"
+    }
+  }, "▾")), open && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      top: "calc(100% + 4px)",
+      left: 0,
+      zIndex: 500,
+      background: C.card,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "8px",
+      boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+      minWidth: "220px",
+      maxWidth: "280px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    autoFocus: true,
+    placeholder: "Buscar...",
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1.5px solid ${C.accent}`,
+      borderRadius: "6px",
+      padding: "7px 10px",
+      fontSize: "12px",
+      outline: "none",
+      boxSizing: "border-box"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxHeight: "220px",
+      overflowY: "auto",
+      borderTop: `1px solid ${C.rowBorder}`,
+      borderBottom: `1px solid ${C.rowBorder}`
+    }
+  }, filteredOpts.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "12px",
+      textAlign: "center",
+      color: C.muted,
+      fontSize: "11px"
+    }
+  }, "Sin resultados") : filteredOpts.map(o => /*#__PURE__*/React.createElement("label", {
+    key: o,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "7px 12px",
+      fontSize: "12px",
+      cursor: "pointer",
+      background: selected.includes(o) ? "#f0f7ff" : "transparent"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: selected.includes(o),
+    onChange: () => toggle(o)
+  }), o))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "8px 12px",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    onClick: toggleAll,
+    style: {
+      fontSize: "12px",
+      color: C.accent,
+      cursor: "pointer",
+      fontWeight: "600"
+    }
+  }, allSel ? "Deseleccionar todo" : "Seleccionar todo"), selected.length > 0 && /*#__PURE__*/React.createElement("span", {
+    onClick: () => onChange([]),
+    style: {
+      fontSize: "11px",
+      color: C.muted,
+      cursor: "pointer"
+    }
+  }, "Limpiar"))));
+};
+const EmployeeListWithFilters = ({
+  employees,
+  sapModules,
+  sectors,
+  skills,
+  locations,
+  editingEmp,
+  setEditingEmp,
+  removeEmployee,
+  updateEmployee
+}) => {
+  const [filters, setFilters] = useState({
+    nombre: "",
+    nivel: [],
+    module: [],
+    skill: [],
+    antiguedad: [],
+    expSap: []
+  });
+  const [collapsed, setCollapsed] = useState(true);
+  const setF = (k, v) => setFilters(f => ({
+    ...f,
+    [k]: v
+  }));
+  const allNiveles = [...new Set(employees.map(e => e.nivel).filter(Boolean))].sort();
+  const allModules = [...new Set(employees.flatMap(e => e.modules && e.modules.length ? e.modules : e.module ? [e.module] : []))].filter(Boolean).sort();
+  const allSkills = [...new Set(employees.map(e => e.skill).filter(Boolean))].sort();
+  const allAntig = [...new Set(employees.map(e => e.antiguedad ? e.antiguedad.slice(0, 4) : "").filter(Boolean))].sort();
+  const allExp = [...new Set(employees.map(e => e.expSap ? e.expSap.slice(0, 4) : "").filter(Boolean))].sort();
+  const filtered = employees.filter(e => {
+    const modList = e.modules && e.modules.length ? e.modules : e.module ? [e.module] : [];
+    return (!filters.nombre || e.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) && (!filters.nivel.length || filters.nivel.includes(e.nivel || "")) && (!filters.module.length || modList.some(m => filters.module.includes(m))) && (!filters.skill.length || filters.skill.includes(e.skill || "")) && (!filters.antiguedad.length || filters.antiguedad.includes(e.antiguedad ? e.antiguedad.slice(0, 4) : "")) && (!filters.expSap.length || filters.expSap.includes(e.expSap ? e.expSap.slice(0, 4) : ""));
+  });
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "12px",
+      padding: "20px",
+      marginBottom: "20px",
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setCollapsed(!collapsed),
+    style: {
+      fontSize: "14px",
+      fontWeight: "700",
+      marginBottom: collapsed ? "0" : "16px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "12px"
+    }
+  }, collapsed ? "▶" : "▼"), "👥 Empleados (", filtered.length, "/", employees.length, ")"), !collapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: "16px",
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+      gap: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    placeholder: "Buscar nombre...",
+    value: filters.nombre,
+    onChange: e => setF("nombre", e.target.value),
+    style: {
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none"
+    }
+  }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
+    label: "Nivel",
+    options: allNiveles,
+    selected: filters.nivel,
+    onChange: v => setF("nivel", v)
+  }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
+    label: "Módulo",
+    options: allModules,
+    selected: filters.module,
+    onChange: v => setF("module", v)
+  }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
+    label: "Skill",
+    options: allSkills,
+    selected: filters.skill,
+    onChange: v => setF("skill", v)
+  }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
+    label: "F. Incorporación",
+    options: allAntig,
+    selected: filters.antiguedad,
+    onChange: v => setF("antiguedad", v)
+  }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
+    label: "Exp. SAP",
+    options: allExp,
+    selected: filters.expSap,
+    onChange: v => setF("expSap", v)
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${C.border}`,
+      borderRadius: "8px",
+      overflow: "hidden"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      padding: "8px 14px",
+      background: C.expandBg,
+      borderBottom: `1px solid ${C.border}`,
+      fontSize: "10px",
+      fontWeight: "700",
+      color: C.muted,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: "180px"
+    }
+  }, "Nombre / Nivel"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "14px",
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "150px",
+      textAlign: "right"
+    }
+  }, "Módulos"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "110px",
+      textAlign: "right"
+    }
+  }, "Skill"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "120px",
+      textAlign: "right"
+    }
+  }, "F. Incorporación"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "110px",
+      textAlign: "right"
+    }
+  }, "Exp. SAP"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "96px",
+      textAlign: "center"
+    }
+  }, "Acciones"))), filtered.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px",
+      textAlign: "center",
+      color: C.muted,
+      fontSize: "12px"
+    }
+  }, "No hay empleados que coincidan con los filtros") : filtered.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((e, idx) => /*#__PURE__*/React.createElement("div", {
+    key: e.id,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      padding: "10px 14px",
+      background: idx % 2 ? C.item : C.card,
+      borderBottom: idx < filtered.length - 1 ? `1px solid ${C.rowBorder}` : "none"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: "180px"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600",
+      color: C.text
+    }
+  }, e.nombre), e.nivel && /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: "8px",
+      fontSize: "10px",
+      fontWeight: "700",
+      color: "white",
+      background: C.accent,
+      borderRadius: "4px",
+      padding: "2px 6px"
+    }
+  }, e.nivel)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "14px",
+      flexShrink: 0,
+      fontSize: "11px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "150px",
+      textAlign: "right"
+    }
+  }, (e.modules && e.modules.length ? e.modules : e.module ? [e.module] : []).map((m, j) => /*#__PURE__*/React.createElement(Tag, {
+    key: j,
+    text: m
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "110px",
+      textAlign: "right"
+    }
+  }, e.skill && /*#__PURE__*/React.createElement(Tag, {
+    text: e.skill
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "120px",
+      color: C.text2,
+      textAlign: "right"
+    }
+  }, "📅 ", e.antiguedad ? fmtDate(e.antiguedad) : "—"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      minWidth: "110px",
+      color: C.text2,
+      textAlign: "right"
+    }
+  }, "🧭 ", e.expSap ? e.expSap.slice(0, 4) : "—"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "96px",
+      display: "flex",
+      gap: "4px",
+      justifyContent: "center"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setEditingEmp(e),
+    title: "Editar",
+    style: {
+      background: "#e0edff",
+      color: "#1d4ed8",
+      border: "none",
+      borderRadius: "6px",
+      padding: "5px 8px",
+      fontSize: "10px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "✏️"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => removeEmployee(e.id),
+    title: "Eliminar",
+    style: {
+      background: "#fee2e2",
+      color: "#dc2626",
+      border: "none",
+      borderRadius: "6px",
+      padding: "5px 8px",
+      fontSize: "10px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "🗑"))))))));
+};
+const ItemListSection = ({
+  title,
+  items,
+  value,
+  setValue,
+  onAdd,
+  onRemove,
+  onEdit,
+  showEdit = false
+}) => {
+  const [editingId, setEditingId] = useState(null);
+  const [editValue, setEditValue] = useState("");
+  const [collapsed, setCollapsed] = useState(true);
+  const handleEdit = item => {
+    setEditingId(item.id || item);
+    setEditValue(item.name || item);
+  };
+  const handleSave = id => {
+    onEdit ? onEdit(id, editValue) : null;
+    setEditingId(null);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "12px",
+      padding: "20px",
+      marginBottom: "20px",
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setCollapsed(!collapsed),
+    style: {
+      fontSize: "14px",
+      fontWeight: "700",
+      marginBottom: collapsed ? "0" : "12px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "12px"
+    }
+  }, collapsed ? "▶" : "▼"), title, " (", items?.length || 0, ")"), !collapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      border: `1px solid ${C.border}`,
+      borderRadius: "8px",
+      overflow: "hidden",
+      marginBottom: "12px"
+    }
+  }, !items || items.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px",
+      textAlign: "center",
+      color: C.muted,
+      fontSize: "12px"
+    }
+  }, "Sin items") : items.map((item, idx) => {
+    const isEditing = editingId === (item.id || item);
+    const display = item.name || item;
+    return /*#__PURE__*/React.createElement("div", {
+      key: idx,
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "10px 14px",
+        background: idx % 2 ? C.item : C.card,
+        borderBottom: idx < items.length - 1 ? `1px solid ${C.rowBorder}` : "none"
+      }
+    }, isEditing ? /*#__PURE__*/React.createElement("input", {
+      autoFocus: true,
+      value: editValue,
+      onChange: e => setEditValue(e.target.value),
+      style: {
+        flex: 1,
+        background: C.bg,
+        border: `1px solid ${C.border2}`,
+        borderRadius: "6px",
+        padding: "6px 8px",
+        fontSize: "12px",
+        outline: "none"
+      }
+    }) : /*#__PURE__*/React.createElement("span", {
+      style: {
+        flex: 1,
+        fontSize: "13px",
+        color: C.text
+      }
+    }, display), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: "6px",
+        marginLeft: "12px"
+      }
+    }, isEditing ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
+      onClick: () => handleSave(item.id || item),
+      style: {
+        background: "#dcfce7",
+        color: "#16a34a",
+        border: "none",
+        borderRadius: "6px",
+        padding: "4px 8px",
+        fontSize: "10px",
+        fontWeight: "600",
+        cursor: "pointer"
+      }
+    }, "✓"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setEditingId(null),
+      style: {
+        background: C.item,
+        color: C.text2,
+        border: `1px solid ${C.border2}`,
+        borderRadius: "6px",
+        padding: "4px 8px",
+        fontSize: "10px",
+        fontWeight: "600",
+        cursor: "pointer"
+      }
+    }, "✕")) : /*#__PURE__*/React.createElement(React.Fragment, null, showEdit && /*#__PURE__*/React.createElement("button", {
+      onClick: () => handleEdit(item),
+      title: "Editar",
+      style: {
+        background: "#e0edff",
+        color: "#1d4ed8",
+        border: "none",
+        borderRadius: "6px",
+        padding: "4px 8px",
+        fontSize: "10px",
+        fontWeight: "600",
+        cursor: "pointer"
+      }
+    }, "✏️"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onRemove(item.id || item),
+      title: "Eliminar",
+      style: {
+        background: "#fee2e2",
+        color: "#dc2626",
+        border: "none",
+        borderRadius: "6px",
+        padding: "4px 8px",
+        fontSize: "10px",
+        fontWeight: "600",
+        cursor: "pointer"
+      }
+    }, "🗑"))));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    placeholder: `Nuevo ${title.toLowerCase()}`,
+    value: value,
+    onChange: e => setValue(e.target.value),
+    style: {
+      flex: 1,
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none"
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: onAdd,
+    style: {
+      background: C.accent,
+      color: "white",
+      border: "none",
+      borderRadius: "6px",
+      padding: "8px 14px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "Añadir"))));
+};
+const NIVEL_OPTS = ["", "V1", "V2", "V2.1", "V2.2", "V3", "V3.1", "V3.2", "V4", "V4.1", "V4.2", "V4.3", "R"];
+const EditEmployeeModal = ({
+  emp,
+  sapModules,
+  sectors,
+  skills,
+  locations,
+  onSave,
+  onClose
+}) => {
+  const [form, setForm] = useState({
+    ...emp,
+    modules: emp.modules && emp.modules.length ? emp.modules : emp.module ? [emp.module] : []
+  });
+  const set = (k, v) => setForm(f => ({
+    ...f,
+    [k]: v
+  }));
+  const toggleMod = m => set("modules", form.modules.includes(m) ? form.modules.filter(x => x !== m) : [...form.modules, m]);
+  const allMods = [...new Set([...sapModules, ...form.modules])];
+  const inp = {
+    background: C.bg,
+    border: `1px solid ${C.border2}`,
+    borderRadius: "6px",
+    padding: "8px 10px",
+    fontSize: "12px",
+    outline: "none",
+    width: "100%"
+  };
+  const lbl = {
+    display: "block",
+    fontSize: "11px",
+    fontWeight: "700",
+    color: C.muted,
+    textTransform: "uppercase",
+    marginBottom: "4px"
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: onClose,
+    style: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: "rgba(0,0,0,0.4)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 4000
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      background: C.card,
+      borderRadius: "12px",
+      padding: "24px",
+      width: "90%",
+      maxWidth: "520px",
+      maxHeight: "85vh",
+      overflow: "auto",
+      boxShadow: "0 10px 40px rgba(0,0,0,0.2)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "16px",
+      fontWeight: "700",
+      marginBottom: "16px"
+    }
+  }, "✏️ Editar empleado"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "12px",
+      marginBottom: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      gridColumn: "1 / -1"
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Nombre"), /*#__PURE__*/React.createElement("input", {
+    value: form.nombre,
+    onChange: e => set("nombre", e.target.value),
+    style: inp
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Nivel"), /*#__PURE__*/React.createElement("select", {
+    value: form.nivel || "",
+    onChange: e => set("nivel", e.target.value),
+    style: inp
+  }, NIVEL_OPTS.map(n => /*#__PURE__*/React.createElement("option", {
+    key: n,
+    value: n
+  }, n || "—")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Ubicación"), /*#__PURE__*/React.createElement("select", {
+    value: form.location || "",
+    onChange: e => set("location", e.target.value),
+    style: inp
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "—"), [...new Set([...locations, form.location].filter(Boolean))].map(l => /*#__PURE__*/React.createElement("option", {
+    key: l,
+    value: l
+  }, l)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Fecha incorporación"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: form.antiguedad || "",
+    onChange: e => set("antiguedad", e.target.value),
+    style: inp
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Experiencia SAP"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: form.expSap || "",
+    onChange: e => set("expSap", e.target.value),
+    style: inp
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Sector"), /*#__PURE__*/React.createElement("select", {
+    value: form.sector || "",
+    onChange: e => set("sector", e.target.value),
+    style: inp
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "—"), [...new Set([...sectors, form.sector].filter(Boolean))].map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Skill"), /*#__PURE__*/React.createElement("select", {
+    value: form.skill || "",
+    onChange: e => set("skill", e.target.value),
+    style: inp
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "—"), [...new Set([...skills, form.skill].filter(Boolean))].map(s => /*#__PURE__*/React.createElement("option", {
+    key: s,
+    value: s
+  }, s)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      gridColumn: "1 / -1"
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Módulos SAP"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "6px"
+    }
+  }, allMods.map(m => /*#__PURE__*/React.createElement("label", {
+    key: m,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      fontSize: "12px",
+      background: form.modules.includes(m) ? "#e0edff" : C.item,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "4px 8px",
+      cursor: "pointer"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: form.modules.includes(m),
+    onChange: () => toggleMod(m)
+  }), m))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onClose,
+    style: {
+      background: C.item,
+      border: `1px solid ${C.border2}`,
+      color: C.text2,
+      borderRadius: "8px",
+      padding: "8px 16px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "Cancelar"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => {
+      onSave({
+        ...form,
+        module: form.modules[0] || ""
+      });
+      onClose();
+    },
+    style: {
+      background: C.accent,
+      color: "white",
+      border: "none",
+      borderRadius: "8px",
+      padding: "8px 16px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "💾 Guardar"))));
+};
+const HomeScreen = ({
+  onEnterApp,
+  onLogout
+}) => {
+  const [hovered, setHovered] = useState(null);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: "#f0f4f8",
+      fontFamily: "system-ui,-apple-system,sans-serif"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#354a5e",
+      color: "white",
+      height: "44px",
+      padding: "0 24px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    viewBox: "0 0 120 40",
+    style: {
+      height: "28px",
+      width: "auto"
+    }
+  }, /*#__PURE__*/React.createElement("text", {
+    x: "10",
+    y: "26",
+    fontSize: "20",
+    fontWeight: "700",
+    fill: "white"
+  }, "Hiberus")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "1px",
+      height: "22px",
+      background: "rgba(255,255,255,0.3)"
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "13px",
+      color: "rgba(255,255,255,0.85)",
+      fontWeight: "500"
+    }
+  }, "EvaluadorSAP QM")), /*#__PURE__*/React.createElement("button", {
+    onClick: onLogout,
+    style: {
+      background: "rgba(255,255,255,0.12)",
+      border: "1px solid rgba(255,255,255,0.3)",
+      color: "white",
+      borderRadius: "6px",
+      padding: "5px 14px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "Cerrar sesión")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "white",
+      borderBottom: "1px solid #dde3ea",
+      padding: "10px 24px"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "14px",
+      fontWeight: "600",
+      color: "#1a2332"
+    }
+  }, "Página de inicio")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: "1080px",
+      margin: "0 auto",
+      padding: "28px 20px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      fontWeight: "700",
+      color: "#8796a5",
+      textTransform: "uppercase",
+      letterSpacing: "0.07em",
+      marginBottom: "14px"
+    }
+  }, "Aplicaciones"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "16px",
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: onEnterApp,
+    onMouseEnter: () => setHovered("eval"),
+    onMouseLeave: () => setHovered(null),
+    style: {
+      background: "white",
+      border: `1px solid ${hovered === "eval" ? "#2563eb" : "#d0d7de"}`,
+      borderRadius: "8px",
+      padding: "16px",
+      width: "180px",
+      height: "180px",
+      cursor: "pointer",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      boxShadow: hovered === "eval" ? "0 4px 14px rgba(37,99,235,0.18)" : "0 1px 4px rgba(0,0,0,0.07)",
+      transition: "all 0.15s",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600",
+      color: "#1a2332",
+      lineHeight: "1.35"
+    }
+  }, "Evaluador de empleados"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: "#2563eb",
+      fontWeight: "500"
+    }
+  }, "Competencias SAP"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "flex-end"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "38px"
+    }
+  }, "📊"))))));
+};
+const SettingsView = ({
+  modules,
+  onRemoveModule,
   evaluators,
   setEvaluators,
   employees,
