@@ -1264,7 +1264,7 @@ const EvaluationView = ({
       moduloNombre: mod.name,
       scores,
       globalScore,
-      globalLevel: globalLvl.code
+      globalLevel: Math.round(globalScore)
     });
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
@@ -1303,7 +1303,7 @@ const EvaluationView = ({
       color: globalLvl.color,
       lineHeight: "1"
     }
-  }, globalLvl.code), React.createElement("div", {
+  }, globalScore.toFixed(1)), React.createElement("div", {
     style: {
       fontSize: "11px",
       color: C.text2,
@@ -1399,7 +1399,7 @@ const EvaluationView = ({
         fontWeight: "700",
         color: getLvl(Math.round(ambitoAvg)).color
       }
-    }, "Ø " + getLvl(Math.round(ambitoAvg)).code + " (" + ambitoAvg.toFixed(1) + ")")), !isCollapsed && React.createElement("div", null, React.createElement("div", {
+    }, "Ø " + ambitoAvg.toFixed(1))), !isCollapsed && React.createElement("div", null, React.createElement("div", {
       style: {
         display: "grid",
         gridTemplateColumns: "1fr 60px 120px 120px",
@@ -1476,7 +1476,7 @@ const EvaluationView = ({
       }, ...LEVELS.map(l => React.createElement("option", {
         key: l.v,
         value: l.v
-      }, l.code)))), React.createElement("div", {
+      }, l.v)))), React.createElement("div", {
         style: {
           display: "flex",
           justifyContent: "center"
@@ -1499,7 +1499,7 @@ const EvaluationView = ({
       }, ...LEVELS.map(l => React.createElement("option", {
         key: l.v,
         value: l.v
-      }, l.code)))));
+      }, l.v)))));
     })));
   }));
 };
@@ -2661,12 +2661,6 @@ function App() {
     }
   }, "⚙️ Ajustes"))));
 }
-    function resetInactivityTimer(){clearTimeout(inactivityTimeout);inactivityTimeout=setTimeout(()=>_auth.signOut(),15*60*1000);}
-    document.addEventListener("mousemove",resetInactivityTimer);
-    document.addEventListener("keypress",resetInactivityTimer);
-    window.doLogout=()=>_auth.signOut();
-    function doLogin(){const email=document.getElementById("login-email").value;const pass=document.getElementById("login-pass").value;const err=document.getElementById("login-error");if(!email||!pass){err.textContent="Por favor rellena los campos";return;}err.textContent="";_auth.signInWithEmailAndPassword(email,pass).then(u=>{loginScreen.style.display="none";rootEl.style.display="block";root.render(React.createElement(App));resetInactivityTimer();}).catch(e=>{console.error("Login error:",e);err.textContent=e.message.replace(/Firebase: /,"");});}
-    _auth.onAuthStateChanged(user=>{if(user){loginScreen.style.display="none";rootEl.style.display="block";root.render(React.createElement(App));resetInactivityTimer();}else{loginScreen.style.display="flex";rootEl.style.display="none";}});
   </script>
 </body>
 </html>
