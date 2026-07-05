@@ -2187,10 +2187,10 @@ function App() {
           console.error("Firestore read error:", e);
         }
         if (!empList) {
-          const localEmp = await window.storage.get("sap-qm-employees", false).catch(() => null);
-          if (localEmp?.value) {
+          const localRaw = localStorage.getItem("sap-qm-employees");
+          if (localRaw) {
             try {
-              empList = JSON.parse(localEmp.value);
+              empList = JSON.parse(localRaw);
               await db.collection("appData").doc("employees").set({
                 list: empList
               });
@@ -2201,7 +2201,17 @@ function App() {
           }
         }
         if (empList) setEmployees(empList);
-        const [mod, eval_, his, sap, sec, ski, loc] = await Promise.all([window.storage.get("sap-qm-modules", false).catch(() => null), window.storage.get("sap-qm-evaluators", false).catch(() => null), window.storage.get("sap-qm-eval-history", false).catch(() => null), window.storage.get("sap-qm-sap-modules", false).catch(() => null), window.storage.get("sap-qm-sectors", false).catch(() => null), window.storage.get("sap-qm-skills", false).catch(() => null), window.storage.get("sap-qm-locations", false).catch(() => null)]);
+        const lsGet = key => {
+          try {
+            const v = localStorage.getItem(key);
+            return v ? {
+              value: v
+            } : null;
+          } catch (e) {
+            return null;
+          }
+        };
+        const [mod, eval_, his, sap, sec, ski, loc] = [lsGet("sap-qm-modules"), lsGet("sap-qm-evaluators"), lsGet("sap-qm-eval-history"), lsGet("sap-qm-sap-modules"), lsGet("sap-qm-sectors"), lsGet("sap-qm-skills"), lsGet("sap-qm-locations")];
         if (mod?.value) setModules(JSON.parse(mod.value));
         if (eval_?.value) setEvaluators(JSON.parse(eval_.value));
         if (his?.value) setEvalHistory(JSON.parse(his.value));
@@ -2228,7 +2238,13 @@ function App() {
         await db.collection("appData").doc("employees").set({
           list: empSinFotos
         });
-        await Promise.all([window.storage.set("sap-qm-modules", JSON.stringify(modules), false), window.storage.set("sap-qm-evaluators", JSON.stringify(evaluators), false), window.storage.set("sap-qm-eval-history", JSON.stringify(evalHistory), false), window.storage.set("sap-qm-sap-modules", JSON.stringify(sapModules), false), window.storage.set("sap-qm-sectors", JSON.stringify(sectors), false), window.storage.set("sap-qm-skills", JSON.stringify(skills), false), window.storage.set("sap-qm-locations", JSON.stringify(locations), false)]);
+        localStorage.setItem("sap-qm-modules", JSON.stringify(modules));
+        localStorage.setItem("sap-qm-evaluators", JSON.stringify(evaluators));
+        localStorage.setItem("sap-qm-eval-history", JSON.stringify(evalHistory));
+        localStorage.setItem("sap-qm-sap-modules", JSON.stringify(sapModules));
+        localStorage.setItem("sap-qm-sectors", JSON.stringify(sectors));
+        localStorage.setItem("sap-qm-skills", JSON.stringify(skills));
+        localStorage.setItem("sap-qm-locations", JSON.stringify(locations));
       } catch (e) {
         console.error("Save error:", e);
       }
