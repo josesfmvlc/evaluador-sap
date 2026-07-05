@@ -1118,6 +1118,145 @@ const EditEmployeeModal = ({
     }
   }, "💾 Guardar"))));
 };
+const HomeScreen = ({
+  onEnterApp,
+  onLogout
+}) => {
+  const [hovered, setHovered] = useState(null);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: "#f0f4f8",
+      fontFamily: "system-ui,-apple-system,sans-serif"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#354a5e",
+      color: "white",
+      height: "44px",
+      padding: "0 24px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("svg", {
+    viewBox: "0 0 120 40",
+    style: {
+      height: "28px",
+      width: "auto"
+    }
+  }, /*#__PURE__*/React.createElement("text", {
+    x: "10",
+    y: "26",
+    fontSize: "20",
+    fontWeight: "700",
+    fill: "white"
+  }, "Hiberus")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "1px",
+      height: "22px",
+      background: "rgba(255,255,255,0.3)"
+    }
+  }), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "13px",
+      color: "rgba(255,255,255,0.85)",
+      fontWeight: "500"
+    }
+  }, "EvaluadorSAP QM")), /*#__PURE__*/React.createElement("button", {
+    onClick: onLogout,
+    style: {
+      background: "rgba(255,255,255,0.12)",
+      border: "1px solid rgba(255,255,255,0.3)",
+      color: "white",
+      borderRadius: "6px",
+      padding: "5px 14px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "Cerrar sesión")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "white",
+      borderBottom: "1px solid #dde3ea",
+      padding: "10px 24px"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "14px",
+      fontWeight: "600",
+      color: "#1a2332"
+    }
+  }, "Página de inicio")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: "1080px",
+      margin: "0 auto",
+      padding: "28px 20px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      fontWeight: "700",
+      color: "#8796a5",
+      textTransform: "uppercase",
+      letterSpacing: "0.07em",
+      marginBottom: "14px"
+    }
+  }, "Aplicaciones"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "16px",
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: onEnterApp,
+    onMouseEnter: () => setHovered("eval"),
+    onMouseLeave: () => setHovered(null),
+    style: {
+      background: "white",
+      border: `1px solid ${hovered === "eval" ? "#2563eb" : "#d0d7de"}`,
+      borderRadius: "8px",
+      padding: "16px",
+      width: "180px",
+      height: "180px",
+      cursor: "pointer",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      boxShadow: hovered === "eval" ? "0 4px 14px rgba(37,99,235,0.18)" : "0 1px 4px rgba(0,0,0,0.07)",
+      transition: "all 0.15s",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600",
+      color: "#1a2332",
+      lineHeight: "1.35"
+    }
+  }, "Evaluador de empleados"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: "#2563eb",
+      fontWeight: "500"
+    }
+  }, "Competencias SAP"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "flex-end"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "38px"
+    }
+  }, "📊"))))));
+};
 const SettingsView = ({
   modules,
   onRemoveModule,
@@ -1140,7 +1279,8 @@ const SettingsView = ({
   locations,
   addLocation,
   removeLocation,
-  onBack
+  onBack,
+  onLogout
 }) => {
   const [modulosCollapsed, setModulosCollapsed] = useState(true);
   const [newEvalName, setNewEvalName] = useState("");
@@ -1219,7 +1359,23 @@ const SettingsView = ({
       fontSize: "14px",
       fontWeight: "700"
     }
-  }, "⚙ Ajustes")), /*#__PURE__*/React.createElement("div", {
+  }, "⚙ Ajustes"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: onLogout,
+    style: {
+      background: "#fee2e2",
+      border: "none",
+      color: "#dc2626",
+      borderRadius: "6px",
+      padding: "6px 14px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "Cerrar sesión")), /*#__PURE__*/React.createElement("div", {
     style: {
       maxWidth: "1080px",
       margin: "0 auto",
@@ -1396,6 +1552,7 @@ const SettingsView = ({
   })));
 };
 function App() {
+  const [appScreen, setAppScreen] = useState("home");
   const [currentApp, setCurrentApp] = useState("eval");
   const [dataReady, setDataReady] = useState(false);
   const [modules, setModules] = useState([QM_MODULE]);
@@ -1524,6 +1681,10 @@ function App() {
       textAlign: "center"
     }
   }, "Cargando...");
+  if (appScreen === "home") return /*#__PURE__*/React.createElement(HomeScreen, {
+    onEnterApp: () => setAppScreen("evaluator"),
+    onLogout: () => window.doLogout()
+  });
   if (view === "settings") return /*#__PURE__*/React.createElement(SettingsView, {
     modules: modules,
     onRemoveModule: id => setModules(modules.filter(m => m.id !== id)),
@@ -1546,7 +1707,8 @@ function App() {
     locations: locations,
     addLocation: addLocation,
     removeLocation: removeLocation,
-    onBack: () => setView("eval")
+    onBack: () => setView("eval"),
+    onLogout: () => window.doLogout()
   });
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -1559,29 +1721,73 @@ function App() {
     style: {
       background: "#354a5e",
       color: "white",
-      padding: "12px 24px",
+      padding: "0 24px",
+      height: "44px",
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between"
     }
-  }, /*#__PURE__*/React.createElement("svg", {
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setAppScreen("home"),
+    title: "Inicio",
+    style: {
+      background: "rgba(255,255,255,0.12)",
+      border: "1px solid rgba(255,255,255,0.25)",
+      color: "white",
+      borderRadius: "6px",
+      padding: "4px 10px",
+      fontSize: "16px",
+      cursor: "pointer",
+      lineHeight: 1
+    }
+  }, "🏠"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "1px",
+      height: "22px",
+      background: "rgba(255,255,255,0.3)"
+    }
+  }), /*#__PURE__*/React.createElement("svg", {
     viewBox: "0 0 120 40",
     style: {
-      height: "32px",
+      height: "28px",
       width: "auto"
     }
   }, /*#__PURE__*/React.createElement("text", {
     x: "10",
-    y: "28",
-    fontSize: "22",
+    y: "26",
+    fontSize: "20",
     fontWeight: "700",
     fill: "white"
-  }, "Hiberus")), /*#__PURE__*/React.createElement("div", {
+  }, "Hiberus"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "13px",
       fontWeight: "600"
     }
-  }, "EvaluadorSAP QM")), /*#__PURE__*/React.createElement("div", {
+  }, "EvaluadorSAP QM"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => window.doLogout(),
+    style: {
+      background: "rgba(255,255,255,0.12)",
+      border: "1px solid rgba(255,255,255,0.3)",
+      color: "white",
+      borderRadius: "6px",
+      padding: "5px 12px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "Cerrar sesión"))), /*#__PURE__*/React.createElement("div", {
     style: {
       borderBottom: `1px solid ${C.border}`,
       background: C.card,
@@ -1807,6 +2013,8 @@ function App() {
     }
   }, "⚙️ Ajustes"))));
 }
+
+
     let _auth=firebase.auth();
     const storage={
       get:async(key,shared)=>{try{const v=localStorage.getItem(key);return v?{key,value:v,shared}:null;}catch{return null;}},
