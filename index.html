@@ -1206,6 +1206,133 @@ const EditEmployeeModal = ({
     }
   }, "💾 Guardar"))));
 };
+const SearchableSelect = ({
+  options,
+  value,
+  onChange,
+  placeholder = "Seleccionar..."
+}) => {
+  const [search, setSearch] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = e => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const selected = options.find(o => o.value === value);
+  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()));
+  return /*#__PURE__*/React.createElement("div", {
+    ref: ref,
+    style: {
+      position: "relative"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => setOpen(!open),
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${open ? C.accent : C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      cursor: "pointer",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      userSelect: "none",
+      boxSizing: "border-box"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: selected ? C.text : C.muted,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      flex: 1
+    }
+  }, selected ? selected.label : placeholder), /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: "6px",
+      fontSize: "10px",
+      flexShrink: 0
+    }
+  }, "▾")), open && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      top: "calc(100% + 4px)",
+      left: 0,
+      right: 0,
+      zIndex: 600,
+      background: C.card,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "8px",
+      boxShadow: "0 8px 24px rgba(0,0,0,0.15)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    autoFocus: true,
+    placeholder: "Buscar empleado...",
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1.5px solid ${C.accent}`,
+      borderRadius: "6px",
+      padding: "7px 10px",
+      fontSize: "12px",
+      outline: "none",
+      boxSizing: "border-box"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxHeight: "240px",
+      overflowY: "auto",
+      borderTop: `1px solid ${C.rowBorder}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => {
+      onChange("");
+      setSearch("");
+      setOpen(false);
+    },
+    style: {
+      padding: "8px 12px",
+      fontSize: "12px",
+      cursor: "pointer",
+      color: C.muted,
+      background: !value ? "#f0f7ff" : "transparent"
+    }
+  }, placeholder), filtered.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "12px",
+      textAlign: "center",
+      color: C.muted,
+      fontSize: "11px"
+    }
+  }, "Sin resultados") : filtered.map(o => /*#__PURE__*/React.createElement("div", {
+    key: o.value,
+    onClick: () => {
+      onChange(o.value);
+      setSearch("");
+      setOpen(false);
+    },
+    style: {
+      padding: "8px 12px",
+      fontSize: "12px",
+      cursor: "pointer",
+      background: o.value === value ? "#f0f7ff" : "transparent",
+      color: C.text,
+      borderBottom: `1px solid ${C.rowBorder}`
+    }
+  }, o.label)))));
+};
 const HomeScreen = ({
   onEnterApp,
   onLogout
@@ -1997,28 +2124,19 @@ function App() {
       color: C.muted,
       marginBottom: "6px"
     }
-  }, "EMPLEADO"), /*#__PURE__*/React.createElement("select", {
+  }, "EMPLEADO"), /*#__PURE__*/React.createElement(SearchableSelect, {
+    options: employees.map(e => ({
+      value: e.id,
+      label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}`
+    })),
     value: selectedEmployee?.id || "",
-    onChange: e => {
-      const emp = employees.find(x => x.id === e.target.value);
+    onChange: id => {
+      const emp = employees.find(x => x.id === id) || null;
       setSelectedEmployee(emp);
       setItems(selectedModule?.items || []);
     },
-    style: {
-      width: "100%",
-      background: C.bg,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "6px",
-      padding: "8px 10px",
-      fontSize: "12px",
-      outline: "none"
-    }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "Seleccionar..."), employees.map(e => /*#__PURE__*/React.createElement("option", {
-    key: e.id,
-    value: e.id
-  }, e.nombre, " ", e.nivel ? `(${e.nivel})` : "")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    placeholder: "Seleccionar..."
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: {
       display: "block",
       fontSize: "11px",
@@ -2139,6 +2257,7 @@ function App() {
     }
   }, "⚙️ Ajustes"))));
 }
+
 
     let _auth=firebase.auth();
     const storage={
