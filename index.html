@@ -1966,8 +1966,9 @@ function App() {
   const _empMods = selectedEmployee
     ? (selectedEmployee.modules?.length ? selectedEmployee.modules : selectedEmployee.module ? [selectedEmployee.module] : [])
     : [];
+  const normMod = s => s.toLowerCase().replace(/^sap\s+/i, '').trim();
   const availableModules = _empMods.length
-    ? modules.filter(m => _empMods.some(em => em.toLowerCase() === m.name.toLowerCase()))
+    ? modules.filter(m => _empMods.some(em => normMod(em) === normMod(m.name)))
     : modules;
   const displayModules = availableModules.length ? availableModules : modules;
   return /*#__PURE__*/React.createElement("div", {
