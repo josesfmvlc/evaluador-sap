@@ -1118,6 +1118,134 @@ const EditEmployeeModal = ({
     }
   }, "💾 Guardar"))));
 };
+const SearchableSelect = ({
+  options,
+  value,
+  onChange,
+  placeholder = "Seleccionar..."
+}) => {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const ref = useRef(null);
+  useEffect(() => {
+    const h = e => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  const selected = options.find(o => o.id === value);
+  const filtered = options.filter(o => o.label.toLowerCase().includes(search.toLowerCase())).sort((a, b) => a.label.localeCompare(b.label));
+  const handleSelect = opt => {
+    onChange(opt.id);
+    setSearch("");
+    setOpen(false);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    ref: ref,
+    style: {
+      position: "relative"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    onClick: () => {
+      setOpen(!open);
+      setSearch("");
+    },
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      cursor: "pointer",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      userSelect: "none",
+      color: selected ? C.text : C.muted
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
+    }
+  }, selected ? selected.label : placeholder), /*#__PURE__*/React.createElement("span", {
+    style: {
+      marginLeft: "6px",
+      fontSize: "10px",
+      flexShrink: 0
+    }
+  }, "▾")), open && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      top: "calc(100% + 4px)",
+      left: 0,
+      right: 0,
+      zIndex: 500,
+      background: C.card,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "8px",
+      boxShadow: "0 8px 24px rgba(0,0,0,0.15)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    autoFocus: true,
+    placeholder: "Buscar empleado...",
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1.5px solid ${C.accent}`,
+      borderRadius: "6px",
+      padding: "7px 10px",
+      fontSize: "12px",
+      outline: "none",
+      boxSizing: "border-box"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxHeight: "240px",
+      overflowY: "auto",
+      borderTop: `1px solid ${C.rowBorder}`
+    }
+  }, value && /*#__PURE__*/React.createElement("div", {
+    onClick: () => handleSelect({
+      id: "",
+      label: ""
+    }),
+    style: {
+      padding: "8px 12px",
+      fontSize: "12px",
+      color: C.muted,
+      cursor: "pointer",
+      borderBottom: `1px solid ${C.rowBorder}`
+    }
+  }, placeholder), filtered.length === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "12px",
+      textAlign: "center",
+      color: C.muted,
+      fontSize: "11px"
+    }
+  }, "Sin resultados") : filtered.map(o => /*#__PURE__*/React.createElement("div", {
+    key: o.id,
+    onClick: () => handleSelect(o),
+    style: {
+      padding: "9px 12px",
+      fontSize: "12px",
+      cursor: "pointer",
+      background: o.id === value ? "#f0f7ff" : "transparent",
+      color: C.text,
+      borderBottom: `1px solid ${C.rowBorder}`
+    }
+  }, o.label)))));
+};
 const HomeScreen = ({
   onEnterApp,
   onLogout
@@ -1585,139 +1713,50 @@ function App() {
   const [sectors, setSectors] = useState(DEFAULT_SECTORS);
   const [skills, setSkills] = useState(DEFAULT_SKILLS);
   const [locations, setLocations] = useState(DEFAULT_LOCATIONS);
-
-  // Guarda un documento en Firestore (colección appData)
-  const save = (docId, data) => {
-    firebase.firestore().collection("appData").doc(docId).set({
-      data
-    }).catch(e => console.error("Firestore save error:", docId, e));
-  };
-  // Elimina fotos del array de empleados antes de escribir en Firestore (límite 1MB)
-  const stripPhotos = emps => emps.map(e => {
-    const {
-      photo,
-      ...r
-    } = e;
-    return r;
-  });
-
-  // Carga + sincronización en tiempo real con onSnapshot.
-  // Si Firestore no tiene datos, migra automáticamente desde localStorage (primera vez).
   useEffect(() => {
-    const db = firebase.firestore();
-    const unsubs = [];
-    const loaded = {};
-    const KEYS = ["modules", "evaluators", "employees", "evalHistory", "sapModules", "sectors", "skills", "locations"];
-    const markLoaded = k => {
-      loaded[k] = true;
-      if (KEYS.every(x => loaded[x])) setDataReady(true);
-    };
-    const legacyMap = {
-      modules: "sap-qm-modules",
-      evaluators: "sap-qm-evaluators",
-      employees: "sap-qm-employees",
-      evalHistory: "sap-qm-eval-history",
-      sapModules: "sap-qm-sap-modules",
-      sectors: "sap-qm-sectors",
-      skills: "sap-qm-skills",
-      locations: "sap-qm-locations"
-    };
-    const defaultsMap = {
-      modules: [QM_MODULE],
-      evaluators: ["Evaluador 1", "Evaluador 2"],
-      employees: [{
-        id: "emp-1",
-        nombre: "Empleado 1",
-        module: "SAP QM",
-        sector: "",
-        skill: "",
-        location: "",
-        antiguedad: ""
-      }],
-      evalHistory: [],
-      sapModules: DEFAULT_SAP_MODULES,
-      sectors: DEFAULT_SECTORS,
-      skills: DEFAULT_SKILLS,
-      locations: DEFAULT_LOCATIONS
-    };
-    const settersMap = {
-      modules: setModules,
-      evaluators: setEvaluators,
-      employees: setEmployees,
-      evalHistory: setEvalHistory,
-      sapModules: setSapModules,
-      sectors: setSectors,
-      skills: setSkills,
-      locations: setLocations
-    };
-    KEYS.forEach(key => {
-      const unsub = db.collection("appData").doc(key).onSnapshot(snap => {
-        if (snap.exists) {
-          settersMap[key](snap.data().data);
-        } else {
-          // Documento no existe en Firestore → intentar migrar desde localStorage
-          try {
-            const raw = localStorage.getItem(legacyMap[key]);
-            if (raw) {
-              let parsed = JSON.parse(raw);
-              if (key === "employees") parsed = parsed.map(e => {
-                const {
-                  photo,
-                  ...r
-                } = e;
-                return r;
-              });
-              settersMap[key](parsed);
-              db.collection("appData").doc(key).set({
-                data: parsed
-              }).catch(() => {});
-              // onSnapshot volverá a disparar con el doc ya creado
-            } else {
-              settersMap[key](defaultsMap[key]);
-            }
-          } catch (e) {
-            settersMap[key](defaultsMap[key]);
-          }
-        }
-        markLoaded(key);
-      }, err => {
-        console.error("Firestore onSnapshot error:", key, err);
-        settersMap[key](defaultsMap[key]);
-        markLoaded(key);
-      });
-      unsubs.push(unsub);
-    });
-    return () => unsubs.forEach(u => u());
+    (async () => {
+      try {
+        const [mod, eval_, emp, his, sap, sec, ski, loc] = await Promise.all([window.storage.get("sap-qm-modules", false).catch(() => null), window.storage.get("sap-qm-evaluators", false).catch(() => null), window.storage.get("sap-qm-employees", false).catch(() => null), window.storage.get("sap-qm-eval-history", false).catch(() => null), window.storage.get("sap-qm-sap-modules", false).catch(() => null), window.storage.get("sap-qm-sectors", false).catch(() => null), window.storage.get("sap-qm-skills", false).catch(() => null), window.storage.get("sap-qm-locations", false).catch(() => null)]);
+        if (mod?.value) setModules(JSON.parse(mod.value));
+        if (eval_?.value) setEvaluators(JSON.parse(eval_.value));
+        if (emp?.value) setEmployees(JSON.parse(emp.value));
+        if (his?.value) setEvalHistory(JSON.parse(his.value));
+        if (sap?.value) setSapModules(JSON.parse(sap.value));
+        if (sec?.value) setSectors(JSON.parse(sec.value));
+        if (ski?.value) setSkills(JSON.parse(ski.value));
+        if (loc?.value) setLocations(JSON.parse(loc.value));
+        setDataReady(true);
+      } catch (e) {
+        console.error("Load error:", e);
+        setDataReady(true);
+      }
+    })();
   }, []);
-
-  // CRUD de empleados — cada operación actualiza estado local Y guarda a Firestore
+  useEffect(() => {
+    if (!dataReady) return;
+    (async () => {
+      try {
+        await Promise.all([window.storage.set("sap-qm-modules", JSON.stringify(modules), false), window.storage.set("sap-qm-evaluators", JSON.stringify(evaluators), false), window.storage.set("sap-qm-employees", JSON.stringify(employees), false), window.storage.set("sap-qm-eval-history", JSON.stringify(evalHistory), false), window.storage.set("sap-qm-sap-modules", JSON.stringify(sapModules), false), window.storage.set("sap-qm-sectors", JSON.stringify(sectors), false), window.storage.set("sap-qm-skills", JSON.stringify(skills), false), window.storage.set("sap-qm-locations", JSON.stringify(locations), false)]);
+      } catch (e) {
+        console.error("Save error:", e);
+      }
+    })();
+  }, [dataReady, modules, evaluators, employees, evalHistory, sapModules, sectors, skills, locations]);
   const addEmployee = emp => {
     const id = "emp-" + Date.now();
-    setEmployees(prev => {
-      const n = [...prev, {
-        ...emp,
-        id
-      }];
-      save("employees", stripPhotos(n));
-      return n;
-    });
+    setEmployees([...employees, {
+      ...emp,
+      id
+    }]);
   };
   const removeEmployee = id => {
-    setEmployees(prev => {
-      const n = prev.filter(e => e.id !== id);
-      save("employees", stripPhotos(n));
-      return n;
-    });
+    setEmployees(employees.filter(e => e.id !== id));
   };
   const updateEmployee = (id, data) => {
-    setEmployees(prev => {
-      const n = prev.map(e => e.id === id ? {
-        ...data,
-        id
-      } : e);
-      save("employees", stripPhotos(n));
-      return n;
-    });
+    setEmployees(employees.map(e => e.id === id ? {
+      ...data,
+      id
+    } : e));
   };
   const onBulkAdd = emps => {
     const added = emps.filter(e => !employees.find(x => x.nombre.toLowerCase() === e.nombre.toLowerCase())).length;
@@ -1737,78 +1776,37 @@ function App() {
         });
       }
     }
+    ;
     setEmployees(newEmps);
-    save("employees", stripPhotos(newEmps));
     return {
       added,
       updated
     };
   };
-
-  // Wrapper de evaluadores que guarda a Firestore
-  const updateEvaluators = newEvals => {
-    setEvaluators(newEvals);
-    save("evaluators", newEvals);
-  };
-
-  // CRUD listas simples — todas guardan a Firestore
   const addSapModule = name => {
-    setSapModules(prev => {
-      const n = [...prev, name];
-      save("sapModules", n);
-      return n;
-    });
+    setSapModules([...sapModules, name]);
   };
   const removeSapModule = name => {
-    setSapModules(prev => {
-      const n = prev.filter(s => s !== name);
-      save("sapModules", n);
-      return n;
-    });
+    setSapModules(sapModules.filter(s => s !== name));
   };
   const addSector = name => {
-    setSectors(prev => {
-      const n = [...prev, name];
-      save("sectors", n);
-      return n;
-    });
+    setSectors([...sectors, name]);
   };
   const removeSector = name => {
-    setSectors(prev => {
-      const n = prev.filter(s => s !== name);
-      save("sectors", n);
-      return n;
-    });
+    setSectors(sectors.filter(s => s !== name));
   };
   const addSkill = name => {
-    setSkills(prev => {
-      const n = [...prev, name];
-      save("skills", n);
-      return n;
-    });
+    setSkills([...skills, name]);
   };
   const removeSkill = name => {
-    setSkills(prev => {
-      const n = prev.filter(s => s !== name);
-      save("skills", n);
-      return n;
-    });
+    setSkills(skills.filter(s => s !== name));
   };
   const addLocation = name => {
-    setLocations(prev => {
-      const n = [...prev, name];
-      save("locations", n);
-      return n;
-    });
+    setLocations([...locations, name]);
   };
   const removeLocation = name => {
-    setLocations(prev => {
-      const n = prev.filter(l => l !== name);
-      save("locations", n);
-      return n;
-    });
+    setLocations(locations.filter(l => l !== name));
   };
-  ;
   if (!dataReady) return /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "20px",
@@ -1821,18 +1819,10 @@ function App() {
   });
   if (view === "settings") return /*#__PURE__*/React.createElement(SettingsView, {
     modules: modules,
-    onRemoveModule: id => {
-      const n = modules.filter(m => m.id !== id);
-      setModules(n);
-      save("modules", n);
-    },
-    onAddModule: mod => {
-      const n = [...modules, mod];
-      setModules(n);
-      save("modules", n);
-    },
+    onRemoveModule: id => setModules(modules.filter(m => m.id !== id)),
+    onAddModule: mod => setModules(prev => [...prev, mod]),
     evaluators: evaluators,
-    setEvaluators: updateEvaluators,
+    setEvaluators: setEvaluators,
     employees: employees,
     addEmployee: addEmployee,
     removeEmployee: removeEmployee,
@@ -2014,28 +2004,18 @@ function App() {
       color: C.muted,
       marginBottom: "6px"
     }
-  }, "EMPLEADO"), /*#__PURE__*/React.createElement("select", {
+  }, "EMPLEADO"), /*#__PURE__*/React.createElement(SearchableSelect, {
+    options: [...employees].sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
+      id: e.id,
+      label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}`
+    })),
     value: selectedEmployee?.id || "",
-    onChange: e => {
-      const emp = employees.find(x => x.id === e.target.value);
-      setSelectedEmployee(emp);
+    onChange: id => {
+      const emp = employees.find(x => x.id === id);
+      setSelectedEmployee(emp || null);
       setItems(selectedModule?.items || []);
-    },
-    style: {
-      width: "100%",
-      background: C.bg,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "6px",
-      padding: "8px 10px",
-      fontSize: "12px",
-      outline: "none"
     }
-  }, /*#__PURE__*/React.createElement("option", {
-    value: ""
-  }, "Seleccionar..."), employees.map(e => /*#__PURE__*/React.createElement("option", {
-    key: e.id,
-    value: e.id
-  }, e.nombre, " ", e.nivel ? `(${e.nivel})` : "")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: {
       display: "block",
       fontSize: "11px",
