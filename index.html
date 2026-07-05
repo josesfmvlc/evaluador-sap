@@ -2018,6 +2018,13 @@ function App() {
     }
   }, "⚙️ Ajustes"))));
 }
+    let inactivityTimeout;
+    function resetInactivityTimer(){clearTimeout(inactivityTimeout);inactivityTimeout=setTimeout(()=>_auth.signOut(),15*60*1000);}
+    document.addEventListener("mousemove",resetInactivityTimer);
+    document.addEventListener("keypress",resetInactivityTimer);
+    window.doLogout=()=>_auth.signOut();
+    function doLogin(){const email=document.getElementById("login-email").value;const pass=document.getElementById("login-pass").value;const err=document.getElementById("login-error");if(!email||!pass){err.textContent="Por favor rellena los campos";return;}err.textContent="";_auth.signInWithEmailAndPassword(email,pass).then(u=>{loginScreen.style.display="none";rootEl.style.display="block";root.render(React.createElement(App));resetInactivityTimer();}).catch(e=>{console.error("Login error:",e);err.textContent=e.message.replace(/Firebase: /,"");});}
+    _auth.onAuthStateChanged(user=>{if(user){loginScreen.style.display="none";rootEl.style.display="block";root.render(React.createElement(App));resetInactivityTimer();}else{loginScreen.style.display="flex";rootEl.style.display="none";}});
   </script>
 </body>
 </html>
