@@ -8,7 +8,7 @@
     *{margin:0;padding:0;box-sizing:border-box}
     body{background:#f0f4f8;font-family:system-ui,-apple-system,sans-serif;overflow-y:scroll}
     #root{min-height:100vh}
-    #login-screen{display:none;min-height:100vh;background:#f0f4f8;align-items:center;justify-content:center}
+    #login-screen{display:flex;min-height:100vh;background:#f0f4f8;align-items:center;justify-content:center}
   </style>
 </head>
 <body>
@@ -59,19 +59,6 @@
     const _db = firebase.firestore();
     const _auth = firebase.auth();
     let inactivityTimeout;
-    function resetInactivity() {
-      clearTimeout(inactivityTimeout);
-      inactivityTimeout = setTimeout(function() { _auth.signOut(); }, 15 * 60 * 1000);
-    }
-    function doLogin() {
-      var email = document.getElementById('login-email').value;
-      var pass = document.getElementById('login-pass').value;
-      var errEl = document.getElementById('login-error');
-      errEl.textContent = '';
-      _auth.signInWithEmailAndPassword(email, pass).catch(function() {
-        errEl.textContent = 'Credenciales incorrectas. Inténtalo de nuevo.';
-      });
-    }
     const loginScreen = document.getElementById("login-screen");
     const rootEl = document.getElementById("root");
     const root = ReactDOM.createRoot(rootEl);
