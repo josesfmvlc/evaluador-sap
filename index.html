@@ -2739,18 +2739,36 @@ function App() {
       }
     })();
   }, [dataReady, modules, evaluators, employees, evalHistory, sapModules, sectors, skills, locations]);
+  const persistEmployees = async list => {
+    setEmployees(list);
+    try {
+      const db = firebase.firestore();
+      const toSave = list.map(({
+        photo,
+        ...rest
+      }) => rest);
+      await db.collection("appData").doc("employees").set({
+        list: toSave
+      });
+      try {
+        localStorage.setItem("sap-qm-employees", JSON.stringify(list));
+      } catch (e) {}
+    } catch (e) {
+      console.error("persistEmployees error:", e);
+    }
+  };
   const addEmployee = emp => {
     const id = "emp-" + Date.now();
-    setEmployees([...employees, {
+    persistEmployees([...employees, {
       ...emp,
       id
     }]);
   };
   const removeEmployee = id => {
-    setEmployees(employees.filter(e => e.id !== id));
+    persistEmployees(employees.filter(e => e.id !== id));
   };
   const updateEmployee = (id, data) => {
-    setEmployees(employees.map(e => e.id === id ? {
+    persistEmployees(employees.map(e => e.id === id ? {
       ...data,
       id
     } : e));
@@ -2773,8 +2791,7 @@ function App() {
         });
       }
     }
-    ;
-    setEmployees(newEmps);
+    persistEmployees(newEmps);
     return {
       added,
       updated
