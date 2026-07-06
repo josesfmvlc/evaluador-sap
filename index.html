@@ -57,25 +57,7 @@
       appId: "1:297958234005:web:8f92a6a41506435713489c"
     });
     const _db = firebase.firestore();
-    const _auth = firebase.auth();
-    let inactivityTimeout;
-    const loginScreen = document.getElementById("login-screen");
-    const rootEl = document.getElementById("root");
-    const root = ReactDOM.createRoot(rootEl);
-    const {useState,useRef,useEffect,useMemo}=React;
-    function doLogin(){
-      var email=document.getElementById('login-email').value;
-      var pass=document.getElementById('login-pass').value;
-      var errEl=document.getElementById('login-error');
-      errEl.textContent='';
-      _auth.signInWithEmailAndPassword(email,pass).catch(function(){
-        errEl.textContent='Email o contraseña incorrectos';
-      });
-    }
-    function resetInactivity(){
-      clearTimeout(inactivityTimeout);
-      inactivityTimeout=setTimeout(function(){_auth.signOut();},15*60*1000);
-    }
+const {useState,useRef,useEffect,useMemo}=React;
 const C = {
   bg: "#f0f4f8",
   card: "#ffffff",
@@ -297,19 +279,20 @@ function parseEmployeesExcel(ab) {
   const emps = [];
   const headers = rows[0].map(h => String(h || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
   const findH = (...keys) => {
-    for (const k of keys) {
-      const i = headers.findIndex(h => keys.some(kk => h.includes(kk)));
-      if (i >= 0) return i;
-    }
-    return -1;
+    const i = headers.findIndex(h => keys.some(k => h.includes(k)));
+    return i >= 0 ? i : -1;
   };
+  // Encuentra TODOS los índices de columnas de módulo (puede haber Módulo 1, Módulo 2, Módulo 3...)
+  const moduleIdxs = headers.reduce((acc, h, i) => {
+    if (h.includes("modulo") || h.includes("mod ")) acc.push(i);
+    return acc;
+  }, []);
   const idx = {
     nivel: findH("nivel"),
-    module: findH("modulo", "módulo", "mod "),
     sector: findH("sector"),
     skill: findH("skill"),
-    location: findH("ubicacion", "ubicación", "location"),
-    antiguedad: findH("antiguedad", "antigüedad", "incorpora", "fecha inc"),
+    location: findH("ubicacion", "ubicacion", "location"),
+    antiguedad: findH("antiguedad", "antiguedad", "incorpora", "fecha inc"),
     expSap: findH("experiencia", "exp sap", "exp. sap")
   };
   for (let i = 1; i < rows.length; i++) {
@@ -317,11 +300,13 @@ function parseEmployeesExcel(ab) {
     if (!r[0]) continue;
     const nombre = String(r[0] || "").trim();
     if (!nombre) continue;
+    const modules = moduleIdxs.map(mi => String(r[mi] || "").trim()).filter(Boolean);
     const emp = {
       id: "emp-" + Date.now() + Math.random(),
       nombre,
       nivel: parseNivel(idx.nivel >= 0 ? r[idx.nivel] : ""),
-      module: idx.module >= 0 ? String(r[idx.module] || "").trim() : "",
+      modules,
+      module: modules[0] || "",
       sector: idx.sector >= 0 ? String(r[idx.sector] || "").trim() : "",
       skill: idx.skill >= 0 ? String(r[idx.skill] || "").trim() : "",
       location: idx.location >= 0 ? String(r[idx.location] || "").trim() : "",
@@ -2054,8 +2039,97 @@ const SearchableSelect = ({
     }
   }, o.label)))));
 };
+const EmployeesView = ({
+  employees,
+  removeEmployee,
+  updateEmployee,
+  onBulkAdd,
+  sapModules,
+  sectors,
+  skills,
+  locations,
+  onBack,
+  onLogout
+}) => {
+  const [editingEmp, setEditingEmp] = useState(null);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: C.bg,
+      color: C.text,
+      fontFamily: "system-ui,-apple-system,sans-serif"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderBottom: `1px solid ${C.border}`,
+      padding: "12px 24px",
+      display: "flex",
+      gap: "8px",
+      alignItems: "center"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: C.item,
+      border: `1px solid ${C.border2}`,
+      color: C.text,
+      borderRadius: "8px",
+      padding: "8px 14px",
+      cursor: "pointer",
+      fontSize: "13px"
+    }
+  }, "\u2190 Atr\xe1s"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "14px",
+      fontWeight: "700"
+    }
+  }, "\uD83D\uDC65 Empleados"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: onLogout,
+    style: {
+      background: "#fee2e2",
+      border: "none",
+      color: "#dc2626",
+      borderRadius: "6px",
+      padding: "6px 14px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "Cerrar sesi\xf3n")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: "1080px",
+      margin: "0 auto",
+      padding: "20px 16px"
+    }
+  }, /*#__PURE__*/React.createElement(EmployeeListWithFilters, {
+    employees: employees,
+    sapModules: sapModules,
+    sectors: sectors,
+    skills: skills,
+    locations: locations,
+    editingEmp: editingEmp,
+    setEditingEmp: setEditingEmp,
+    removeEmployee: removeEmployee,
+    updateEmployee: updateEmployee,
+    onBulkAdd: onBulkAdd
+  }), editingEmp && /*#__PURE__*/React.createElement(EditEmployeeModal, {
+    emp: editingEmp,
+    sapModules: sapModules,
+    sectors: sectors,
+    skills: skills,
+    locations: locations,
+    onSave: data => updateEmployee(editingEmp.id, data),
+    onClose: () => setEditingEmp(null)
+  })));
+};
 const HomeScreen = ({
-  onEnterApp,
+  onEnterEval,
+  onEnterEmployees,
   onLogout
 }) => {
   const [hovered, setHovered] = useState(null);
@@ -2151,7 +2225,7 @@ const HomeScreen = ({
       flexWrap: "wrap"
     }
   }, /*#__PURE__*/React.createElement("div", {
-    onClick: onEnterApp,
+    onClick: onEnterEval,
     onMouseEnter: () => setHovered("eval"),
     onMouseLeave: () => setHovered(null),
     style: {
@@ -2191,7 +2265,48 @@ const HomeScreen = ({
     style: {
       fontSize: "38px"
     }
-  }, "📊"))))));
+  }, "\uD83D\uDCCA"))), /*#__PURE__*/React.createElement("div", {
+    onClick: onEnterEmployees,
+    onMouseEnter: () => setHovered("emp"),
+    onMouseLeave: () => setHovered(null),
+    style: {
+      background: "white",
+      border: `1px solid ${hovered === "emp" ? "#2563eb" : "#d0d7de"}`,
+      borderRadius: "8px",
+      padding: "16px",
+      width: "180px",
+      height: "180px",
+      cursor: "pointer",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      boxShadow: hovered === "emp" ? "0 4px 14px rgba(37,99,235,0.18)" : "0 1px 4px rgba(0,0,0,0.07)",
+      transition: "all 0.15s",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600",
+      color: "#1a2332",
+      lineHeight: "1.35"
+    }
+  }, "Empleados"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: "#2563eb",
+      fontWeight: "500"
+    }
+  }, "Gesti\xf3n de equipo"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "flex-end"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "38px"
+    }
+  }, "\uD83D\uDC65"))))));
 };
 const SettingsView = ({
   modules,
@@ -2200,11 +2315,6 @@ const SettingsView = ({
   onEditModule,
   evaluators,
   setEvaluators,
-  employees,
-  addEmployee,
-  removeEmployee,
-  updateEmployee,
-  onBulkAdd,
   sapModules,
   addSapModule,
   removeSapModule,
@@ -2228,33 +2338,7 @@ const SettingsView = ({
   const [newSector, setNewSector] = useState("");
   const [newSkill, setNewSkill] = useState("");
   const [newLocation, setNewLocation] = useState("");
-  const [newEmpName, setNewEmpName] = useState("");
-  const [newEmpModule, setNewEmpModule] = useState("");
-  const [newEmpSector, setNewEmpSector] = useState("");
-  const [newEmpSkill, setNewEmpSkill] = useState("");
-  const [newEmpLocation, setNewEmpLocation] = useState("");
-  const [newEmpAntiguedad, setNewEmpAntiguedad] = useState("");
-  const bulkInputRef = useRef(null);
   const importInputRef = useRef(null);
-  const [editingEmp, setEditingEmp] = useState(null);
-  const addEmp = () => {
-    if (newEmpName && newEmpModule) {
-      addEmployee({
-        nombre: newEmpName,
-        module: newEmpModule,
-        sector: newEmpSector,
-        skill: newEmpSkill,
-        location: newEmpLocation,
-        antiguedad: newEmpAntiguedad
-      });
-      setNewEmpName("");
-      setNewEmpModule("");
-      setNewEmpSector("");
-      setNewEmpSkill("");
-      setNewEmpLocation("");
-      setNewEmpAntiguedad("");
-    }
-  };
   const addEval = () => {
     if (newEvalName) {
       setEvaluators([...evaluators, newEvalName]);
@@ -2487,26 +2571,7 @@ const SettingsView = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "📥 Importar Excel"))), /*#__PURE__*/React.createElement(EmployeeListWithFilters, {
-    employees: employees,
-    sapModules: sapModules,
-    sectors: sectors,
-    skills: skills,
-    locations: locations,
-    editingEmp: editingEmp,
-    setEditingEmp: setEditingEmp,
-    removeEmployee: removeEmployee,
-    updateEmployee: updateEmployee,
-    onBulkAdd: onBulkAdd
-  }), editingEmp && /*#__PURE__*/React.createElement(EditEmployeeModal, {
-    emp: editingEmp,
-    sapModules: sapModules,
-    sectors: sectors,
-    skills: skills,
-    locations: locations,
-    onSave: data => updateEmployee(editingEmp.id, data),
-    onClose: () => setEditingEmp(null)
-  }), /*#__PURE__*/React.createElement(ItemListSection, {
+  }, "📥 Importar Excel"))), /*#__PURE__*/React.createElement(ItemListSection, {
     title: "👨 Evaluadores",
     items: evaluators.map((e, i) => ({
       id: i,
@@ -2749,7 +2814,20 @@ function App() {
     }
   }, "Cargando...");
   if (appScreen === "home") return /*#__PURE__*/React.createElement(HomeScreen, {
-    onEnterApp: () => setAppScreen("evaluator"),
+    onEnterEval: () => setAppScreen("evaluator"),
+    onEnterEmployees: () => setAppScreen("employees"),
+    onLogout: () => window.doLogout()
+  });
+  if (appScreen === "employees") return /*#__PURE__*/React.createElement(EmployeesView, {
+    employees: employees,
+    removeEmployee: removeEmployee,
+    updateEmployee: updateEmployee,
+    onBulkAdd: onBulkAdd,
+    sapModules: sapModules,
+    sectors: sectors,
+    skills: skills,
+    locations: locations,
+    onBack: () => setAppScreen("home"),
     onLogout: () => window.doLogout()
   });
   if (view === "settings") return /*#__PURE__*/React.createElement(SettingsView, {
@@ -2762,11 +2840,6 @@ function App() {
     } : m)),
     evaluators: evaluators,
     setEvaluators: setEvaluators,
-    employees: employees,
-    addEmployee: addEmployee,
-    removeEmployee: removeEmployee,
-    updateEmployee: updateEmployee,
-    onBulkAdd: onBulkAdd,
     sapModules: sapModules,
     addSapModule: addSapModule,
     removeSapModule: removeSapModule,
@@ -3085,20 +3158,6 @@ function App() {
     }
   }, "⚙️ Ajustes"))));
 }
-_auth.onAuthStateChanged(function(user) {
-  if (user) {
-    loginScreen.style.display = 'none';
-    rootEl.style.display = 'block';
-    root.render(React.createElement(App));
-    resetInactivity();
-    ['mousemove','keydown','click','scroll'].forEach(function(e){ document.addEventListener(e, resetInactivity); });
-  } else {
-    loginScreen.style.display = 'flex';
-    rootEl.style.display = 'none';
-    clearTimeout(inactivityTimeout);
-  }
-});
-window.doLogout = function(){ _auth.signOut(); };
   </script>
 </body>
 </html>
