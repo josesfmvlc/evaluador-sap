@@ -3161,17 +3161,7 @@ function App() {
   </script>
 
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyBqQlTk9NwXADHGo2xq6s92rPXc77qeW9M",
-    authDomain: "empleados-sap.firebaseapp.com",
-    projectId: "empleados-sap",
-    storageBucket: "empleados-sap.firebasestorage.app",
-    messagingSenderId: "297958234005",
-    appId: "1:297958234005:web:8f92a6a41506435713489c"
-  };
-  firebase.initializeApp(firebaseConfig);
   const _auth = firebase.auth();
-  const _db = firebase.firestore();
 
   const INACTIVITY_TIMEOUT = 15 * 60 * 1000;
   let lastActivity = Date.now();
@@ -3211,6 +3201,7 @@ function App() {
   window.doLogout = function() { _auth.signOut(); };
   window._db = _db;
   window._auth = _auth;
+
 </script>
 </body>
 </html>
