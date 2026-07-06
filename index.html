@@ -3159,5 +3159,58 @@ function App() {
   }, "⚙️ Ajustes"))));
 }
   </script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBqQlTk9NwXADHGo2xq6s92rPXc77qeW9M",
+    authDomain: "empleados-sap.firebaseapp.com",
+    projectId: "empleados-sap",
+    storageBucket: "empleados-sap.firebasestorage.app",
+    messagingSenderId: "297958234005",
+    appId: "1:297958234005:web:8f92a6a41506435713489c"
+  };
+  firebase.initializeApp(firebaseConfig);
+  const _auth = firebase.auth();
+  const _db = firebase.firestore();
+
+  const INACTIVITY_TIMEOUT = 15 * 60 * 1000;
+  let lastActivity = Date.now();
+  let authCheckInterval = null;
+
+  function resetInactivity() { lastActivity = Date.now(); }
+  document.addEventListener('mousemove', resetInactivity);
+  document.addEventListener('keydown', resetInactivity);
+  document.addEventListener('click', resetInactivity);
+
+  function doLogin() {
+    const email = document.getElementById('login-email').value.trim();
+    const pass = document.getElementById('login-pass').value;
+    const errEl = document.getElementById('login-error');
+    errEl.textContent = '';
+    _auth.signInWithEmailAndPassword(email, pass)
+      .catch(() => { errEl.textContent = 'Credenciales incorrectas'; });
+  }
+
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+
+  _auth.onAuthStateChanged(user => {
+    if (user) {
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('root').style.display = 'block';
+      root.render(React.createElement(App, null));
+      authCheckInterval = setInterval(() => {
+        if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) { _auth.signOut(); }
+      }, 60000);
+    } else {
+      document.getElementById('login-screen').style.display = 'flex';
+      document.getElementById('root').style.display = 'none';
+      if (authCheckInterval) { clearInterval(authCheckInterval); authCheckInterval = null; }
+    }
+  });
+
+  window.doLogout = function() { _auth.signOut(); };
+  window._db = _db;
+  window._auth = _auth;
+</script>
 </body>
 </html>
