@@ -63,6 +63,19 @@
     const rootEl = document.getElementById("root");
     const root = ReactDOM.createRoot(rootEl);
     const {useState,useRef,useEffect,useMemo}=React;
+    function doLogin(){
+      var email=document.getElementById('login-email').value;
+      var pass=document.getElementById('login-pass').value;
+      var errEl=document.getElementById('login-error');
+      errEl.textContent='';
+      _auth.signInWithEmailAndPassword(email,pass).catch(function(){
+        errEl.textContent='Email o contraseña incorrectos';
+      });
+    }
+    function resetInactivity(){
+      clearTimeout(inactivityTimeout);
+      inactivityTimeout=setTimeout(function(){_auth.signOut();},15*60*1000);
+    }
 const C = {
   bg: "#f0f4f8",
   card: "#ffffff",
