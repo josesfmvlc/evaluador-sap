@@ -2866,9 +2866,13 @@ function App() {
   });
   const _empMods = selectedEmployee ? selectedEmployee.modulos?.length ? selectedEmployee.modulos : selectedEmployee.modules?.length ? selectedEmployee.modules : selectedEmployee.module ? [selectedEmployee.module] : [] : [];
   const _availableModules = _empMods.length ? modules.filter(m => _empMods.some(em => {
-    const mNorm = m.name.replace(/^SAP\s+/i, "").trim().toUpperCase();
-    const emNorm = em.replace(/^SAP\s+/i, "").trim().toUpperCase();
-    return mNorm === emNorm || m.name.toUpperCase() === em.toUpperCase();
+    // Extraer solo el código base (primera palabra) para comparar
+    // Ej: "SD 1 8" → "SD", "SAP QM — Gestión de Calidad" → "QM"
+    const mCode = m.name.replace(/^SAP\s+/i, "").trim().split(/[\s\u2014\-]/)[0].toUpperCase();
+    const emCode = em.replace(/^SAP\s+/i, "").trim().split(/[\s\u2014\-]/)[0].toUpperCase();
+    const mFull = m.name.toUpperCase();
+    const emFull = em.toUpperCase();
+    return mCode === emCode || mFull === emFull || mFull.startsWith(emFull) || emFull.startsWith(mCode);
   })) : modules;
   const displayModules = _availableModules.length ? _availableModules : modules;
   return /*#__PURE__*/React.createElement("div", {
