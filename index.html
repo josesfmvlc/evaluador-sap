@@ -514,7 +514,6 @@ const EmployeeListWithFilters = ({
     antiguedad: [],
     expSap: []
   });
-  const [collapsed, setCollapsed] = useState(true);
   const [importMsg, setImportMsg] = useState("");
   const bulkRef = useRef(null);
   const setF = (k, v) => setFilters(f => ({
@@ -561,24 +560,17 @@ const EmployeeListWithFilters = ({
       display: "flex",
       alignItems: "center",
       justifyContent: "space-between",
-      marginBottom: collapsed ? "0" : "16px"
+      marginBottom: "16px"
     }
   }, /*#__PURE__*/React.createElement("div", {
-    onClick: () => setCollapsed(!collapsed),
     style: {
       fontSize: "14px",
       fontWeight: "700",
-      cursor: "pointer",
       display: "flex",
       alignItems: "center",
-      gap: "8px",
-      userSelect: "none"
+      gap: "8px"
     }
-  }, /*#__PURE__*/React.createElement("span", {
-    style: {
-      fontSize: "12px"
-    }
-  }, collapsed ? "▶" : "▼"), "👥 Empleados (", filtered.length, "/", employees.length, ")"), /*#__PURE__*/React.createElement("div", {
+  }, "👥 Empleados (", filtered.length, "/", employees.length, ")"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
@@ -612,7 +604,7 @@ const EmployeeListWithFilters = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "📥 Importar Excel"))), !collapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "📥 Importar Excel"))), /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: "16px",
       display: "grid",
