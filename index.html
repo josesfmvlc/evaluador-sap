@@ -320,22 +320,309 @@ function parseEmployeesExcel(ab) {
 const QM_MODULE = {
   id: "mod-qm",
   name: "SAP QM",
+  ambitoOrder: QM_AMBITO_ORDER,
   items: [{
     id: 1,
     peso: 5,
-    desc: "Planificación de inspecciones",
+    desc: "Vista QM en Maestro de Materiales, clases de inspección básicas",
     ambito: "Planificación de Calidad",
-    v1: 3,
-    v2: 4
+    v1: 6,
+    v2: 6
   }, {
     id: 2,
+    peso: 4,
+    desc: "Características Maestras de Inspección: cuantitativas, cualitativas, catálogos",
+    ambito: "Planificación de Calidad",
+    v1: 6,
+    v2: 6
+  }, {
+    id: 3,
     peso: 5,
-    desc: "Gestión de lotes",
-    ambito: "Gestión de Lotes",
+    desc: "Plan de Inspección: cabecera, operaciones, características, materiales asignados, muestras",
+    ambito: "Planificación de Calidad",
+    v1: 7,
+    v2: 7
+  }, {
+    id: 4,
+    peso: 4,
+    desc: "Procedimiento de Muestreo, instrucciones de muestreo, tablas estadísticas",
+    ambito: "Planificación de Calidad",
+    v1: 5,
+    v2: 5
+  }, {
+    id: 5,
+    peso: 3,
+    desc: "Método de Inspección, gestión de documentación adjunta",
+    ambito: "Planificación de Calidad",
+    v1: 5,
+    v2: 5
+  }, {
+    id: 6,
+    peso: 4,
+    desc: "Gestión básica de Lotes de Inspección: Resultados, Decisión de Uso, Movimiento de Stock, Defectos",
+    ambito: "Inspección de Calidad",
+    v1: 7,
+    v2: 7
+  }, {
+    id: 7,
+    peso: 4,
+    desc: "Reglas de Modificación Dinámica",
+    ambito: "Inspección de Calidad",
     v1: 2,
+    v2: 2
+  }, {
+    id: 8,
+    peso: 3,
+    desc: "Especificaciones Múltiples",
+    ambito: "Inspección de Calidad",
+    v1: 2,
+    v2: 2
+  }, {
+    id: 9,
+    peso: 3,
+    desc: "Firma digital",
+    ambito: "Inspección de Calidad",
+    v1: 4,
+    v2: 4
+  }, {
+    id: 10,
+    peso: 4,
+    desc: "Notificaciones de Calidad Q1/Q2/Q3: tareas, actividades, estados",
+    ambito: "Notificaciones de Calidad",
+    v1: 6,
+    v2: 6
+  }, {
+    id: 11,
+    peso: 4,
+    desc: "Acciones Correctivas y Preventivas (CAPA)",
+    ambito: "Notificaciones de Calidad",
+    v1: 6,
+    v2: 6
+  }, {
+    id: 12,
+    peso: 2,
+    desc: "Informes 8D",
+    ambito: "Notificaciones de Calidad",
+    v1: 1,
+    v2: 1
+  }, {
+    id: 13,
+    peso: 3,
+    desc: "Certificados de Calidad entrantes (proveedores): configuración y procesos de negocio",
+    ambito: "Certificados de Calidad",
+    v1: 3,
     v2: 3
-  }],
-  ambitoOrder: ["Planificación de Calidad", "Gestión de Lotes"]
+  }, {
+    id: 14,
+    peso: 3,
+    desc: "Certificados de Calidad salientes (clientes): configuración y procesos de negocio",
+    ambito: "Certificados de Calidad",
+    v1: 3,
+    v2: 3
+  }, {
+    id: 15,
+    peso: 3,
+    desc: "Clasificación de lotes, Maestro de lotes, Derivación y Determinación de lotes",
+    ambito: "Gestión de Lotes",
+    v1: 3,
+    v2: 3
+  }, {
+    id: 16,
+    peso: 4,
+    desc: "Inspecciones recurrentes, Fechas de caducidad",
+    ambito: "Gestión de Lotes",
+    v1: 4,
+    v2: 4
+  }, {
+    id: 17,
+    peso: 5,
+    desc: "Gestión de Muestras: extracción de muestras físicas, tipos de muestra, cálculo",
+    ambito: "Gestión de Muestras",
+    v1: 4,
+    v2: 4
+  }, {
+    id: 18,
+    peso: 4,
+    desc: "Gestión de Auditorías: plan de auditoría, lista de preguntas, valoración, CAPAs",
+    ambito: "Gestión de Auditorías",
+    v1: 7,
+    v2: 7
+  }, {
+    id: 19,
+    peso: 2,
+    desc: "FMEA y Plan de Control: análisis de modos de fallo, RPN, plan de control",
+    ambito: "FMEA y Plan de Control",
+    v1: 1,
+    v2: 1
+  }, {
+    id: 20,
+    peso: 4,
+    desc: "Gestión de Cambios Engineering Workbench: Change Master, Change Record, Engineering Record",
+    ambito: "Gestión de Cambios de Datos",
+    v1: 3,
+    v2: 3
+  }, {
+    id: 21,
+    peso: 4,
+    desc: "Estudio de Estabilidad: condiciones almacenamiento, programa de ensayos, muestras físicas",
+    ambito: "Estudio de Estabilidad",
+    v1: 6,
+    v2: 6
+  }, {
+    id: 22,
+    peso: 4,
+    desc: "Entrada de mercancías (Tipo 01), Inspección en origen (0101), Subcontratación (0130)",
+    ambito: "Integración con MM",
+    v1: 5,
+    v2: 5
+  }, {
+    id: 23,
+    peso: 4,
+    desc: "Customizing de integración con MM",
+    ambito: "Integración con MM",
+    v1: 4,
+    v2: 4
+  }, {
+    id: 24,
+    peso: 4,
+    desc: "Registros infos QM — Homologación y evaluación de proveedores, Acuerdos de Calidad",
+    ambito: "Integración con MM",
+    v1: 5,
+    v2: 5
+  }, {
+    id: 25,
+    peso: 3,
+    desc: "Gestión de inventarios QM: Tipo 08, Tipo 05, Activación QM (Tipo 0800)",
+    ambito: "Integración con MM",
+    v1: 2,
+    v2: 2
+  }, {
+    id: 26,
+    peso: 4,
+    desc: "Fabricación discreta y por procesos: lote de inspección en OF, recetas, recursos y PRT",
+    ambito: "Integración con PP",
+    v1: 3,
+    v2: 3
+  }, {
+    id: 27,
+    peso: 2,
+    desc: "Fabricación repetitiva: datos maestros PP+QM, parámetros de planta, confirmaciones",
+    ambito: "Integración con PP",
+    v1: 2,
+    v2: 2
+  }, {
+    id: 28,
+    peso: 4,
+    desc: "Entrada de mercancías EWM, lote de inspección, tipos objeto inspección, Warehouse Monitor",
+    ambito: "Integración con EWM",
+    v1: 4,
+    v2: 4
+  }, {
+    id: 29,
+    peso: 4,
+    desc: "Inspecciones recurrentes y fechas de caducidad en EWM",
+    ambito: "Integración con EWM",
+    v1: 4,
+    v2: 4
+  }, {
+    id: 30,
+    peso: 4,
+    desc: "Devoluciones de cliente con EWM (ARM)",
+    ambito: "Integración con SD",
+    v1: 2,
+    v2: 2
+  }, {
+    id: 31,
+    peso: 4,
+    desc: "Costes de no conformidad, imputaciones de coste de calidad",
+    ambito: "Integración con CO",
+    v1: 2,
+    v2: 2
+  }, {
+    id: 32,
+    peso: 4,
+    desc: "Carga de datos con Migration Cockpit",
+    ambito: "Cargas",
+    v1: 3,
+    v2: 3
+  }, {
+    id: 33,
+    peso: 3,
+    desc: "Carga de datos sin Migration Cockpit (LSMW, BAPIs, etc.)",
+    ambito: "Cargas",
+    v1: 4,
+    v2: 4
+  }, {
+    id: 34,
+    peso: 4,
+    desc: "Buscar e interpretar notas SAP, registrar mensajes correctamente",
+    ambito: "OSS / Notas SAP",
+    v1: 4,
+    v2: 4
+  }, {
+    id: 35,
+    peso: 4,
+    desc: "Experiencia en Proyectos SAP",
+    ambito: "Conocimiento General",
+    v1: 4,
+    v2: 4
+  }, {
+    id: 36,
+    peso: 4,
+    desc: "Conocimiento del Módulo QM",
+    ambito: "Conocimiento General",
+    v1: 5,
+    v2: 5
+  }, {
+    id: 37,
+    peso: 4,
+    desc: "Autonomía",
+    ambito: "Conocimiento General",
+    v1: 5,
+    v2: 5
+  }, {
+    id: 38,
+    peso: 4,
+    desc: "Tutorización",
+    ambito: "Conocimiento General",
+    v1: 6,
+    v2: 6
+  }, {
+    id: 39,
+    peso: 4,
+    desc: "Eficiencia (timing, precisión, impresión)",
+    ambito: "Conocimiento General",
+    v1: 6,
+    v2: 6
+  }, {
+    id: 40,
+    peso: 4,
+    desc: "Preventa / Sector-Solución",
+    ambito: "Conocimiento General",
+    v1: 4,
+    v2: 4
+  }, {
+    id: 41,
+    peso: 4,
+    desc: "Arquitectura de solución",
+    ambito: "Conocimiento General",
+    v1: 3,
+    v2: 3
+  }, {
+    id: 42,
+    peso: 4,
+    desc: "Formación (capacidad formadora)",
+    ambito: "Conocimiento General",
+    v1: 6,
+    v2: 6
+  }, {
+    id: 43,
+    peso: 4,
+    desc: "Niveles Antiguos (referencia histórica)",
+    ambito: "Conocimiento General",
+    v1: 2,
+    v2: 2
+  }]
 };
 const Tag = ({
   text
@@ -2693,7 +2980,12 @@ function App() {
           }
         };
         const [mod, eval_, his, sap, sec, ski, loc] = [lsGet("sap-qm-modules"), lsGet("sap-qm-evaluators"), lsGet("sap-qm-eval-history"), lsGet("sap-qm-sap-modules"), lsGet("sap-qm-sectors"), lsGet("sap-qm-skills"), lsGet("sap-qm-locations")];
-        if (mod?.value) setModules(JSON.parse(mod.value));
+        if (mod?.value) {
+          const parsed = JSON.parse(mod.value);
+          // Si el módulo QM guardado tiene pocos items (datos obsoletos), restaurar el completo
+          const fixed = parsed.map(m => m.id === "mod-qm" && m.items && m.items.length < 5 ? QM_MODULE : m);
+          setModules(fixed);
+        }
         if (eval_?.value) setEvaluators(JSON.parse(eval_.value));
         if (his?.value) setEvalHistory(JSON.parse(his.value));
         if (sap?.value) setSapModules(JSON.parse(sap.value));
