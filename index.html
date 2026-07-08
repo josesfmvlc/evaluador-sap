@@ -3154,10 +3154,14 @@ const SettingsView = ({
 };
 const HistorialModal = ({
   onClose,
-  evalHistory
+  evalHistory,
+  onDelete,
+  modules,
+  evaluators
 }) => {
   const [filterEmp, setFilterEmp] = useState("");
   const [filterDate, setFilterDate] = useState("");
+  const [viewingEval, setViewingEval] = useState(null);
   const filtered = evalHistory.filter(h => {
     const empOk = !filterEmp || (h.empleado?.nombre || "").toLowerCase().includes(filterEmp.toLowerCase());
     const dateOk = !filterDate || h.fecha === filterDate;
@@ -3174,7 +3178,248 @@ const HistorialModal = ({
     letterSpacing: "0.05em",
     borderBottom: `1px solid ${C.border}`
   };
-  return React.createElement("div", {
+  const renderDetail = h => {
+    const mod = modules.find(m => m.id === h.moduloId);
+    const lvl = getLvl(h.globalLevel || Math.round(h.globalScore || 1));
+    return React.createElement("div", {
+      onClick: e => {
+        if (e.target === e.currentTarget) setViewingEval(null);
+      },
+      style: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(0,0,0,0.65)",
+        zIndex: 9500,
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        padding: "20px 10px",
+        overflowY: "auto"
+      }
+    }, React.createElement("div", {
+      style: {
+        background: C.card,
+        borderRadius: "14px",
+        width: "100%",
+        maxWidth: "920px",
+        boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
+        overflow: "hidden",
+        marginBottom: "20px"
+      }
+    }, React.createElement("div", {
+      style: {
+        background: "#354a5e",
+        padding: "16px 20px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "12px"
+      }
+    }, React.createElement("div", null, React.createElement("div", {
+      style: {
+        color: "white",
+        fontSize: "17px",
+        fontWeight: "800"
+      }
+    }, h.empleado?.nombre || "—"), React.createElement("div", {
+      style: {
+        color: "rgba(255,255,255,0.65)",
+        fontSize: "12px",
+        marginTop: "3px"
+      }
+    }, h.moduloNombre + " · " + fmtDate(h.fecha))), React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "14px"
+      }
+    }, React.createElement("div", {
+      style: {
+        textAlign: "right"
+      }
+    }, React.createElement("div", {
+      style: {
+        fontSize: "24px",
+        fontWeight: "800",
+        color: lvl.color,
+        lineHeight: "1"
+      }
+    }, (h.globalScore || 0).toFixed(2)), React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: "rgba(255,255,255,0.7)",
+        marginTop: "2px"
+      }
+    }, lvl.code + " · " + lvl.name)), React.createElement("button", {
+      onClick: () => setViewingEval(null),
+      style: {
+        background: "rgba(255,255,255,0.15)",
+        border: "none",
+        color: "white",
+        width: "32px",
+        height: "32px",
+        borderRadius: "8px",
+        cursor: "pointer",
+        fontSize: "16px",
+        fontWeight: "700",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0
+      }
+    }, "✕"))), React.createElement("div", {
+      style: {
+        maxHeight: "70vh",
+        overflowY: "auto"
+      }
+    }, !mod ? React.createElement("div", {
+      style: {
+        padding: "32px",
+        textAlign: "center",
+        color: C.muted,
+        fontSize: "13px"
+      }
+    }, "El módulo de esta evaluación ya no está disponible.") : (() => {
+      const ambitoOrder = mod.ambitoOrder && mod.ambitoOrder.length ? mod.ambitoOrder : [...new Set(mod.items.map(i => i.ambito))];
+      const byAmbito = mod.items.reduce((acc, item) => {
+        (acc[item.ambito] = acc[item.ambito] || []).push(item);
+        return acc;
+      }, {});
+      return React.createElement(React.Fragment, null, ...ambitoOrder.filter(a => byAmbito[a] && byAmbito[a].length).map(ambito => {
+        const items = byAmbito[ambito];
+        const tp = items.reduce((s, i) => s + i.peso, 0);
+        const ws = items.reduce((s, i) => {
+          const sc = h.scores && (h.scores[i.id] || h.scores[String(i.id)]) || {
+            e1: 4,
+            e2: 4
+          };
+          return s + i.peso * ((sc.e1 + sc.e2) / 2);
+        }, 0);
+        const ambitoAvg = tp > 0 ? ws / tp : 0;
+        return React.createElement("div", {
+          key: ambito,
+          style: {
+            borderBottom: `1px solid ${C.border}`
+          }
+        }, React.createElement("div", {
+          style: {
+            padding: "9px 16px",
+            background: C.expandBg,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center"
+          }
+        }, React.createElement("span", {
+          style: {
+            fontWeight: "700",
+            fontSize: "12px",
+            color: C.text
+          }
+        }, ambito), React.createElement("span", {
+          style: {
+            fontSize: "12px",
+            fontWeight: "700",
+            color: getLvl(Math.round(ambitoAvg)).color
+          }
+        }, "Ø " + ambitoAvg.toFixed(1))), React.createElement("table", {
+          style: {
+            width: "100%",
+            borderCollapse: "collapse",
+            fontSize: "12px"
+          }
+        }, React.createElement("thead", null, React.createElement("tr", null, React.createElement("th", {
+          style: {
+            ...thStyle,
+            paddingLeft: "16px",
+            fontSize: "10px"
+          }
+        }, "Criterio"), React.createElement("th", {
+          style: {
+            ...thStyle,
+            textAlign: "center",
+            width: "56px",
+            fontSize: "10px"
+          }
+        }, "Peso"), React.createElement("th", {
+          style: {
+            ...thStyle,
+            textAlign: "center",
+            width: "90px",
+            fontSize: "10px"
+          }
+        }, evaluators[0] || "Eval. 1"), React.createElement("th", {
+          style: {
+            ...thStyle,
+            textAlign: "center",
+            width: "90px",
+            fontSize: "10px"
+          }
+        }, evaluators[1] || "Eval. 2"), React.createElement("th", {
+          style: {
+            ...thStyle,
+            textAlign: "center",
+            width: "76px",
+            fontSize: "10px"
+          }
+        }, "Media"))), React.createElement("tbody", null, ...items.map((item, idx) => {
+          const sc = h.scores && (h.scores[item.id] || h.scores[String(item.id)]) || {
+            e1: 4,
+            e2: 4
+          };
+          const media = (sc.e1 + sc.e2) / 2;
+          return React.createElement("tr", {
+            key: item.id,
+            style: {
+              background: idx % 2 ? C.item : C.card
+            }
+          }, React.createElement("td", {
+            style: {
+              padding: "8px 16px",
+              borderBottom: `1px solid ${C.rowBorder}`,
+              lineHeight: "1.4",
+              color: C.text
+            }
+          }, item.desc), React.createElement("td", {
+            style: {
+              padding: "8px",
+              textAlign: "center",
+              borderBottom: `1px solid ${C.rowBorder}`,
+              fontWeight: "700",
+              color: C.accent
+            }
+          }, item.peso + "%"), React.createElement("td", {
+            style: {
+              padding: "8px",
+              textAlign: "center",
+              borderBottom: `1px solid ${C.rowBorder}`,
+              fontWeight: "700",
+              color: getColor(sc.e1)
+            }
+          }, getLvl(sc.e1).code), React.createElement("td", {
+            style: {
+              padding: "8px",
+              textAlign: "center",
+              borderBottom: `1px solid ${C.rowBorder}`,
+              fontWeight: "700",
+              color: getColor(sc.e2)
+            }
+          }, getLvl(sc.e2).code), React.createElement("td", {
+            style: {
+              padding: "8px",
+              textAlign: "center",
+              borderBottom: `1px solid ${C.rowBorder}`,
+              fontWeight: "700",
+              color: getColor(Math.round(media))
+            }
+          }, media.toFixed(1)));
+        }))));
+      }));
+    })())));
+  };
+  return React.createElement(React.Fragment, null, React.createElement("div", {
     onClick: e => {
       if (e.target === e.currentTarget) onClose();
     },
@@ -3197,7 +3442,7 @@ const HistorialModal = ({
       background: C.card,
       borderRadius: "14px",
       width: "100%",
-      maxWidth: "920px",
+      maxWidth: "960px",
       boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
       overflow: "hidden",
       marginBottom: "20px"
@@ -3352,10 +3597,16 @@ const HistorialModal = ({
       ...thStyle,
       textAlign: "center"
     }
-  }, "Nivel"))), React.createElement("tbody", null, ...filtered.map((h, i) => {
+  }, "Nivel"), React.createElement("th", {
+    style: {
+      ...thStyle,
+      textAlign: "center",
+      width: "110px"
+    }
+  }, "Acciones"))), React.createElement("tbody", null, ...filtered.map((h, i) => {
     const lvl = getLvl(h.globalLevel || Math.round(h.globalScore || 1));
     return React.createElement("tr", {
-      key: i,
+      key: h._hid || i,
       style: {
         background: i % 2 ? C.item : C.card
       }
@@ -3427,8 +3678,49 @@ const HistorialModal = ({
         fontSize: "10px",
         color: C.text2
       }
-    }, lvl.name))));
-  }))))));
+    }, lvl.name))), React.createElement("td", {
+      style: {
+        padding: "8px 12px",
+        textAlign: "center",
+        borderBottom: `1px solid ${C.rowBorder}`
+      }
+    }, React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: "6px",
+        justifyContent: "center"
+      }
+    }, React.createElement("button", {
+      onClick: () => setViewingEval(h),
+      title: "Ver evaluación completa",
+      style: {
+        background: "#e0edff",
+        color: "#1d4ed8",
+        border: "none",
+        borderRadius: "6px",
+        padding: "5px 10px",
+        fontSize: "11px",
+        fontWeight: "600",
+        cursor: "pointer",
+        whiteSpace: "nowrap"
+      }
+    }, "👁 Ver"), React.createElement("button", {
+      onClick: () => {
+        if (window.confirm("¿Eliminar esta evaluación?")) onDelete(h._hid, evalHistory.indexOf(h));
+      },
+      title: "Eliminar",
+      style: {
+        background: "#fee2e2",
+        color: "#dc2626",
+        border: "none",
+        borderRadius: "6px",
+        padding: "5px 8px",
+        fontSize: "11px",
+        fontWeight: "600",
+        cursor: "pointer"
+      }
+    }, "🗑"))));
+  })))))), viewingEval && renderDetail(viewingEval));
 };
 function App() {
   const [appScreen, setAppScreen] = useState("home");
@@ -3625,7 +3917,17 @@ function App() {
     setLocations(locations.filter(l => l !== name));
   };
   const saveEvaluation = evalData => {
-    setEvalHistory(prev => [evalData, ...prev]);
+    setEvalHistory(prev => [{
+      ...evalData,
+      _hid: Date.now() + Math.random()
+    }, ...prev]);
+  };
+  const deleteEvaluation = (hid, fallbackIdx) => {
+    if (hid !== undefined) {
+      setEvalHistory(prev => prev.filter(h => h._hid !== hid));
+    } else {
+      setEvalHistory(prev => prev.filter((_, i) => i !== fallbackIdx));
+    }
   };
   if (!dataReady) return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -3939,7 +4241,10 @@ function App() {
     }
   }, "Selecciona empleado y módulo para comenzar"))), showHistory && /*#__PURE__*/React.createElement(HistorialModal, {
     onClose: () => setShowHistory(false),
-    evalHistory: evalHistory
+    evalHistory: evalHistory,
+    onDelete: deleteEvaluation,
+    modules: modules,
+    evaluators: evaluators
   }))));
 }
   </script>
