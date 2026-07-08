@@ -2587,6 +2587,95 @@ const HomeScreen = ({
     }
   }, "\uD83D\uDC65"))))));
 };
+const SimpleItemList = ({
+  items,
+  value,
+  setValue,
+  onAdd,
+  onRemove,
+  placeholder = "Añadir..."
+}) => {
+  return React.createElement(React.Fragment, null, React.createElement("div", {
+    style: {
+      border: `1px solid ${C.border}`,
+      borderRadius: "8px",
+      overflow: "hidden",
+      marginBottom: "12px"
+    }
+  }, !items || items.length === 0 ? React.createElement("div", {
+    style: {
+      padding: "16px",
+      textAlign: "center",
+      color: C.muted,
+      fontSize: "12px"
+    }
+  }, "Sin items") : items.map((item, idx) => {
+    const display = item.name !== undefined ? item.name : item;
+    const itemId = item.id !== undefined ? item.id : idx;
+    return React.createElement("div", {
+      key: idx,
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "10px 14px",
+        background: idx % 2 ? C.item : C.card,
+        borderBottom: idx < items.length - 1 ? `1px solid ${C.rowBorder}` : "none"
+      }
+    }, React.createElement("span", {
+      style: {
+        flex: 1,
+        fontSize: "13px",
+        color: C.text
+      }
+    }, display), React.createElement("button", {
+      onClick: () => onRemove(itemId),
+      style: {
+        background: "#fee2e2",
+        color: "#dc2626",
+        border: "none",
+        borderRadius: "6px",
+        padding: "4px 8px",
+        fontSize: "10px",
+        fontWeight: "600",
+        cursor: "pointer",
+        marginLeft: "12px"
+      }
+    }, "🗑"));
+  })), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "8px"
+    }
+  }, React.createElement("input", {
+    placeholder,
+    value,
+    onChange: e => setValue(e.target.value),
+    onKeyDown: e => e.key === "Enter" && onAdd(),
+    style: {
+      flex: 1,
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none"
+    }
+  }), React.createElement("button", {
+    onClick: onAdd,
+    style: {
+      background: C.accent,
+      color: "white",
+      border: "none",
+      borderRadius: "6px",
+      padding: "8px 14px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer",
+      whiteSpace: "nowrap"
+    }
+  }, "+ Añadir")));
+};
 const SettingsView = ({
   modules,
   onRemoveModule,
@@ -2609,7 +2698,8 @@ const SettingsView = ({
   onBack,
   onLogout
 }) => {
-  const [modulosCollapsed, setModulosCollapsed] = useState(true);
+  const [activeModal, setActiveModal] = useState(null);
+  const [hoveredTile, setHoveredTile] = useState(null);
   const [editingModId, setEditingModId] = useState(null);
   const [editingModVal, setEditingModVal] = useState("");
   const [newEvalName, setNewEvalName] = useState("");
@@ -2630,14 +2720,272 @@ const SettingsView = ({
   const handleImportModule = () => {
     importInputRef.current?.click();
   };
-  return /*#__PURE__*/React.createElement("div", {
+  const TILES = [{
+    key: "excel",
+    icon: "📦",
+    label: "Excel de evaluación",
+    count: modules.length,
+    accent: "#f97316"
+  }, {
+    key: "evaluadores",
+    icon: "👨‍💼",
+    label: "Evaluadores",
+    count: evaluators.length,
+    accent: "#2563eb"
+  }, {
+    key: "modulos",
+    icon: "🔷",
+    label: "Módulos SAP",
+    count: sapModules.length,
+    accent: "#0891b2"
+  }, {
+    key: "sectores",
+    icon: "🏢",
+    label: "Sectores",
+    count: sectors.length,
+    accent: "#7c3aed"
+  }, {
+    key: "skills",
+    icon: "💡",
+    label: "Skills",
+    count: skills.length,
+    accent: "#16a34a"
+  }, {
+    key: "ubicaciones",
+    icon: "📍",
+    label: "Ubicaciones",
+    count: locations.length,
+    accent: "#dc2626"
+  }];
+  const renderModalContent = () => {
+    if (activeModal === "excel") {
+      return React.createElement(React.Fragment, null, React.createElement("div", {
+        style: {
+          border: `1px solid ${C.border}`,
+          borderRadius: "8px",
+          overflow: "hidden",
+          marginBottom: "12px"
+        }
+      }, modules.length === 0 ? React.createElement("div", {
+        style: {
+          padding: "16px",
+          textAlign: "center",
+          color: C.muted,
+          fontSize: "12px"
+        }
+      }, "Sin módulos importados") : modules.map((m, idx) => React.createElement("div", {
+        key: m.id,
+        style: {
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 14px",
+          background: idx % 2 ? C.item : C.card,
+          borderBottom: idx < modules.length - 1 ? `1px solid ${C.rowBorder}` : "none"
+        }
+      }, editingModId === m.id ? React.createElement("input", {
+        autoFocus: true,
+        value: editingModVal,
+        onChange: e => setEditingModVal(e.target.value),
+        style: {
+          flex: 1,
+          background: C.bg,
+          border: `1px solid ${C.border2}`,
+          borderRadius: "6px",
+          padding: "6px 8px",
+          fontSize: "12px",
+          outline: "none"
+        }
+      }) : React.createElement("span", {
+        style: {
+          flex: 1,
+          fontSize: "13px",
+          color: C.text,
+          fontWeight: "500"
+        }
+      }, m.name), React.createElement("div", {
+        style: {
+          display: "flex",
+          gap: "6px",
+          marginLeft: "12px"
+        }
+      }, editingModId === m.id ? React.createElement(React.Fragment, null, React.createElement("button", {
+        onClick: () => {
+          onEditModule(m.id, editingModVal);
+          setEditingModId(null);
+        },
+        style: {
+          background: "#dcfce7",
+          color: "#16a34a",
+          border: "none",
+          borderRadius: "6px",
+          padding: "4px 8px",
+          fontSize: "10px",
+          fontWeight: "600",
+          cursor: "pointer"
+        }
+      }, "✓"), React.createElement("button", {
+        onClick: () => setEditingModId(null),
+        style: {
+          background: C.item,
+          color: C.text2,
+          border: `1px solid ${C.border2}`,
+          borderRadius: "6px",
+          padding: "4px 8px",
+          fontSize: "10px",
+          fontWeight: "600",
+          cursor: "pointer"
+        }
+      }, "✕")) : React.createElement(React.Fragment, null, React.createElement("button", {
+        onClick: () => {
+          setEditingModId(m.id);
+          setEditingModVal(m.name);
+        },
+        style: {
+          background: "#e0edff",
+          color: "#1d4ed8",
+          border: "none",
+          borderRadius: "6px",
+          padding: "4px 8px",
+          fontSize: "10px",
+          fontWeight: "600",
+          cursor: "pointer"
+        }
+      }, "✏️"), React.createElement("button", {
+        onClick: () => onRemoveModule(m.id),
+        style: {
+          background: "#fee2e2",
+          color: "#dc2626",
+          border: "none",
+          borderRadius: "6px",
+          padding: "4px 8px",
+          fontSize: "10px",
+          fontWeight: "600",
+          cursor: "pointer"
+        }
+      }, "🗑")))))), React.createElement("input", {
+        ref: importInputRef,
+        type: "file",
+        accept: ".xlsx",
+        onChange: e => {
+          const f = e.target.files[0];
+          if (f) {
+            const r = new FileReader();
+            r.onload = ev => {
+              try {
+                const mod = parseExcelModule(ev.target.result, f.name);
+                onAddModule(mod);
+                alert(`Excel "${mod.name}" importado con ${mod.items.length} criterios.`);
+              } catch (err) {
+                alert("Error: " + err.message);
+              }
+            };
+            r.readAsArrayBuffer(f);
+          }
+          e.target.value = "";
+        },
+        style: {
+          display: "none"
+        }
+      }), React.createElement("button", {
+        onClick: handleImportModule,
+        style: {
+          background: C.accent,
+          color: "white",
+          border: "none",
+          borderRadius: "8px",
+          padding: "10px 16px",
+          fontSize: "13px",
+          fontWeight: "600",
+          cursor: "pointer",
+          width: "100%"
+        }
+      }, "📥 Importar Excel"));
+    }
+    if (activeModal === "evaluadores") {
+      return React.createElement(SimpleItemList, {
+        items: evaluators.map((e, i) => ({
+          id: i,
+          name: e
+        })),
+        value: newEvalName,
+        setValue: setNewEvalName,
+        onAdd: addEval,
+        onRemove: removeEval,
+        placeholder: "Nombre del evaluador..."
+      });
+    }
+    if (activeModal === "modulos") {
+      return React.createElement(SimpleItemList, {
+        items: sapModules,
+        value: newSapModule,
+        setValue: setNewSapModule,
+        onAdd: () => {
+          if (newSapModule) {
+            addSapModule(newSapModule);
+            setNewSapModule("");
+          }
+        },
+        onRemove: removeSapModule,
+        placeholder: "Nuevo módulo SAP..."
+      });
+    }
+    if (activeModal === "sectores") {
+      return React.createElement(SimpleItemList, {
+        items: sectors,
+        value: newSector,
+        setValue: setNewSector,
+        onAdd: () => {
+          if (newSector) {
+            addSector(newSector);
+            setNewSector("");
+          }
+        },
+        onRemove: removeSector,
+        placeholder: "Nuevo sector..."
+      });
+    }
+    if (activeModal === "skills") {
+      return React.createElement(SimpleItemList, {
+        items: skills,
+        value: newSkill,
+        setValue: setNewSkill,
+        onAdd: () => {
+          if (newSkill) {
+            addSkill(newSkill);
+            setNewSkill("");
+          }
+        },
+        onRemove: removeSkill,
+        placeholder: "Nueva skill..."
+      });
+    }
+    if (activeModal === "ubicaciones") {
+      return React.createElement(SimpleItemList, {
+        items: locations,
+        value: newLocation,
+        setValue: setNewLocation,
+        onAdd: () => {
+          if (newLocation) {
+            addLocation(newLocation);
+            setNewLocation("");
+          }
+        },
+        onRemove: removeLocation,
+        placeholder: "Nueva ubicación..."
+      });
+    }
+    return null;
+  };
+  const activeTile = TILES.find(t => t.key === activeModal);
+  return React.createElement("div", {
     style: {
       minHeight: "100vh",
       background: C.bg,
       color: C.text,
       fontFamily: "system-ui,-apple-system,sans-serif"
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, React.createElement("div", {
     style: {
       background: C.card,
       borderBottom: `1px solid ${C.border}`,
@@ -2646,7 +2994,7 @@ const SettingsView = ({
       gap: "8px",
       alignItems: "center"
     }
-  }, /*#__PURE__*/React.createElement("button", {
+  }, React.createElement("button", {
     onClick: onBack,
     style: {
       background: C.item,
@@ -2657,16 +3005,16 @@ const SettingsView = ({
       cursor: "pointer",
       fontSize: "13px"
     }
-  }, "← Atrás"), /*#__PURE__*/React.createElement("div", {
+  }, "← Atrás"), React.createElement("div", {
     style: {
       fontSize: "14px",
       fontWeight: "700"
     }
-  }, "⚙ Ajustes"), /*#__PURE__*/React.createElement("div", {
+  }, "⚙ Ajustes"), React.createElement("div", {
     style: {
       flex: 1
     }
-  }), /*#__PURE__*/React.createElement("button", {
+  }), React.createElement("button", {
     onClick: onLogout,
     style: {
       background: "#fee2e2",
@@ -2678,238 +3026,131 @@ const SettingsView = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "Cerrar sesión")), /*#__PURE__*/React.createElement("div", {
+  }, "Cerrar sesión")), React.createElement("div", {
     style: {
       maxWidth: "1080px",
       margin: "0 auto",
-      padding: "20px 16px"
+      padding: "28px 20px"
     }
-  }, /*#__PURE__*/React.createElement("div", {
+  }, React.createElement("div", {
     style: {
-      background: C.card,
-      borderRadius: "12px",
-      padding: "20px",
-      marginBottom: "20px",
-      border: `1px solid ${C.border}`
-    }
-  }, /*#__PURE__*/React.createElement("div", {
-    onClick: () => setModulosCollapsed(!modulosCollapsed),
-    style: {
-      fontSize: "14px",
+      fontSize: "11px",
       fontWeight: "700",
-      marginBottom: modulosCollapsed ? "0" : "12px",
+      color: C.muted,
+      textTransform: "uppercase",
+      letterSpacing: "0.07em",
+      marginBottom: "14px"
+    }
+  }, "Configuración"), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "16px",
+      flexWrap: "wrap"
+    }
+  }, TILES.map(tile => React.createElement("div", {
+    key: tile.key,
+    onClick: () => setActiveModal(tile.key),
+    onMouseEnter: () => setHoveredTile(tile.key),
+    onMouseLeave: () => setHoveredTile(null),
+    style: {
+      background: "white",
+      border: `1px solid ${hoveredTile === tile.key ? tile.accent : "#d0d7de"}`,
+      borderRadius: "8px",
+      padding: "16px",
+      width: "160px",
+      height: "160px",
       cursor: "pointer",
       display: "flex",
-      alignItems: "center",
-      gap: "8px",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      boxShadow: hoveredTile === tile.key ? `0 4px 14px ${tile.accent}30` : "0 1px 4px rgba(0,0,0,0.07)",
+      transition: "all 0.15s",
       userSelect: "none"
     }
-  }, /*#__PURE__*/React.createElement("span", {
+  }, React.createElement("div", {
     style: {
-      fontSize: "12px"
+      fontSize: "13px",
+      fontWeight: "600",
+      color: C.text,
+      lineHeight: "1.35"
     }
-  }, modulosCollapsed ? "▶" : "▼"), "📦 Excel de evaluación (", modules.length, ")"), !modulosCollapsed && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, tile.label), React.createElement("div", {
     style: {
-      border: `1px solid ${C.border}`,
-      borderRadius: "8px",
-      overflow: "hidden",
-      marginBottom: "12px"
+      fontSize: "11px",
+      color: tile.accent,
+      fontWeight: "600"
     }
-  }, modules.length === 0 ? /*#__PURE__*/React.createElement("div", {
+  }, tile.count + " elemento" + (tile.count !== 1 ? "s" : "")), React.createElement("div", {
     style: {
-      padding: "16px",
-      textAlign: "center",
-      color: C.muted,
-      fontSize: "12px"
+      display: "flex",
+      justifyContent: "flex-end"
     }
-  }, "Sin módulos importados") : modules.map((m, idx) => /*#__PURE__*/React.createElement("div", {
-    key: m.id,
+  }, React.createElement("span", {
     style: {
+      fontSize: "34px"
+    }
+  }, tile.icon)))))), activeModal && React.createElement("div", {
+    onClick: e => {
+      if (e.target === e.currentTarget) setActiveModal(null);
+    },
+    style: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: "rgba(0,0,0,0.55)",
+      zIndex: 8000,
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "center",
+      padding: "40px 10px",
+      overflowY: "auto"
+    }
+  }, React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "14px",
+      width: "100%",
+      maxWidth: "560px",
+      boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
+      overflow: "hidden"
+    }
+  }, React.createElement("div", {
+    style: {
+      background: "#354a5e",
+      padding: "16px 20px",
       display: "flex",
       alignItems: "center",
-      justifyContent: "space-between",
-      padding: "10px 14px",
-      background: idx % 2 ? C.item : C.card,
-      borderBottom: idx < modules.length - 1 ? `1px solid ${C.rowBorder}` : "none"
+      justifyContent: "space-between"
     }
-  }, editingModId === m.id ? /*#__PURE__*/React.createElement("input", {
-    autoFocus: true,
-    value: editingModVal,
-    onChange: e => setEditingModVal(e.target.value),
+  }, React.createElement("div", {
     style: {
-      flex: 1,
-      background: C.bg,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "6px",
-      padding: "6px 8px",
-      fontSize: "12px",
-      outline: "none"
-    }
-  }) : /*#__PURE__*/React.createElement("span", {
-    style: {
-      flex: 1,
-      fontSize: "13px",
-      color: C.text,
-      fontWeight: "500"
-    }
-  }, m.name), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: "6px",
-      marginLeft: "12px"
-    }
-  }, editingModId === m.id ? /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      onEditModule(m.id, editingModVal);
-      setEditingModId(null);
-    },
-    style: {
-      background: "#dcfce7",
-      color: "#16a34a",
-      border: "none",
-      borderRadius: "6px",
-      padding: "4px 8px",
-      fontSize: "10px",
-      fontWeight: "600",
-      cursor: "pointer"
-    }
-  }, "✓"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setEditingModId(null),
-    style: {
-      background: C.item,
-      color: C.text2,
-      border: `1px solid ${C.border2}`,
-      borderRadius: "6px",
-      padding: "4px 8px",
-      fontSize: "10px",
-      fontWeight: "600",
-      cursor: "pointer"
-    }
-  }, "✕")) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("button", {
-    onClick: () => {
-      setEditingModId(m.id);
-      setEditingModVal(m.name);
-    },
-    title: "Editar",
-    style: {
-      background: "#e0edff",
-      color: "#1d4ed8",
-      border: "none",
-      borderRadius: "6px",
-      padding: "4px 8px",
-      fontSize: "10px",
-      fontWeight: "600",
-      cursor: "pointer"
-    }
-  }, "✏️"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => onRemoveModule(m.id),
-    title: "Eliminar",
-    style: {
-      background: "#fee2e2",
-      color: "#dc2626",
-      border: "none",
-      borderRadius: "6px",
-      padding: "4px 8px",
-      fontSize: "10px",
-      fontWeight: "600",
-      cursor: "pointer"
-    }
-  }, "🗑")))))), /*#__PURE__*/React.createElement("input", {
-    ref: importInputRef,
-    type: "file",
-    accept: ".xlsx",
-    onChange: e => {
-      const f = e.target.files[0];
-      if (f) {
-        const r = new FileReader();
-        r.onload = ev => {
-          try {
-            const mod = parseExcelModule(ev.target.result, f.name);
-            onAddModule(mod);
-            alert(`Excel "${mod.name}" importado con ${mod.items.length} criterios.`);
-          } catch (err) {
-            alert("Error: " + err.message);
-          }
-        };
-        r.readAsArrayBuffer(f);
-      }
-      e.target.value = "";
-    },
-    style: {
-      display: "none"
-    }
-  }), /*#__PURE__*/React.createElement("button", {
-    onClick: handleImportModule,
-    style: {
-      background: C.accent,
       color: "white",
-      border: "none",
-      borderRadius: "8px",
-      padding: "10px 16px",
-      fontSize: "13px",
-      fontWeight: "600",
-      cursor: "pointer"
+      fontSize: "16px",
+      fontWeight: "800"
     }
-  }, "📥 Importar Excel"))), /*#__PURE__*/React.createElement(ItemListSection, {
-    title: "👨 Evaluadores",
-    items: evaluators.map((e, i) => ({
-      id: i,
-      name: e
-    })),
-    value: newEvalName,
-    setValue: setNewEvalName,
-    onAdd: addEval,
-    onRemove: removeEval,
-    showEdit: false
-  }), /*#__PURE__*/React.createElement(ItemListSection, {
-    title: "🔷 Módulos SAP",
-    items: sapModules,
-    value: newSapModule,
-    setValue: setNewSapModule,
-    onAdd: () => {
-      if (newSapModule) {
-        addSapModule(newSapModule);
-        setNewSapModule("");
-      }
-    },
-    onRemove: removeSapModule
-  }), /*#__PURE__*/React.createElement(ItemListSection, {
-    title: "🏢 Sectores",
-    items: sectors,
-    value: newSector,
-    setValue: setNewSector,
-    onAdd: () => {
-      if (newSector) {
-        addSector(newSector);
-        setNewSector("");
-      }
-    },
-    onRemove: removeSector
-  }), /*#__PURE__*/React.createElement(ItemListSection, {
-    title: "💡 Skills",
-    items: skills,
-    value: newSkill,
-    setValue: setNewSkill,
-    onAdd: () => {
-      if (newSkill) {
-        addSkill(newSkill);
-        setNewSkill("");
-      }
-    },
-    onRemove: removeSkill
-  }), /*#__PURE__*/React.createElement(ItemListSection, {
-    title: "📍 Ubicaciones",
-    items: locations,
-    value: newLocation,
-    setValue: setNewLocation,
-    onAdd: () => {
-      if (newLocation) {
-        addLocation(newLocation);
-        setNewLocation("");
-      }
-    },
-    onRemove: removeLocation
-  })));
+  }, activeTile ? activeTile.icon + " " + activeTile.label : ""), React.createElement("button", {
+    onClick: () => setActiveModal(null),
+    style: {
+      background: "rgba(255,255,255,0.15)",
+      border: "none",
+      color: "white",
+      width: "30px",
+      height: "30px",
+      borderRadius: "8px",
+      cursor: "pointer",
+      fontSize: "15px",
+      fontWeight: "700",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }
+  }, "✕")), React.createElement("div", {
+    style: {
+      padding: "20px"
+    }
+  }, renderModalContent()))));
 };
 const HistorialModal = ({
   onClose,
@@ -3555,15 +3796,7 @@ function App() {
       fontSize: "14px",
       fontWeight: "700"
     }
-  }, "Evaluación de empleados")), /*#__PURE__*/React.createElement("div", {
-    style: {
-      display: "flex",
-      flexDirection: "column",
-      gap: "8px",
-      alignItems: "flex-end",
-      flexShrink: 0
-    }
-  }, /*#__PURE__*/React.createElement("button", {
+  }, "Evaluación de empleados")), /*#__PURE__*/React.createElement("button", {
     onClick: () => setShowHistory(true),
     style: {
       background: C.bg,
@@ -3577,25 +3810,10 @@ function App() {
       display: "flex",
       alignItems: "center",
       gap: "5px",
-      whiteSpace: "nowrap"
+      whiteSpace: "nowrap",
+      flexShrink: 0
     }
-  }, "📜 Histórico"), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setView("settings"),
-    style: {
-      background: C.bg,
-      border: `1px solid ${C.border2}`,
-      color: C.text2,
-      borderRadius: "8px",
-      padding: "8px 14px",
-      fontSize: "12px",
-      fontWeight: "600",
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      gap: "5px",
-      whiteSpace: "nowrap"
-    }
-  }, "⚙️ Ajustes")))), /*#__PURE__*/React.createElement("div", {
+  }, "📜 Histórico"))), /*#__PURE__*/React.createElement("div", {
     style: {
       background: C.card,
       borderRadius: "12px",
@@ -3701,10 +3919,29 @@ function App() {
   }, "Selecciona empleado y módulo para comenzar"))), showHistory && /*#__PURE__*/React.createElement(HistorialModal, {
     onClose: () => setShowHistory(false),
     evalHistory: evalHistory
-  })));
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: "24px",
+      padding: "16px",
+      background: C.item,
+      borderRadius: "12px",
+      border: `1px solid ${C.border}`,
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setView("settings"),
+    style: {
+      background: C.accent,
+      color: "white",
+      border: "none",
+      borderRadius: "8px",
+      padding: "10px 20px",
+      fontSize: "13px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "⚙️ Ajustes"))));
 }
-
-
   </script>
 
 <script>
