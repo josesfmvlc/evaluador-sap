@@ -3160,11 +3160,32 @@ const HistorialModal = ({
   evaluators
 }) => {
   const [filterEmp, setFilterEmp] = useState("");
-  const [filterDate, setFilterDate] = useState("");
+  const [dateMode, setDateMode] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [viewingEval, setViewingEval] = useState(null);
   const filtered = evalHistory.filter(h => {
     const empOk = !filterEmp || (h.empleado?.nombre || "").toLowerCase().includes(filterEmp.toLowerCase());
-    const dateOk = !filterDate || h.fecha === filterDate;
+    const dateOk = (() => {
+      if (!dateMode) return true;
+      const d = h.fecha;
+      if (!d) return false;
+      const now = new Date();
+      const year = d.slice(0, 4);
+      if (dateMode === "thisYear") return year === String(now.getFullYear());
+      if (dateMode === "lastYear") return year === String(now.getFullYear() - 1);
+      if (dateMode === "last3months") {
+        const cutoff = new Date(now);
+        cutoff.setMonth(cutoff.getMonth() - 3);
+        return d >= cutoff.toISOString().slice(0, 10);
+      }
+      if (dateMode === "custom") {
+        const fromOk = !dateFrom || d >= dateFrom;
+        const toOk = !dateTo || d <= dateTo;
+        return fromOk && toOk;
+      }
+      return true;
+    })();
     return empOk && dateOk;
   });
   const thStyle = {
@@ -3531,10 +3552,50 @@ const HistorialModal = ({
       color: C.muted,
       marginBottom: "4px"
     }
-  }, "FECHA"), React.createElement("input", {
+  }, "PERÍODO"), React.createElement("select", {
+    value: dateMode,
+    onChange: e => {
+      setDateMode(e.target.value);
+      setDateFrom("");
+      setDateTo("");
+    },
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none",
+      boxSizing: "border-box",
+      cursor: "pointer"
+    }
+  }, React.createElement("option", {
+    value: ""
+  }, "Todos"), React.createElement("option", {
+    value: "thisYear"
+  }, "Este año"), React.createElement("option", {
+    value: "lastYear"
+  }, "Año pasado"), React.createElement("option", {
+    value: "last3months"
+  }, "Últimos 3 meses"), React.createElement("option", {
+    value: "custom"
+  }, "Personalizado…"))), dateMode === "custom" && React.createElement(React.Fragment, null, React.createElement("div", {
+    style: {
+      minWidth: "140px"
+    }
+  }, React.createElement("label", {
+    style: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      marginBottom: "4px"
+    }
+  }, "DESDE"), React.createElement("input", {
     type: "date",
-    value: filterDate,
-    onChange: e => setFilterDate(e.target.value),
+    value: dateFrom,
+    onChange: e => setDateFrom(e.target.value),
     style: {
       width: "100%",
       background: C.bg,
@@ -3545,10 +3606,38 @@ const HistorialModal = ({
       outline: "none",
       boxSizing: "border-box"
     }
-  })), (filterEmp || filterDate) && React.createElement("button", {
+  })), React.createElement("div", {
+    style: {
+      minWidth: "140px"
+    }
+  }, React.createElement("label", {
+    style: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      marginBottom: "4px"
+    }
+  }, "HASTA"), React.createElement("input", {
+    type: "date",
+    value: dateTo,
+    onChange: e => setDateTo(e.target.value),
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none",
+      boxSizing: "border-box"
+    }
+  }))), (filterEmp || dateMode) && React.createElement("button", {
     onClick: () => {
       setFilterEmp("");
-      setFilterDate("");
+      setDateMode("");
+      setDateFrom("");
+      setDateTo("");
     },
     style: {
       background: C.item,
@@ -3558,7 +3647,8 @@ const HistorialModal = ({
       padding: "8px 12px",
       fontSize: "12px",
       cursor: "pointer",
-      whiteSpace: "nowrap"
+      whiteSpace: "nowrap",
+      alignSelf: "flex-end"
     }
   }, "✕ Limpiar")), React.createElement("div", {
     style: {
@@ -4250,6 +4340,7 @@ function App() {
     evaluators: evaluators
   }))));
 }
+
   </script>
 
 <script>
