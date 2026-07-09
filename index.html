@@ -3779,7 +3779,10 @@ function App() {
             }
           }
         }
-        if (empList) setEmployees(empList);
+        if (empList) setEmployees(empList.map(e => ({
+          ...e,
+          modules: e.modules?.length ? e.modules : e.modulos?.length ? e.modulos : e.module ? [e.module] : []
+        })));
         const lsGet = key => {
           try {
             const v = localStorage.getItem(key);
