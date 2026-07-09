@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>EvaluadorSAP QM</title>
   <style>
@@ -2492,14 +2494,16 @@ const HomeScreen = ({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      fontSize: "11px",
+      marginBottom: "32px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "16px",
       fontWeight: "700",
-      color: "#8796a5",
-      textTransform: "uppercase",
-      letterSpacing: "0.07em",
+      color: "#1a2332",
       marginBottom: "14px"
     }
-  }, "Aplicaciones"), /*#__PURE__*/React.createElement("div", {
+  }, "Evaluaciones"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: "16px",
@@ -2534,10 +2538,10 @@ const HomeScreen = ({
   }, "Evaluador de empleados"), /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "11px",
-      color: "#2563eb",
+      color: "#8796a5",
       fontWeight: "500"
     }
-  }, "Competencias SAP"), /*#__PURE__*/React.createElement("div", {
+  }, "Conocimiento"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "flex-end"
@@ -2547,7 +2551,20 @@ const HomeScreen = ({
       fontSize: "38px",
       filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
     }
-  }, "\uD83D\uDCCA"))), /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDCCA"))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "16px",
+      fontWeight: "700",
+      color: "#1a2332",
+      marginBottom: "14px"
+    }
+  }, "Gesti\xf3n interna"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "16px",
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
     onClick: onEnterEmployees,
     onMouseEnter: () => setHovered("emp"),
     onMouseLeave: () => setHovered(null),
@@ -2573,13 +2590,7 @@ const HomeScreen = ({
       color: "#1a2332",
       lineHeight: "1.35"
     }
-  }, "Empleados"), /*#__PURE__*/React.createElement("div", {
-    style: {
-      fontSize: "11px",
-      color: "#2563eb",
-      fontWeight: "500"
-    }
-  }, "Gesti\xf3n de equipo"), /*#__PURE__*/React.createElement("div", {
+  }, "Gesti\xf3n de empleados"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "flex-end"
@@ -2589,7 +2600,7 @@ const HomeScreen = ({
       fontSize: "38px",
       filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
     }
-  }, "\uD83D\uDC65"))))));
+  }, "\uD83D\uDC65")))))));
 };
 const SimpleItemList = ({
   items,
