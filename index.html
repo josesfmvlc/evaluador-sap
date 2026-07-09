@@ -2,6 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>EvaluadorSAP QM</title>
   <style>
@@ -2416,7 +2418,7 @@ const HomeScreen = ({
     style: {
       minHeight: "100vh",
       background: "#f0f4f8",
-      fontFamily: "system-ui,-apple-system,sans-serif"
+      fontFamily: "'72', 'Inter', system-ui, sans-serif"
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
@@ -2510,7 +2512,7 @@ const HomeScreen = ({
     style: {
       background: "white",
       border: `1px solid ${hovered === "eval" ? "#2563eb" : "#d0d7de"}`,
-      borderRadius: "8px",
+      borderRadius: "16px",
       padding: "16px",
       width: "180px",
       height: "180px",
@@ -2542,7 +2544,8 @@ const HomeScreen = ({
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: "38px"
+      fontSize: "38px",
+      filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
     }
   }, "\uD83D\uDCCA"))), /*#__PURE__*/React.createElement("div", {
     onClick: onEnterEmployees,
@@ -2551,7 +2554,7 @@ const HomeScreen = ({
     style: {
       background: "white",
       border: `1px solid ${hovered === "emp" ? "#2563eb" : "#d0d7de"}`,
-      borderRadius: "8px",
+      borderRadius: "16px",
       padding: "16px",
       width: "180px",
       height: "180px",
@@ -2583,7 +2586,8 @@ const HomeScreen = ({
     }
   }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: "38px"
+      fontSize: "38px",
+      filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
     }
   }, "\uD83D\uDC65"))))));
 };
@@ -4341,7 +4345,8 @@ function App() {
   }))));
 }
 
-  </script>
+
+</script>
 
 <script>
   const _auth = firebase.auth();
