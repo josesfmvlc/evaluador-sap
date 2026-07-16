@@ -178,6 +178,13 @@ const DEFAULT_SAP_MODULES = ["SAP QM", "SAP MM", "SAP CO", "SAP FI", "SAP PP", "
 const DEFAULT_SECTORS = ["Industria de procesos", "Manufacturing", "Servicios y Hoteles", "Estructura"];
 const DEFAULT_SKILLS = ["Preventa", "Jefatura de proyecto", "Arquitectura", "Formación"];
 const DEFAULT_LOCATIONS = ["Valencia", "Barcelona", "Madrid"];
+const DEFAULT_AREAS = ["Proyectos", "Mantenimiento", "Jefatura de proyecto"];
+const DEFAULT_AREA_MODULES = DEFAULT_AREAS.map((name, i) => ({
+  id: "area-" + i,
+  name,
+  items: [],
+  ambitoOrder: []
+}));
 const QM_AMBITO_ORDER = ["Planificación de Calidad", "Inspección de Calidad", "Notificaciones de Calidad", "Certificados de Calidad", "Gestión de Lotes", "Gestión de Muestras", "Gestión de Auditorías", "FMEA y Plan de Control", "Gestión de Cambios de Datos", "Estudio de Estabilidad", "Integración con MM", "Integración con PP", "Integración con EWM", "Integración con SD", "Integración con CO", "Cargas", "OSS / Notas SAP", "Conocimiento General"];
 const VMAP = {
   "V1": 1,
@@ -2412,6 +2419,7 @@ const EmployeesView = ({
 };
 const HomeScreen = ({
   onEnterEval,
+  onEnterEvalOp,
   onEnterEmployees,
   onLogout
 }) => {
@@ -2551,7 +2559,49 @@ const HomeScreen = ({
       fontSize: "38px",
       filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
     }
-  }, "\uD83D\uDCCA"))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+  }, "\uD83D\uDCCA"))), /*#__PURE__*/React.createElement("div", {
+    onClick: onEnterEvalOp,
+    onMouseEnter: () => setHovered("eval-op"),
+    onMouseLeave: () => setHovered(null),
+    style: {
+      background: "white",
+      border: `1px solid ${hovered === "eval-op" ? "#2563eb" : "#d0d7de"}`,
+      borderRadius: "16px",
+      padding: "16px",
+      width: "180px",
+      height: "180px",
+      cursor: "pointer",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      boxShadow: hovered === "eval-op" ? "0 4px 14px rgba(37,99,235,0.18)" : "0 1px 4px rgba(0,0,0,0.07)",
+      transition: "all 0.15s",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600",
+      color: "#1a2332",
+      lineHeight: "1.35"
+    }
+  }, "Evaluador de empleados"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: "#8796a5",
+      fontWeight: "500"
+    }
+  }, "Operativo"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "flex-end"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "38px",
+      filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
+    }
+  }, "\uD83E\uDDED"))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
     style: {
       fontSize: "16px",
       fontWeight: "700",
@@ -2696,6 +2746,8 @@ const SettingsView = ({
   onRemoveModule,
   onAddModule,
   onEditModule,
+  moduleTileLabel,
+  moduleTileIcon,
   evaluators,
   setEvaluators,
   sapModules,
@@ -2737,8 +2789,8 @@ const SettingsView = ({
   };
   const TILES = [{
     key: "excel",
-    icon: "📦",
-    label: "Excel de evaluación",
+    icon: moduleTileIcon || "📦",
+    label: moduleTileLabel || "Excel de evaluación",
     count: modules.length,
     accent: "#f97316"
   }, {
@@ -3175,12 +3227,14 @@ const HistorialModal = ({
   evaluators
 }) => {
   const [filterEmp, setFilterEmp] = useState("");
+  const [filterTipo, setFilterTipo] = useState("");
   const [dateMode, setDateMode] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [viewingEval, setViewingEval] = useState(null);
   const filtered = evalHistory.filter(h => {
     const empOk = !filterEmp || (h.empleado?.nombre || "").toLowerCase().includes(filterEmp.toLowerCase());
+    const tipoOk = !filterTipo || (h.tipo || "conocimiento") === filterTipo;
     const dateOk = (() => {
       if (!dateMode) return true;
       const d = h.fecha;
@@ -3201,7 +3255,7 @@ const HistorialModal = ({
       }
       return true;
     })();
-    return empOk && dateOk;
+    return empOk && dateOk && tipoOk;
   });
   const thStyle = {
     padding: "10px 16px",
@@ -3557,6 +3611,38 @@ const HistorialModal = ({
     }
   })), React.createElement("div", {
     style: {
+      minWidth: "150px"
+    }
+  }, React.createElement("label", {
+    style: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      marginBottom: "4px"
+    }
+  }, "TIPO"), React.createElement("select", {
+    value: filterTipo,
+    onChange: e => setFilterTipo(e.target.value),
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none",
+      boxSizing: "border-box",
+      cursor: "pointer"
+    }
+  }, React.createElement("option", {
+    value: ""
+  }, "Todos"), React.createElement("option", {
+    value: "conocimiento"
+  }, "📚 Conocimiento"), React.createElement("option", {
+    value: "operativo"
+  }, "🧭 Operativo"))), React.createElement("div", {
+    style: {
       minWidth: "180px"
     }
   }, React.createElement("label", {
@@ -3647,9 +3733,10 @@ const HistorialModal = ({
       outline: "none",
       boxSizing: "border-box"
     }
-  }))), (filterEmp || dateMode) && React.createElement("button", {
+  }))), (filterEmp || dateMode || filterTipo) && React.createElement("button", {
     onClick: () => {
       setFilterEmp("");
+      setFilterTipo("");
       setDateMode("");
       setDateFrom("");
       setDateTo("");
@@ -3686,8 +3773,13 @@ const HistorialModal = ({
   }, React.createElement("thead", null, React.createElement("tr", null, React.createElement("th", {
     style: thStyle
   }, "Empleado"), React.createElement("th", {
+    style: {
+      ...thStyle,
+      textAlign: "center"
+    }
+  }, "Tipo"), React.createElement("th", {
     style: thStyle
-  }, "Módulo"), React.createElement("th", {
+  }, "Módulo / Área"), React.createElement("th", {
     style: {
       ...thStyle,
       textAlign: "center"
@@ -3736,6 +3828,22 @@ const HistorialModal = ({
         marginLeft: "6px"
       }
     }, h.empleado.nivel)), React.createElement("td", {
+      style: {
+        padding: "10px 16px",
+        textAlign: "center",
+        borderBottom: `1px solid ${C.rowBorder}`
+      }
+    }, React.createElement("span", {
+      style: {
+        fontSize: "10px",
+        fontWeight: "700",
+        borderRadius: "4px",
+        padding: "2px 6px",
+        whiteSpace: "nowrap",
+        background: (h.tipo || "conocimiento") === "operativo" ? "#e0f2fe" : "#fef3c7",
+        color: (h.tipo || "conocimiento") === "operativo" ? "#0369a1" : "#92400e"
+      }
+    }, (h.tipo || "conocimiento") === "operativo" ? "🧭 Operativo" : "📚 Conocimiento")), React.createElement("td", {
       style: {
         padding: "10px 16px",
         color: C.text2,
@@ -3857,6 +3965,12 @@ function App() {
   const [sectors, setSectors] = useState(DEFAULT_SECTORS);
   const [skills, setSkills] = useState(DEFAULT_SKILLS);
   const [locations, setLocations] = useState(DEFAULT_LOCATIONS);
+  const [areaModules, setAreaModules] = useState(DEFAULT_AREA_MODULES);
+  const [selectedEmployeeOp, setSelectedEmployeeOp] = useState(null);
+  const [selectedAreaOp, setSelectedAreaOp] = useState(null);
+  const [evalDateOp, setEvalDateOp] = useState(today());
+  const [viewOp, setViewOp] = useState("eval-op");
+  const [showHistoryOp, setShowHistoryOp] = useState(false);
   useEffect(() => {
     (async () => {
       try {
@@ -3913,7 +4027,8 @@ function App() {
             sapModules: lsGet("sap-qm-sap-modules"),
             sectors: lsGet("sap-qm-sectors"),
             skills: lsGet("sap-qm-skills"),
-            locations: lsGet("sap-qm-locations")
+            locations: lsGet("sap-qm-locations"),
+            areaModules: lsGet("sap-op-areas")
           };
           try {
             await db.collection("appData").doc("config").set(cfg);
@@ -3933,6 +4048,7 @@ function App() {
         if (cfg.sectors) setSectors(cfg.sectors);
         if (cfg.skills) setSkills(cfg.skills);
         if (cfg.locations) setLocations(cfg.locations);
+        if (cfg.areaModules) setAreaModules(cfg.areaModules);
         setDataReady(true);
       } catch (e) {
         console.error("Load error:", e);
@@ -3959,7 +4075,8 @@ function App() {
           sapModules,
           sectors,
           skills,
-          locations
+          locations,
+          areaModules
         });
         // Backup local (no es la fuente de verdad, solo caché por si falla la red)
         try {
@@ -3970,12 +4087,13 @@ function App() {
           localStorage.setItem("sap-qm-sectors", JSON.stringify(sectors));
           localStorage.setItem("sap-qm-skills", JSON.stringify(skills));
           localStorage.setItem("sap-qm-locations", JSON.stringify(locations));
+          localStorage.setItem("sap-op-areas", JSON.stringify(areaModules));
         } catch (e) {}
       } catch (e) {
         console.error("Save error:", e);
       }
     })();
-  }, [dataReady, modules, evaluators, employees, evalHistory, sapModules, sectors, skills, locations]);
+  }, [dataReady, modules, evaluators, employees, evalHistory, sapModules, sectors, skills, locations, areaModules]);
   const persistEmployees = async list => {
     setEmployees(list);
     try {
@@ -4079,6 +4197,7 @@ function App() {
   }, "Cargando...");
   if (appScreen === "home") return /*#__PURE__*/React.createElement(HomeScreen, {
     onEnterEval: () => setAppScreen("evaluator"),
+    onEnterEvalOp: () => setAppScreen("evaluator-op"),
     onEnterEmployees: () => setAppScreen("employees"),
     onLogout: () => window.doLogout()
   });
@@ -4119,6 +4238,299 @@ function App() {
     onBack: () => setView("eval"),
     onLogout: () => window.doLogout()
   });
+  if (appScreen === "evaluator-op" && viewOp === "settings-op") return /*#__PURE__*/React.createElement(SettingsView, {
+    modules: areaModules,
+    onRemoveModule: id => setAreaModules(areaModules.filter(m => m.id !== id)),
+    onAddModule: mod => setAreaModules(prev => [...prev, mod]),
+    onEditModule: (id, newName) => setAreaModules(areaModules.map(m => m.id === id ? {
+      ...m,
+      name: newName
+    } : m)),
+    moduleTileLabel: "Cuestionario de valoración",
+    moduleTileIcon: "🧭",
+    evaluators: evaluators,
+    setEvaluators: setEvaluators,
+    sapModules: sapModules,
+    addSapModule: addSapModule,
+    removeSapModule: removeSapModule,
+    sectors: sectors,
+    addSector: addSector,
+    removeSector: removeSector,
+    skills: skills,
+    addSkill: addSkill,
+    removeSkill: removeSkill,
+    locations: locations,
+    addLocation: addLocation,
+    removeLocation: removeLocation,
+    onBack: () => setViewOp("eval-op"),
+    onLogout: () => window.doLogout()
+  });
+  if (appScreen === "evaluator-op") return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: C.bg,
+      color: C.text,
+      fontFamily: "system-ui,-apple-system,sans-serif"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#354a5e",
+      color: "white",
+      padding: "0 24px",
+      height: "44px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setAppScreen("home"),
+    title: "Inicio",
+    style: {
+      background: "rgba(255,255,255,0.12)",
+      border: "1px solid rgba(255,255,255,0.25)",
+      color: "white",
+      borderRadius: "6px",
+      padding: "4px 10px",
+      fontSize: "16px",
+      cursor: "pointer",
+      lineHeight: 1
+    }
+  }, "🏠"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "1px",
+      height: "22px",
+      background: "rgba(255,255,255,0.3)"
+    }
+  }), /*#__PURE__*/React.createElement("svg", {
+    viewBox: "0 0 120 40",
+    style: {
+      height: "28px",
+      width: "auto"
+    }
+  }, /*#__PURE__*/React.createElement("text", {
+    x: "10",
+    y: "26",
+    fontSize: "20",
+    fontWeight: "700",
+    fill: "white"
+  }, "Hiberus"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600"
+    }
+  }, "Evaluación de empleados - Operativo"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => window.doLogout(),
+    style: {
+      background: "rgba(255,255,255,0.12)",
+      border: "1px solid rgba(255,255,255,0.3)",
+      color: "white",
+      borderRadius: "6px",
+      padding: "5px 12px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "Cerrar sesión"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: "1080px",
+      margin: "0 auto",
+      padding: "20px 16px"
+    }
+  }, /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: "16px",
+      marginBottom: "24px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: "12px",
+      padding: "20px",
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "space-between"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "28px",
+      marginBottom: "8px"
+    }
+  }, "🧭"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "14px",
+      fontWeight: "700"
+    }
+  }, "Evaluación de empleados")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "8px",
+      flexShrink: 0
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowHistoryOp(true),
+    style: {
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      color: C.text2,
+      borderRadius: "8px",
+      padding: "8px 14px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      whiteSpace: "nowrap"
+    }
+  }, "📜 Histórico"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setViewOp("settings-op"),
+    style: {
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      color: C.text2,
+      borderRadius: "8px",
+      padding: "8px 14px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      whiteSpace: "nowrap"
+    }
+  }, "⚙️ Ajustes"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "12px",
+      padding: "20px",
+      border: `1px solid ${C.border}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+      gap: "12px",
+      marginBottom: "16px"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      marginBottom: "6px"
+    }
+  }, "EMPLEADO"), /*#__PURE__*/React.createElement(SearchableSelect, {
+    options: employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
+      value: e.id,
+      label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}`
+    })),
+    value: selectedEmployeeOp?.id || "",
+    onChange: id => {
+      const emp = employees.find(x => x.id === id) || null;
+      setSelectedEmployeeOp(emp);
+      setSelectedAreaOp(null);
+    },
+    placeholder: "Seleccionar..."
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      marginBottom: "6px"
+    }
+  }, "ÁREA"), /*#__PURE__*/React.createElement("select", {
+    value: selectedAreaOp?.id || "",
+    onChange: e => {
+      const ar = areaModules.find(x => x.id === e.target.value);
+      setSelectedAreaOp(ar);
+    },
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none"
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Seleccionar..."), areaModules.map(m => /*#__PURE__*/React.createElement("option", {
+    key: m.id,
+    value: m.id
+  }, m.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      marginBottom: "6px"
+    }
+  }, "FECHA EVALUACIÓN"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: evalDateOp,
+    onChange: e => setEvalDateOp(e.target.value),
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none"
+    }
+  }))), selectedEmployeeOp && selectedAreaOp ? selectedAreaOp.items && selectedAreaOp.items.length ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: "16px"
+    }
+  }, React.createElement(EvaluationView, {
+    key: selectedEmployeeOp.id + "-" + selectedAreaOp.id,
+    module: selectedAreaOp,
+    employee: selectedEmployeeOp,
+    evalDate: evalDateOp,
+    evaluators: evaluators,
+    onSave: d => saveEvaluation({
+      ...d,
+      tipo: "operativo"
+    })
+  })) : /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "20px",
+      textAlign: "center",
+      color: C.muted,
+      fontSize: "12px"
+    }
+  }, "Esta área todavía no tiene cuestionario de valoración. Impórtalo desde ⚙️ Ajustes → Cuestionario de valoración.") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "20px",
+      textAlign: "center",
+      color: C.muted,
+      fontSize: "12px"
+    }
+  }, "Selecciona empleado y área para comenzar"))), showHistoryOp && /*#__PURE__*/React.createElement(HistorialModal, {
+    onClose: () => setShowHistoryOp(false),
+    evalHistory: evalHistory,
+    onDelete: deleteEvaluation,
+    modules: [...modules, ...areaModules],
+    evaluators: evaluators
+  }))));
   const _empMods = selectedEmployee ? selectedEmployee.modulos?.length ? selectedEmployee.modulos : selectedEmployee.modules?.length ? selectedEmployee.modules : selectedEmployee.module ? [selectedEmployee.module] : [] : [];
   const _availableModules = _empMods.length ? modules.filter(m => _empMods.some(em => {
     // Extraer solo el código base (primera palabra) para comparar
@@ -4373,7 +4785,10 @@ function App() {
     employee: selectedEmployee,
     evalDate: evalDate,
     evaluators: evaluators,
-    onSave: saveEvaluation
+    onSave: d => saveEvaluation({
+      ...d,
+      tipo: "conocimiento"
+    })
   })) : /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "20px",
@@ -4385,7 +4800,7 @@ function App() {
     onClose: () => setShowHistory(false),
     evalHistory: evalHistory,
     onDelete: deleteEvaluation,
-    modules: modules,
+    modules: [...modules, ...areaModules],
     evaluators: evaluators
   }))));
 }
