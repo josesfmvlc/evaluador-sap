@@ -4092,6 +4092,7 @@ function App() {
   }]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedModule, setSelectedModule] = useState(null);
+  const [showOtroModulo, setShowOtroModulo] = useState(false);
   const [evalDate, setEvalDate] = useState(today());
   const [view, setView] = useState("eval");
   const [items, setItems] = useState([]);
@@ -4867,6 +4868,7 @@ function App() {
       setSelectedEmployee(emp);
       setSelectedModule(null);
       setItems([]);
+      setShowOtroModulo(false);
     },
     placeholder: "Seleccionar..."
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
@@ -4878,9 +4880,16 @@ function App() {
       marginBottom: "6px"
     }
   }, "MÓDULO"), /*#__PURE__*/React.createElement("select", {
-    value: selectedModule?.id || "",
+    value: showOtroModulo ? "__otro__" : selectedModule?.id || "",
     onChange: e => {
+      if (e.target.value === "__otro__") {
+        setShowOtroModulo(true);
+        setSelectedModule(null);
+        setItems([]);
+        return;
+      }
       const mod = modules.find(x => x.id === e.target.value);
+      setShowOtroModulo(false);
       setSelectedModule(mod);
       setItems(mod?.items || []);
     },
@@ -4896,6 +4905,46 @@ function App() {
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
   }, "Seleccionar..."), displayModules.map(m => /*#__PURE__*/React.createElement("option", {
+    key: m.id,
+    value: m.id
+  }, m.name)), /*#__PURE__*/React.createElement("option", {
+    value: "__otro__"
+  }, "Otro módulo")), showOtroModulo && /*#__PURE__*/React.createElement("select", {
+    value: "",
+    onChange: e => {
+      const mod = modules.find(x => x.id === e.target.value);
+      if (!mod) return;
+      setSelectedModule(mod);
+      setItems(mod.items || []);
+      setShowOtroModulo(false);
+      if (selectedEmployee) {
+        const currentMods = selectedEmployee.modulos?.length ? selectedEmployee.modulos : selectedEmployee.modules?.length ? selectedEmployee.modules : selectedEmployee.module ? [selectedEmployee.module] : [];
+        if (!currentMods.includes(mod.name)) {
+          const updatedMods = [...currentMods, mod.name];
+          const updatedEmp = {
+            ...selectedEmployee,
+            modules: updatedMods,
+            modulos: updatedMods,
+            module: undefined
+          };
+          setSelectedEmployee(updatedEmp);
+          updateEmployee(selectedEmployee.id, updatedEmp);
+        }
+      }
+    },
+    style: {
+      width: "100%",
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      borderRadius: "6px",
+      padding: "8px 10px",
+      fontSize: "12px",
+      outline: "none",
+      marginTop: "6px"
+    }
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "Selecciona módulo..."), modules.slice().sort((a, b) => a.name.localeCompare(b.name)).map(m => /*#__PURE__*/React.createElement("option", {
     key: m.id,
     value: m.id
   }, m.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
