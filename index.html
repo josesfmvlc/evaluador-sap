@@ -4531,6 +4531,7 @@ function App() {
   }]);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [selectedModule, setSelectedModule] = useState(null);
+  const [showAllModules, setShowAllModules] = useState(false);
   const [evalDate, setEvalDate] = useState(today());
   const [view, setView] = useState("eval");
   const [items, setItems] = useState([]);
@@ -5307,6 +5308,7 @@ function App() {
       const emp = employees.find(x => x.id === id) || null;
       setSelectedEmployee(emp);
       setSelectedModule(null);
+      setShowAllModules(false);
       setItems([]);
     },
     placeholder: "Seleccionar..."
@@ -5321,6 +5323,12 @@ function App() {
   }, "MÓDULO"), /*#__PURE__*/React.createElement("select", {
     value: selectedModule?.id || "",
     onChange: e => {
+      if (e.target.value === "__other__") {
+        setShowAllModules(true);
+        setSelectedModule(null);
+        setItems([]);
+        return;
+      }
       const mod = modules.find(x => x.id === e.target.value);
       setSelectedModule(mod);
       setItems(mod?.items || []);
@@ -5336,10 +5344,12 @@ function App() {
     }
   }, /*#__PURE__*/React.createElement("option", {
     value: ""
-  }, "Seleccionar..."), displayModules.map(m => /*#__PURE__*/React.createElement("option", {
+  }, "Seleccionar..."), (showAllModules ? modules : displayModules).map(m => /*#__PURE__*/React.createElement("option", {
     key: m.id,
     value: m.id
-  }, m.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+  }, m.name)), !showAllModules && displayModules.length < modules.length && /*#__PURE__*/React.createElement("option", {
+    value: "__other__"
+  }, "Otro módulo"))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: {
       display: "block",
       fontSize: "11px",
