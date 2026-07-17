@@ -2371,7 +2371,7 @@ const EvaluationViewOperativo = ({
   area,
   employee,
   evalDate,
-  evaluators,
+  employees,
   onSave
 }) => {
   const initScores = () => {
@@ -2384,6 +2384,8 @@ const EvaluationViewOperativo = ({
   };
   const [scores, setScores] = useState(initScores);
   const [eval2Activo, setEval2Activo] = useState(false);
+  const [eval1Id, setEval1Id] = useState("");
+  const [eval2Id, setEval2Id] = useState("");
   const [saved, setSaved] = useState(false);
   const setScore = (id, ev, val) => setScores(s => ({
     ...s,
@@ -2392,6 +2394,12 @@ const EvaluationViewOperativo = ({
       [ev]: parseInt(val)
     }
   }));
+  const evalOptions = employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
+    value: e.id,
+    label: e.nombre
+  }));
+  const eval1Name = employees.find(e => e.id === eval1Id)?.nombre || "Evaluador 1";
+  const eval2Name = employees.find(e => e.id === eval2Id)?.nombre || "Evaluador 2";
   const perQuestionVal = p => {
     const sc = scores[p.id] || {
       e1: 4,
@@ -2412,6 +2420,10 @@ const EvaluationViewOperativo = ({
       areaNombre: area.name,
       scores,
       evaluador2Activo: eval2Activo,
+      evaluador1Id: eval1Id || null,
+      evaluador1Nombre: eval1Name,
+      evaluador2Id: eval2Id || null,
+      evaluador2Nombre: eval2Name,
       globalScore,
       notaFinal
     });
@@ -2426,16 +2438,16 @@ const EvaluationViewOperativo = ({
       marginBottom: "16px",
       border: `1px solid ${C.border}`,
       display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      flexWrap: "wrap",
-      gap: "12px"
+      flexDirection: "column",
+      gap: "14px"
     }
   }, React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
-      gap: "16px"
+      justifyContent: "space-between",
+      flexWrap: "wrap",
+      gap: "12px"
     }
   }, React.createElement("div", null, React.createElement("div", {
     style: {
@@ -2452,29 +2464,7 @@ const EvaluationViewOperativo = ({
       color: C.accent,
       lineHeight: "1"
     }
-  }, notaFinal.toFixed(1) + " / 10"))), React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: "16px",
-      alignItems: "center",
-      flexWrap: "wrap"
-    }
-  }, React.createElement("label", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: "6px",
-      fontSize: "12px",
-      fontWeight: "600",
-      color: C.text2,
-      cursor: "pointer",
-      userSelect: "none"
-    }
-  }, React.createElement("input", {
-    type: "checkbox",
-    checked: eval2Activo,
-    onChange: e => setEval2Activo(e.target.checked)
-  }), `Activar ${evaluators[1] || "Evaluador 2"}`), React.createElement("button", {
+  }, notaFinal.toFixed(1) + " / 10")), React.createElement("button", {
     onClick: handleSave,
     style: {
       background: saved ? C.green : C.accent,
@@ -2486,7 +2476,59 @@ const EvaluationViewOperativo = ({
       fontWeight: "700",
       cursor: "pointer"
     }
-  }, saved ? "✅ Guardado" : "💾 Guardar evaluación"))), React.createElement("div", {
+  }, saved ? "✅ Guardado" : "💾 Guardar evaluación")), React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr auto",
+      gap: "12px",
+      alignItems: "end",
+      borderTop: `1px solid ${C.rowBorder}`,
+      paddingTop: "14px"
+    }
+  }, React.createElement("div", null, React.createElement("label", {
+    style: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      marginBottom: "6px"
+    }
+  }, "EVALUADOR 1"), React.createElement(SearchableSelect, {
+    options: evalOptions,
+    value: eval1Id,
+    onChange: setEval1Id,
+    placeholder: "Evaluador 1"
+  })), React.createElement("div", null, React.createElement("label", {
+    style: {
+      display: "block",
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      marginBottom: "6px"
+    }
+  }, "EVALUADOR 2"), React.createElement(SearchableSelect, {
+    options: evalOptions,
+    value: eval2Id,
+    onChange: setEval2Id,
+    placeholder: "Evaluador 2"
+  })), React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      fontSize: "12px",
+      fontWeight: "600",
+      color: C.text2,
+      cursor: "pointer",
+      userSelect: "none",
+      whiteSpace: "nowrap",
+      paddingBottom: "8px"
+    }
+  }, React.createElement("input", {
+    type: "checkbox",
+    checked: eval2Activo,
+    onChange: e => setEval2Activo(e.target.checked)
+  }), "Activar Evaluador 2"))), React.createElement("div", {
     style: {
       background: C.card,
       borderRadius: "10px",
@@ -2526,7 +2568,7 @@ const EvaluationViewOperativo = ({
         marginBottom: "4px",
         textTransform: "uppercase"
       }
-    }, evaluators[0] || "Evaluador 1"), React.createElement("select", {
+    }, eval1Name), React.createElement("select", {
       value: sc.e1,
       onChange: e => setScore(p.id, "e1", e.target.value),
       style: {
@@ -2543,7 +2585,7 @@ const EvaluationViewOperativo = ({
     }, ...OPERATIVO_RESPUESTAS.map(r => React.createElement("option", {
       key: r.value,
       value: r.value
-    }, r.code + " — " + r.label)))), React.createElement("div", {
+    }, r.label)))), React.createElement("div", {
       style: {
         opacity: eval2Activo ? 1 : 0.4
       }
@@ -2555,7 +2597,7 @@ const EvaluationViewOperativo = ({
         marginBottom: "4px",
         textTransform: "uppercase"
       }
-    }, evaluators[1] || "Evaluador 2"), React.createElement("select", {
+    }, eval2Name), React.createElement("select", {
       value: sc.e2,
       disabled: !eval2Activo,
       onChange: e => setScore(p.id, "e2", e.target.value),
@@ -2573,7 +2615,7 @@ const EvaluationViewOperativo = ({
     }, ...OPERATIVO_RESPUESTAS.map(r => React.createElement("option", {
       key: r.value,
       value: r.value
-    }, r.code + " — " + r.label))))));
+    }, r.label))))));
   })));
 };
 const SearchableSelect = ({
@@ -3703,7 +3745,13 @@ const HistorialModal = ({
         fontSize: "12px",
         marginTop: "3px"
       }
-    }, "🧭 " + h.moduloNombre + " · " + fmtDate(h.fecha))), React.createElement("div", {
+    }, "🧭 " + h.moduloNombre + " · " + fmtDate(h.fecha)), React.createElement("div", {
+      style: {
+        color: "rgba(255,255,255,0.65)",
+        fontSize: "11px",
+        marginTop: "3px"
+      }
+    }, "Evaluado por: " + (h.evaluador1Nombre || "Evaluador 1") + (h.evaluador2Activo ? " y " + (h.evaluador2Nombre || "Evaluador 2") : ""))), React.createElement("div", {
       style: {
         display: "flex",
         alignItems: "center",
@@ -3776,7 +3824,7 @@ const HistorialModal = ({
           fontWeight: "700",
           color: r1.color
         }
-      }, (evaluators[0] || "Eval. 1") + ": " + r1.code + " — "), r1.label), h.evaluador2Activo && React.createElement("div", {
+      }, (h.evaluador1Nombre || "Evaluador 1") + ": "), r1.label), h.evaluador2Activo && React.createElement("div", {
         style: {
           fontSize: "11px",
           color: C.text2,
@@ -3787,7 +3835,7 @@ const HistorialModal = ({
           fontWeight: "700",
           color: r2.color
         }
-      }, (evaluators[1] || "Eval. 2") + ": " + r2.code + " — "), r2.label)));
+      }, (h.evaluador2Nombre || "Evaluador 2") + ": "), r2.label)));
     }))));
   };
   const renderDetail = h => {
@@ -5049,7 +5097,7 @@ function App() {
     area: selectedAreaOp,
     employee: selectedEmployeeOp,
     evalDate: evalDateOp,
-    evaluators: evaluators,
+    employees: employees,
     onSave: d => saveEvaluation({
       ...d,
       tipo: "operativo"
