@@ -61,7 +61,6 @@
       appId: "1:297958234005:web:8f92a6a41506435713489c"
     });
     const _db = firebase.firestore();
-const {useState,useRef,useEffect,useMemo}=React;
 const C = {
   bg: "#f0f4f8",
   card: "#ffffff",
@@ -1742,6 +1741,42 @@ const NIVELES_FULL = [{
   arquitectura: "Es un arquitecto de soluciones SAP.",
   formacion: "Multicertificado. Podría dedicarse profesionalmente a dar clases oficiales de SAP."
 }];
+
+// --- Evaluación Operativa: cuestionario fijo (9 preguntas x 8 respuestas), igual para todas las áreas ---
+const OPERATIVO_PREGUNTAS = [{
+  id: 1,
+  desc: "Análisis"
+}, {
+  id: 2,
+  desc: "Documentación"
+}, {
+  id: 3,
+  desc: "Cargas"
+}, {
+  id: 4,
+  desc: "Parametrización"
+}, {
+  id: 5,
+  desc: "Test Integración"
+}, {
+  id: 6,
+  desc: "Formación"
+}, {
+  id: 7,
+  desc: "Arranque"
+}, {
+  id: 8,
+  desc: "Propuesta mejoras"
+}, {
+  id: 9,
+  desc: "Resolución incidencias"
+}];
+const OPERATIVO_RESPUESTAS = LEVELS.map((l, i) => ({
+  value: l.v,
+  code: l.code,
+  color: l.color,
+  label: NIVELES_FULL[i].proyectos
+}));
 const COLS_BASICO = [{
   key: "years",
   label: "📅 Años Exp. SAP"
@@ -2330,6 +2365,215 @@ const EvaluationView = ({
       }, l.v)))));
     })));
   }));
+};
+const EvaluationViewOperativo = ({
+  area,
+  employee,
+  evalDate,
+  evaluators,
+  onSave
+}) => {
+  const initScores = () => {
+    const s = {};
+    for (const p of OPERATIVO_PREGUNTAS) s[p.id] = {
+      e1: 4,
+      e2: 4
+    };
+    return s;
+  };
+  const [scores, setScores] = useState(initScores);
+  const [eval2Activo, setEval2Activo] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const setScore = (id, ev, val) => setScores(s => ({
+    ...s,
+    [id]: {
+      ...s[id],
+      [ev]: parseInt(val)
+    }
+  }));
+  const perQuestionVal = p => {
+    const sc = scores[p.id] || {
+      e1: 4,
+      e2: 4
+    };
+    return eval2Activo ? (sc.e1 + sc.e2) / 2 : sc.e1;
+  };
+  const globalScore = OPERATIVO_PREGUNTAS.reduce((s, p) => s + perQuestionVal(p), 0) / OPERATIVO_PREGUNTAS.length; // escala 1-8
+  const notaFinal = globalScore / 8 * 10; // escala 0-10
+
+  const handleSave = () => {
+    onSave({
+      fecha: evalDate,
+      empleado: employee,
+      moduloId: area.id,
+      moduloNombre: area.name,
+      areaId: area.id,
+      areaNombre: area.name,
+      scores,
+      evaluador2Activo: eval2Activo,
+      globalScore,
+      notaFinal
+    });
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
+  return React.createElement(React.Fragment, null, React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "12px",
+      padding: "16px 20px",
+      marginBottom: "16px",
+      border: `1px solid ${C.border}`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      flexWrap: "wrap",
+      gap: "12px"
+    }
+  }, React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "16px"
+    }
+  }, React.createElement("div", null, React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: C.muted,
+      fontWeight: "700",
+      textTransform: "uppercase",
+      marginBottom: "2px"
+    }
+  }, "Puntuación Global"), React.createElement("div", {
+    style: {
+      fontSize: "28px",
+      fontWeight: "800",
+      color: C.accent,
+      lineHeight: "1"
+    }
+  }, notaFinal.toFixed(1) + " / 10"))), React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "16px",
+      alignItems: "center",
+      flexWrap: "wrap"
+    }
+  }, React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      fontSize: "12px",
+      fontWeight: "600",
+      color: C.text2,
+      cursor: "pointer",
+      userSelect: "none"
+    }
+  }, React.createElement("input", {
+    type: "checkbox",
+    checked: eval2Activo,
+    onChange: e => setEval2Activo(e.target.checked)
+  }), `Activar ${evaluators[1] || "Evaluador 2"}`), React.createElement("button", {
+    onClick: handleSave,
+    style: {
+      background: saved ? C.green : C.accent,
+      color: "white",
+      border: "none",
+      borderRadius: "8px",
+      padding: "10px 24px",
+      fontSize: "13px",
+      fontWeight: "700",
+      cursor: "pointer"
+    }
+  }, saved ? "✅ Guardado" : "💾 Guardar evaluación"))), React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "10px",
+      border: `1px solid ${C.border}`,
+      overflow: "hidden"
+    }
+  }, ...OPERATIVO_PREGUNTAS.map((p, idx) => {
+    const sc = scores[p.id] || {
+      e1: 4,
+      e2: 4
+    };
+    return React.createElement("div", {
+      key: p.id,
+      style: {
+        padding: "14px 16px",
+        borderBottom: idx < OPERATIVO_PREGUNTAS.length - 1 ? `1px solid ${C.rowBorder}` : "none",
+        background: idx % 2 ? C.item : C.card
+      }
+    }, React.createElement("div", {
+      style: {
+        fontSize: "13px",
+        fontWeight: "700",
+        color: C.text,
+        marginBottom: "8px"
+      }
+    }, p.id + ". " + p.desc), React.createElement("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "10px"
+      }
+    }, React.createElement("div", null, React.createElement("div", {
+      style: {
+        fontSize: "10px",
+        fontWeight: "700",
+        color: C.muted,
+        marginBottom: "4px",
+        textTransform: "uppercase"
+      }
+    }, evaluators[0] || "Evaluador 1"), React.createElement("select", {
+      value: sc.e1,
+      onChange: e => setScore(p.id, "e1", e.target.value),
+      style: {
+        width: "100%",
+        background: C.bg,
+        border: `2px solid ${getColor(sc.e1)}`,
+        borderRadius: "6px",
+        padding: "6px 8px",
+        fontSize: "12px",
+        color: C.text,
+        outline: "none",
+        cursor: "pointer"
+      }
+    }, ...OPERATIVO_RESPUESTAS.map(r => React.createElement("option", {
+      key: r.value,
+      value: r.value
+    }, r.code + " — " + r.label)))), React.createElement("div", {
+      style: {
+        opacity: eval2Activo ? 1 : 0.4
+      }
+    }, React.createElement("div", {
+      style: {
+        fontSize: "10px",
+        fontWeight: "700",
+        color: C.muted,
+        marginBottom: "4px",
+        textTransform: "uppercase"
+      }
+    }, evaluators[1] || "Evaluador 2"), React.createElement("select", {
+      value: sc.e2,
+      disabled: !eval2Activo,
+      onChange: e => setScore(p.id, "e2", e.target.value),
+      style: {
+        width: "100%",
+        background: C.bg,
+        border: `2px solid ${eval2Activo ? getColor(sc.e2) : C.border2}`,
+        borderRadius: "6px",
+        padding: "6px 8px",
+        fontSize: "12px",
+        color: C.text,
+        outline: "none",
+        cursor: eval2Activo ? "pointer" : "not-allowed"
+      }
+    }, ...OPERATIVO_RESPUESTAS.map(r => React.createElement("option", {
+      key: r.value,
+      value: r.value
+    }, r.code + " — " + r.label))))));
+  })));
 };
 const SearchableSelect = ({
   options,
@@ -3408,7 +3652,145 @@ const HistorialModal = ({
     letterSpacing: "0.05em",
     borderBottom: `1px solid ${C.border}`
   };
+  const renderDetailOperativo = h => {
+    return React.createElement("div", {
+      onClick: e => {
+        if (e.target === e.currentTarget) setViewingEval(null);
+      },
+      style: {
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(0,0,0,0.65)",
+        zIndex: 9500,
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "center",
+        padding: "20px 10px",
+        overflowY: "auto"
+      }
+    }, React.createElement("div", {
+      style: {
+        background: C.card,
+        borderRadius: "14px",
+        width: "100%",
+        maxWidth: "920px",
+        boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
+        overflow: "hidden",
+        marginBottom: "20px"
+      }
+    }, React.createElement("div", {
+      style: {
+        background: "#354a5e",
+        padding: "16px 20px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "12px"
+      }
+    }, React.createElement("div", null, React.createElement("div", {
+      style: {
+        color: "white",
+        fontSize: "17px",
+        fontWeight: "800"
+      }
+    }, h.empleado?.nombre || "—"), React.createElement("div", {
+      style: {
+        color: "rgba(255,255,255,0.65)",
+        fontSize: "12px",
+        marginTop: "3px"
+      }
+    }, "🧭 " + h.moduloNombre + " · " + fmtDate(h.fecha))), React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "14px"
+      }
+    }, React.createElement("div", {
+      style: {
+        fontSize: "24px",
+        fontWeight: "800",
+        color: "white",
+        lineHeight: "1"
+      }
+    }, (h.notaFinal || 0).toFixed(1) + " / 10"), React.createElement("button", {
+      onClick: () => setViewingEval(null),
+      style: {
+        background: "rgba(255,255,255,0.15)",
+        border: "none",
+        color: "white",
+        width: "32px",
+        height: "32px",
+        borderRadius: "8px",
+        cursor: "pointer",
+        fontSize: "16px",
+        fontWeight: "700",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0
+      }
+    }, "✕"))), React.createElement("div", {
+      style: {
+        maxHeight: "70vh",
+        overflowY: "auto"
+      }
+    }, ...OPERATIVO_PREGUNTAS.map((p, idx) => {
+      const sc = h.scores && (h.scores[p.id] || h.scores[String(p.id)]) || {
+        e1: 4,
+        e2: 4
+      };
+      const r1 = OPERATIVO_RESPUESTAS.find(r => r.value === sc.e1) || OPERATIVO_RESPUESTAS[3];
+      const r2 = OPERATIVO_RESPUESTAS.find(r => r.value === sc.e2) || OPERATIVO_RESPUESTAS[3];
+      return React.createElement("div", {
+        key: p.id,
+        style: {
+          padding: "12px 16px",
+          borderBottom: idx < OPERATIVO_PREGUNTAS.length - 1 ? `1px solid ${C.rowBorder}` : "none",
+          background: idx % 2 ? C.item : C.card
+        }
+      }, React.createElement("div", {
+        style: {
+          fontSize: "12px",
+          fontWeight: "700",
+          color: C.text,
+          marginBottom: "6px"
+        }
+      }, p.id + ". " + p.desc), React.createElement("div", {
+        style: {
+          display: "grid",
+          gridTemplateColumns: h.evaluador2Activo ? "1fr 1fr" : "1fr",
+          gap: "10px"
+        }
+      }, React.createElement("div", {
+        style: {
+          fontSize: "11px",
+          color: C.text2,
+          lineHeight: "1.4"
+        }
+      }, React.createElement("span", {
+        style: {
+          fontWeight: "700",
+          color: r1.color
+        }
+      }, (evaluators[0] || "Eval. 1") + ": " + r1.code + " — "), r1.label), h.evaluador2Activo && React.createElement("div", {
+        style: {
+          fontSize: "11px",
+          color: C.text2,
+          lineHeight: "1.4"
+        }
+      }, React.createElement("span", {
+        style: {
+          fontWeight: "700",
+          color: r2.color
+        }
+      }, (evaluators[1] || "Eval. 2") + ": " + r2.code + " — "), r2.label)));
+    }))));
+  };
   const renderDetail = h => {
+    if ((h.tipo || "conocimiento") === "operativo") return renderDetailOperativo(h);
     const mod = modules.find(m => m.id === h.moduloId);
     const lvl = getLvl(h.globalLevel || Math.round(h.globalScore || 1));
     return React.createElement("div", {
@@ -3941,7 +4323,10 @@ const HistorialModal = ({
       width: "110px"
     }
   }, "Acciones"))), React.createElement("tbody", null, ...filtered.map((h, i) => {
+    const isOp = (h.tipo || "conocimiento") === "operativo";
     const lvl = getLvl(h.globalLevel || Math.round(h.globalScore || 1));
+    const puntuacionDisplay = isOp ? (h.notaFinal || 0).toFixed(1) + " / 10" : (h.globalScore || 0).toFixed(2);
+    const puntuacionColor = isOp ? C.accent : lvl.color;
     return React.createElement("tr", {
       key: h._hid || i,
       style: {
@@ -4006,15 +4391,20 @@ const HistorialModal = ({
       style: {
         fontSize: "15px",
         fontWeight: "800",
-        color: lvl.color
+        color: puntuacionColor
       }
-    }, (h.globalScore || 0).toFixed(2))), React.createElement("td", {
+    }, puntuacionDisplay)), React.createElement("td", {
       style: {
         padding: "10px 16px",
         textAlign: "center",
         borderBottom: `1px solid ${C.rowBorder}`
       }
-    }, React.createElement("div", {
+    }, isOp ? React.createElement("span", {
+      style: {
+        fontSize: "11px",
+        color: C.muted
+      }
+    }, "—") : React.createElement("div", {
       style: {
         display: "inline-flex",
         flexDirection: "column",
@@ -4189,7 +4579,16 @@ function App() {
         if (cfg.sectors) setSectors(cfg.sectors);
         if (cfg.skills) setSkills(cfg.skills);
         if (cfg.locations) setLocations(cfg.locations);
-        if (cfg.areaModules) setAreaModules(cfg.areaModules);
+        if (cfg.areaModules) {
+          const existingNames = cfg.areaModules.map(a => a.name);
+          const missingAreas = DEFAULT_AREAS.filter(n => !existingNames.includes(n));
+          setAreaModules(missingAreas.length ? [...cfg.areaModules, ...missingAreas.map(name => ({
+            id: "area-" + Date.now() + "-" + name.replace(/\s+/g, "").toLowerCase(),
+            name,
+            items: [],
+            ambitoOrder: []
+          }))] : cfg.areaModules);
+        }
         setDataReady(true);
       } catch (e) {
         console.error("Load error:", e);
@@ -4640,13 +5039,13 @@ function App() {
       fontSize: "12px",
       outline: "none"
     }
-  }))), selectedEmployeeOp && selectedAreaOp ? selectedAreaOp.items && selectedAreaOp.items.length ? /*#__PURE__*/React.createElement("div", {
+  }))), selectedEmployeeOp && selectedAreaOp ? (/*#__PURE__*/React.createElement("div", {
     style: {
       marginTop: "16px"
     }
-  }, React.createElement(EvaluationView, {
+  }, React.createElement(EvaluationViewOperativo, {
     key: selectedEmployeeOp.id + "-" + selectedAreaOp.id,
-    module: selectedAreaOp,
+    area: selectedAreaOp,
     employee: selectedEmployeeOp,
     evalDate: evalDateOp,
     evaluators: evaluators,
@@ -4654,14 +5053,7 @@ function App() {
       ...d,
       tipo: "operativo"
     })
-  })) : /*#__PURE__*/React.createElement("div", {
-    style: {
-      padding: "20px",
-      textAlign: "center",
-      color: C.muted,
-      fontSize: "12px"
-    }
-  }, "Esta área todavía no tiene cuestionario de valoración. Impórtalo desde ⚙️ Ajustes → Cuestionario de valoración.") : /*#__PURE__*/React.createElement("div", {
+  }))) : /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "20px",
       textAlign: "center",
