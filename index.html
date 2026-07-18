@@ -2832,227 +2832,6 @@ const SearchableSelect = ({
     }
   }, o.label)))));
 };
-const EmployeesConfigModal = ({
-  sapModules,
-  addSapModule,
-  removeSapModule,
-  sectors,
-  addSector,
-  removeSector,
-  skills,
-  addSkill,
-  removeSkill,
-  locations,
-  addLocation,
-  removeLocation,
-  onClose
-}) => {
-  const [activeModal, setActiveModal] = useState(null);
-  const [hoveredTile, setHoveredTile] = useState(null);
-  const [newSapModule, setNewSapModule] = useState("");
-  const [newSector, setNewSector] = useState("");
-  const [newSkill, setNewSkill] = useState("");
-  const [newLocation, setNewLocation] = useState("");
-  const TILES = [{
-    key: "modulos",
-    icon: "🔷",
-    label: "Módulos SAP",
-    count: sapModules.length,
-    accent: "#0891b2"
-  }, {
-    key: "sectores",
-    icon: "🏢",
-    label: "Sectores",
-    count: sectors.length,
-    accent: "#7c3aed"
-  }, {
-    key: "skills",
-    icon: "💡",
-    label: "Skills",
-    count: skills.length,
-    accent: "#16a34a"
-  }, {
-    key: "ubicaciones",
-    icon: "📍",
-    label: "Ubicaciones",
-    count: locations.length,
-    accent: "#dc2626"
-  }];
-  const renderModalContent = () => {
-    if (activeModal === "modulos") {
-      return React.createElement(SimpleItemList, {
-        items: sapModules,
-        value: newSapModule,
-        setValue: setNewSapModule,
-        onAdd: () => {
-          if (newSapModule) {
-            addSapModule(newSapModule);
-            setNewSapModule("");
-          }
-        },
-        onRemove: removeSapModule,
-        placeholder: "Nuevo módulo SAP..."
-      });
-    }
-    if (activeModal === "sectores") {
-      return React.createElement(SimpleItemList, {
-        items: sectors,
-        value: newSector,
-        setValue: setNewSector,
-        onAdd: () => {
-          if (newSector) {
-            addSector(newSector);
-            setNewSector("");
-          }
-        },
-        onRemove: removeSector,
-        placeholder: "Nuevo sector..."
-      });
-    }
-    if (activeModal === "skills") {
-      return React.createElement(SimpleItemList, {
-        items: skills,
-        value: newSkill,
-        setValue: setNewSkill,
-        onAdd: () => {
-          if (newSkill) {
-            addSkill(newSkill);
-            setNewSkill("");
-          }
-        },
-        onRemove: removeSkill,
-        placeholder: "Nueva skill..."
-      });
-    }
-    if (activeModal === "ubicaciones") {
-      return React.createElement(SimpleItemList, {
-        items: locations,
-        value: newLocation,
-        setValue: setNewLocation,
-        onAdd: () => {
-          if (newLocation) {
-            addLocation(newLocation);
-            setNewLocation("");
-          }
-        },
-        onRemove: removeLocation,
-        placeholder: "Nueva ubicación..."
-      });
-    }
-    return null;
-  };
-  const activeTile = TILES.find(t => t.key === activeModal);
-  return /*#__PURE__*/React.createElement("div", {
-    onClick: e => {
-      if (e.target === e.currentTarget) onClose();
-    },
-    style: {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: "rgba(0,0,0,0.55)",
-      zIndex: 8000,
-      display: "flex",
-      alignItems: "flex-start",
-      justifyContent: "center",
-      padding: "40px 10px",
-      overflowY: "auto"
-    }
-  }, React.createElement("div", {
-    style: {
-      background: C.card,
-      borderRadius: "14px",
-      width: "100%",
-      maxWidth: "640px",
-      boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
-      overflow: "hidden"
-    }
-  }, React.createElement("div", {
-    style: {
-      background: "#354a5e",
-      padding: "16px 20px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between"
-    }
-  }, React.createElement("div", {
-    style: {
-      color: "white",
-      fontSize: "16px",
-      fontWeight: "800"
-    }
-  }, activeTile ? activeTile.icon + " " + activeTile.label : "⚙️ Ajustes de Empleados"), React.createElement("button", {
-    onClick: () => activeModal ? setActiveModal(null) : onClose(),
-    style: {
-      background: "rgba(255,255,255,0.15)",
-      border: "none",
-      color: "white",
-      width: "30px",
-      height: "30px",
-      borderRadius: "8px",
-      cursor: "pointer",
-      fontSize: "15px",
-      fontWeight: "700",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center"
-    }
-  }, activeModal ? "←" : "✕")), React.createElement("div", {
-    style: {
-      padding: "20px"
-    }
-  }, activeModal ? renderModalContent() : React.createElement("div", {
-    style: {
-      display: "flex",
-      gap: "16px",
-      flexWrap: "wrap"
-    }
-  }, TILES.map(tile => React.createElement("div", {
-    key: tile.key,
-    onClick: () => setActiveModal(tile.key),
-    onMouseEnter: () => setHoveredTile(tile.key),
-    onMouseLeave: () => setHoveredTile(null),
-    style: {
-      background: "white",
-      border: `1px solid ${hoveredTile === tile.key ? tile.accent : "#d0d7de"}`,
-      borderRadius: "8px",
-      padding: "16px",
-      width: "150px",
-      height: "150px",
-      cursor: "pointer",
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-between",
-      boxShadow: hoveredTile === tile.key ? `0 4px 14px ${tile.accent}30` : "0 1px 4px rgba(0,0,0,0.07)",
-      transition: "all 0.15s",
-      userSelect: "none"
-    }
-  }, React.createElement("div", {
-    style: {
-      fontSize: "13px",
-      fontWeight: "600",
-      color: C.text,
-      lineHeight: "1.35"
-    }
-  }, tile.label), React.createElement("div", {
-    style: {
-      fontSize: "11px",
-      color: tile.accent,
-      fontWeight: "600"
-    }
-  }, tile.count + " elemento" + (tile.count !== 1 ? "s" : "")), React.createElement("div", {
-    style: {
-      display: "flex",
-      justifyContent: "flex-end"
-    }
-  }, React.createElement("span", {
-    style: {
-      fontSize: "34px"
-    }
-  }, tile.icon))))))));
-};
 const EmployeesView = ({
   employees,
   addEmployee,
@@ -3064,19 +2843,12 @@ const EmployeesView = ({
   skills,
   locations,
   addSapModule,
-  removeSapModule,
-  addSector,
-  removeSector,
   addSkill,
-  removeSkill,
-  addLocation,
-  removeLocation,
   onBack,
   onLogout
 }) => {
   const [editingEmp, setEditingEmp] = useState(null);
   const [creatingEmp, setCreatingEmp] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   return /*#__PURE__*/React.createElement("div", {
     style: {
       minHeight: "100vh",
@@ -3114,22 +2886,6 @@ const EmployeesView = ({
       flex: 1
     }
   }), /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowSettings(true),
-    style: {
-      background: C.bg,
-      border: `1px solid ${C.border2}`,
-      color: C.text2,
-      borderRadius: "8px",
-      padding: "8px 14px",
-      fontSize: "12px",
-      fontWeight: "600",
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      gap: "5px",
-      whiteSpace: "nowrap"
-    }
-  }, "⚙️ Ajustes"), /*#__PURE__*/React.createElement("button", {
     onClick: onLogout,
     style: {
       background: "#fee2e2",
@@ -3173,27 +2929,14 @@ const EmployeesView = ({
       setEditingEmp(null);
       setCreatingEmp(false);
     }
-  })), showSettings && /*#__PURE__*/React.createElement(EmployeesConfigModal, {
-    sapModules: sapModules,
-    addSapModule: addSapModule,
-    removeSapModule: removeSapModule,
-    sectors: sectors,
-    addSector: addSector,
-    removeSector: removeSector,
-    skills: skills,
-    addSkill: addSkill,
-    removeSkill: removeSkill,
-    locations: locations,
-    addLocation: addLocation,
-    removeLocation: removeLocation,
-    onClose: () => setShowSettings(false)
-  }));
+  })));
 };
 const HomeScreen = ({
   onEnterEval,
   onEnterEvalOp,
   onEnterEmployees,
   onEnterResultados,
+  onEnterHistorico,
   onLogout
 }) => {
   const [hovered, setHovered] = useState(null);
@@ -3375,6 +3118,48 @@ const HomeScreen = ({
       filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
     }
   }, "\uD83E\uDDED"))), /*#__PURE__*/React.createElement("div", {
+    onClick: onEnterHistorico,
+    onMouseEnter: () => setHovered("historico"),
+    onMouseLeave: () => setHovered(null),
+    style: {
+      background: "white",
+      border: `1px solid ${hovered === "historico" ? "#2563eb" : "#d0d7de"}`,
+      borderRadius: "16px",
+      padding: "16px",
+      width: "180px",
+      height: "180px",
+      cursor: "pointer",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      boxShadow: hovered === "historico" ? "0 4px 14px rgba(37,99,235,0.18)" : "0 1px 4px rgba(0,0,0,0.07)",
+      transition: "all 0.15s",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600",
+      color: "#1a2332",
+      lineHeight: "1.35"
+    }
+  }, "Histórico de Evaluaciones"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: "#8796a5",
+      fontWeight: "500"
+    }
+  }, "Conocimiento + Operativo"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "flex-end"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "38px",
+      filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
+    }
+  }, "\uD83D\uDCDC"))), /*#__PURE__*/React.createElement("div", {
     onClick: onEnterResultados,
     onMouseEnter: () => setHovered("resultados"),
     onMouseLeave: () => setHovered(null),
@@ -3565,6 +3350,18 @@ const SettingsView = ({
   moduleTileIcon,
   evaluators,
   setEvaluators,
+  sapModules,
+  addSapModule,
+  removeSapModule,
+  sectors,
+  addSector,
+  removeSector,
+  skills,
+  addSkill,
+  removeSkill,
+  locations,
+  addLocation,
+  removeLocation,
   onBack,
   onLogout
 }) => {
@@ -3573,6 +3370,10 @@ const SettingsView = ({
   const [editingModId, setEditingModId] = useState(null);
   const [editingModVal, setEditingModVal] = useState("");
   const [newEvalName, setNewEvalName] = useState("");
+  const [newSapModule, setNewSapModule] = useState("");
+  const [newSector, setNewSector] = useState("");
+  const [newSkill, setNewSkill] = useState("");
+  const [newLocation, setNewLocation] = useState("");
   const importInputRef = useRef(null);
   const addEval = () => {
     if (newEvalName) {
@@ -3598,6 +3399,30 @@ const SettingsView = ({
     label: "Evaluadores",
     count: evaluators.length,
     accent: "#2563eb"
+  }, {
+    key: "modulos",
+    icon: "🔷",
+    label: "Módulos SAP",
+    count: sapModules.length,
+    accent: "#0891b2"
+  }, {
+    key: "sectores",
+    icon: "🏢",
+    label: "Sectores",
+    count: sectors.length,
+    accent: "#7c3aed"
+  }, {
+    key: "skills",
+    icon: "💡",
+    label: "Skills",
+    count: skills.length,
+    accent: "#16a34a"
+  }, {
+    key: "ubicaciones",
+    icon: "📍",
+    label: "Ubicaciones",
+    count: locations.length,
+    accent: "#dc2626"
   }];
   const renderModalContent = () => {
     if (activeModal === "excel") {
@@ -3755,6 +3580,66 @@ const SettingsView = ({
         onAdd: addEval,
         onRemove: removeEval,
         placeholder: "Nombre del evaluador..."
+      });
+    }
+    if (activeModal === "modulos") {
+      return React.createElement(SimpleItemList, {
+        items: sapModules,
+        value: newSapModule,
+        setValue: setNewSapModule,
+        onAdd: () => {
+          if (newSapModule) {
+            addSapModule(newSapModule);
+            setNewSapModule("");
+          }
+        },
+        onRemove: removeSapModule,
+        placeholder: "Nuevo módulo SAP..."
+      });
+    }
+    if (activeModal === "sectores") {
+      return React.createElement(SimpleItemList, {
+        items: sectors,
+        value: newSector,
+        setValue: setNewSector,
+        onAdd: () => {
+          if (newSector) {
+            addSector(newSector);
+            setNewSector("");
+          }
+        },
+        onRemove: removeSector,
+        placeholder: "Nuevo sector..."
+      });
+    }
+    if (activeModal === "skills") {
+      return React.createElement(SimpleItemList, {
+        items: skills,
+        value: newSkill,
+        setValue: setNewSkill,
+        onAdd: () => {
+          if (newSkill) {
+            addSkill(newSkill);
+            setNewSkill("");
+          }
+        },
+        onRemove: removeSkill,
+        placeholder: "Nueva skill..."
+      });
+    }
+    if (activeModal === "ubicaciones") {
+      return React.createElement(SimpleItemList, {
+        items: locations,
+        value: newLocation,
+        setValue: setNewLocation,
+        onAdd: () => {
+          if (newLocation) {
+            addLocation(newLocation);
+            setNewLocation("");
+          }
+        },
+        onRemove: removeLocation,
+        placeholder: "Nueva ubicación..."
       });
     }
     return null;
@@ -3936,6 +3821,9 @@ const SettingsView = ({
 };
 const HistorialModal = ({
   onClose,
+  onBack,
+  onLogout,
+  mode,
   evalHistory,
   onDelete,
   modules,
@@ -4374,71 +4262,7 @@ const HistorialModal = ({
       }));
     })())));
   };
-  return React.createElement(React.Fragment, null, React.createElement("div", {
-    onClick: e => {
-      if (e.target === e.currentTarget) onClose();
-    },
-    style: {
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: "rgba(0,0,0,0.55)",
-      zIndex: 8000,
-      display: "flex",
-      alignItems: "flex-start",
-      justifyContent: "center",
-      padding: "20px 10px",
-      overflowY: "auto"
-    }
-  }, React.createElement("div", {
-    style: {
-      background: C.card,
-      borderRadius: "14px",
-      width: "100%",
-      maxWidth: "960px",
-      boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
-      overflow: "hidden",
-      marginBottom: "20px"
-    }
-  }, React.createElement("div", {
-    style: {
-      background: "#354a5e",
-      padding: "16px 20px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between"
-    }
-  }, React.createElement("div", null, React.createElement("div", {
-    style: {
-      color: "white",
-      fontSize: "17px",
-      fontWeight: "800"
-    }
-  }, "📜 Histórico de evaluaciones"), React.createElement("div", {
-    style: {
-      color: "rgba(255,255,255,0.55)",
-      fontSize: "11px",
-      marginTop: "3px"
-    }
-  }, filtered.length + " evaluación" + (filtered.length !== 1 ? "es" : ""))), React.createElement("button", {
-    onClick: onClose,
-    style: {
-      background: "rgba(255,255,255,0.15)",
-      border: "none",
-      color: "white",
-      width: "30px",
-      height: "30px",
-      borderRadius: "8px",
-      cursor: "pointer",
-      fontSize: "15px",
-      fontWeight: "700",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center"
-    }
-  }, "✕")), React.createElement("div", {
+  const filtersDiv = React.createElement("div", {
     style: {
       padding: "16px 20px",
       display: "flex",
@@ -4617,7 +4441,8 @@ const HistorialModal = ({
       whiteSpace: "nowrap",
       alignSelf: "flex-end"
     }
-  }, "✕ Limpiar")), React.createElement("div", {
+  }, "✕ Limpiar"));
+  const tableDiv = React.createElement("div", {
     style: {
       maxHeight: "60vh",
       overflowY: "auto"
@@ -4806,7 +4631,185 @@ const HistorialModal = ({
         cursor: "pointer"
       }
     }, "🗑"))));
-  })))))), viewingEval && renderDetail(viewingEval));
+  }))));
+  if (mode === "page") {
+    return React.createElement(React.Fragment, null, React.createElement("div", {
+      style: {
+        minHeight: "100vh",
+        background: C.bg,
+        color: C.text,
+        fontFamily: "system-ui,-apple-system,sans-serif"
+      }
+    }, React.createElement("div", {
+      style: {
+        background: "#354a5e",
+        color: "white",
+        padding: "0 24px",
+        height: "44px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between"
+      }
+    }, React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "14px"
+      }
+    }, React.createElement("button", {
+      onClick: onBack,
+      title: "Inicio",
+      style: {
+        background: "rgba(255,255,255,0.12)",
+        border: "1px solid rgba(255,255,255,0.25)",
+        color: "white",
+        borderRadius: "6px",
+        padding: "4px 10px",
+        fontSize: "16px",
+        cursor: "pointer",
+        lineHeight: 1
+      }
+    }, "🏠"), React.createElement("div", {
+      style: {
+        width: "1px",
+        height: "22px",
+        background: "rgba(255,255,255,0.3)"
+      }
+    }), React.createElement("svg", {
+      viewBox: "0 0 120 40",
+      style: {
+        height: "28px",
+        width: "auto"
+      }
+    }, React.createElement("text", {
+      x: "10",
+      y: "26",
+      fontSize: "20",
+      fontWeight: "700",
+      fill: "white"
+    }, "Hiberus"))), React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "12px"
+      }
+    }, React.createElement("div", {
+      style: {
+        fontSize: "13px",
+        fontWeight: "600"
+      }
+    }, "Histórico de Evaluaciones"), React.createElement("button", {
+      onClick: onLogout,
+      style: {
+        background: "rgba(255,255,255,0.12)",
+        border: "1px solid rgba(255,255,255,0.3)",
+        color: "white",
+        borderRadius: "6px",
+        padding: "5px 12px",
+        fontSize: "12px",
+        fontWeight: "600",
+        cursor: "pointer"
+      }
+    }, "Cerrar sesión"))), React.createElement("div", {
+      style: {
+        maxWidth: "1080px",
+        margin: "0 auto",
+        padding: "20px 16px"
+      }
+    }, React.createElement("div", {
+      style: {
+        background: C.card,
+        borderRadius: "12px",
+        border: `1px solid ${C.border}`,
+        overflow: "hidden"
+      }
+    }, React.createElement("div", {
+      style: {
+        padding: "16px 20px",
+        borderBottom: `1px solid ${C.border}`,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between"
+      }
+    }, React.createElement("div", {
+      style: {
+        fontSize: "14px",
+        fontWeight: "700",
+        color: C.text
+      }
+    }, "📜 Histórico de evaluaciones"), React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: C.muted,
+        fontWeight: "600"
+      }
+    }, filtered.length + " evaluación" + (filtered.length !== 1 ? "es" : ""))), filtersDiv, tableDiv))), viewingEval && renderDetail(viewingEval));
+  }
+  return React.createElement(React.Fragment, null, React.createElement("div", {
+    onClick: e => {
+      if (e.target === e.currentTarget) onClose();
+    },
+    style: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: "rgba(0,0,0,0.55)",
+      zIndex: 8000,
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "center",
+      padding: "20px 10px",
+      overflowY: "auto"
+    }
+  }, React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "14px",
+      width: "100%",
+      maxWidth: "960px",
+      boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
+      overflow: "hidden",
+      marginBottom: "20px"
+    }
+  }, React.createElement("div", {
+    style: {
+      background: "#354a5e",
+      padding: "16px 20px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between"
+    }
+  }, React.createElement("div", null, React.createElement("div", {
+    style: {
+      color: "white",
+      fontSize: "17px",
+      fontWeight: "800"
+    }
+  }, "📜 Histórico de evaluaciones"), React.createElement("div", {
+    style: {
+      color: "rgba(255,255,255,0.55)",
+      fontSize: "11px",
+      marginTop: "3px"
+    }
+  }, filtered.length + " evaluación" + (filtered.length !== 1 ? "es" : ""))), React.createElement("button", {
+    onClick: onClose,
+    style: {
+      background: "rgba(255,255,255,0.15)",
+      border: "none",
+      color: "white",
+      width: "30px",
+      height: "30px",
+      borderRadius: "8px",
+      cursor: "pointer",
+      fontSize: "15px",
+      fontWeight: "700",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }
+  }, "✕")), filtersDiv, tableDiv)), viewingEval && renderDetail(viewingEval));
 };
 const ConvergenceDiagram = ({
   cono,
@@ -5206,7 +5209,6 @@ function App() {
   const [collapseKey, setCollapseKey] = useState(0);
   const [allCollapsed, setAllCollapsed] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
   const [evalHistory, setEvalHistory] = useState([]);
   const [savedMsg, setSavedMsg] = useState("");
   const [sapModules, setSapModules] = useState(DEFAULT_SAP_MODULES);
@@ -5218,7 +5220,6 @@ function App() {
   const [selectedAreaOp, setSelectedAreaOp] = useState(null);
   const [evalDateOp, setEvalDateOp] = useState(today());
   const [viewOp, setViewOp] = useState("eval-op");
-  const [showHistoryOp, setShowHistoryOp] = useState(false);
   useEffect(() => {
     (async () => {
       try {
@@ -5463,6 +5464,7 @@ function App() {
     onEnterEvalOp: () => setAppScreen("evaluator-op"),
     onEnterEmployees: () => setAppScreen("employees"),
     onEnterResultados: () => setAppScreen("resultados"),
+    onEnterHistorico: () => setAppScreen("historico"),
     onLogout: () => window.doLogout()
   });
   if (appScreen === "resultados") return /*#__PURE__*/React.createElement(ResultadosEvaluacionView, {
@@ -5470,6 +5472,15 @@ function App() {
     evalHistory: evalHistory,
     onBack: () => setAppScreen("home"),
     onLogout: () => window.doLogout()
+  });
+  if (appScreen === "historico") return /*#__PURE__*/React.createElement(HistorialModal, {
+    mode: "page",
+    onBack: () => setAppScreen("home"),
+    onLogout: () => window.doLogout(),
+    evalHistory: evalHistory,
+    onDelete: deleteEvaluation,
+    modules: [...modules, ...areaModules],
+    evaluators: evaluators
   });
   if (appScreen === "employees") return /*#__PURE__*/React.createElement(EmployeesView, {
     employees: employees,
@@ -5482,13 +5493,7 @@ function App() {
     skills: skills,
     locations: locations,
     addSapModule: addSapModule,
-    removeSapModule: removeSapModule,
-    addSector: addSector,
-    removeSector: removeSector,
     addSkill: addSkill,
-    removeSkill: removeSkill,
-    addLocation: addLocation,
-    removeLocation: removeLocation,
     onBack: () => setAppScreen("home"),
     onLogout: () => window.doLogout()
   });
@@ -5502,6 +5507,18 @@ function App() {
     } : m)),
     evaluators: evaluators,
     setEvaluators: setEvaluators,
+    sapModules: sapModules,
+    addSapModule: addSapModule,
+    removeSapModule: removeSapModule,
+    sectors: sectors,
+    addSector: addSector,
+    removeSector: removeSector,
+    skills: skills,
+    addSkill: addSkill,
+    removeSkill: removeSkill,
+    locations: locations,
+    addLocation: addLocation,
+    removeLocation: removeLocation,
     onBack: () => setView("eval"),
     onLogout: () => window.doLogout()
   });
@@ -5517,6 +5534,18 @@ function App() {
     moduleTileIcon: "🧭",
     evaluators: evaluators,
     setEvaluators: setEvaluators,
+    sapModules: sapModules,
+    addSapModule: addSapModule,
+    removeSapModule: removeSapModule,
+    sectors: sectors,
+    addSector: addSector,
+    removeSector: removeSector,
+    skills: skills,
+    addSkill: addSkill,
+    removeSkill: removeSkill,
+    locations: locations,
+    addLocation: addLocation,
+    removeLocation: removeLocation,
     onBack: () => setViewOp("eval-op"),
     onLogout: () => window.doLogout()
   });
@@ -5637,7 +5666,7 @@ function App() {
       flexShrink: 0
     }
   }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowHistoryOp(true),
+    onClick: () => setAppScreen("historico"),
     style: {
       background: C.bg,
       border: `1px solid ${C.border2}`,
@@ -5772,13 +5801,7 @@ function App() {
       color: C.muted,
       fontSize: "12px"
     }
-  }, "Selecciona empleado y área para comenzar"))), showHistoryOp && /*#__PURE__*/React.createElement(HistorialModal, {
-    onClose: () => setShowHistoryOp(false),
-    evalHistory: evalHistory,
-    onDelete: deleteEvaluation,
-    modules: [...modules, ...areaModules],
-    evaluators: evaluators
-  }))));
+  }, "Selecciona empleado y área para comenzar"))))));
   const _empMods = selectedEmployee ? selectedEmployee.modulos?.length ? selectedEmployee.modulos : selectedEmployee.modules?.length ? selectedEmployee.modules : selectedEmployee.module ? [selectedEmployee.module] : [] : [];
   const _availableModules = _empMods.length ? modules.filter(m => _empMods.some(em => {
     // Extraer solo el código base (primera palabra) para comparar
@@ -5907,7 +5930,7 @@ function App() {
       flexShrink: 0
     }
   }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setShowHistory(true),
+    onClick: () => setAppScreen("historico"),
     style: {
       background: C.bg,
       border: `1px solid ${C.border2}`,
@@ -6053,14 +6076,9 @@ function App() {
       color: C.muted,
       fontSize: "12px"
     }
-  }, "Selecciona empleado y módulo para comenzar"))), showHistory && /*#__PURE__*/React.createElement(HistorialModal, {
-    onClose: () => setShowHistory(false),
-    evalHistory: evalHistory,
-    onDelete: deleteEvaluation,
-    modules: [...modules, ...areaModules],
-    evaluators: evaluators
-  }))));
+  }, "Selecciona empleado y módulo para comenzar"))))));
 }
+
 </script>
 
 <script>
