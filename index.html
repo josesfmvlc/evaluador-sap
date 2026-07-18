@@ -2832,6 +2832,227 @@ const SearchableSelect = ({
     }
   }, o.label)))));
 };
+const EmployeesConfigModal = ({
+  sapModules,
+  addSapModule,
+  removeSapModule,
+  sectors,
+  addSector,
+  removeSector,
+  skills,
+  addSkill,
+  removeSkill,
+  locations,
+  addLocation,
+  removeLocation,
+  onClose
+}) => {
+  const [activeModal, setActiveModal] = useState(null);
+  const [hoveredTile, setHoveredTile] = useState(null);
+  const [newSapModule, setNewSapModule] = useState("");
+  const [newSector, setNewSector] = useState("");
+  const [newSkill, setNewSkill] = useState("");
+  const [newLocation, setNewLocation] = useState("");
+  const TILES = [{
+    key: "modulos",
+    icon: "🔷",
+    label: "Módulos SAP",
+    count: sapModules.length,
+    accent: "#0891b2"
+  }, {
+    key: "sectores",
+    icon: "🏢",
+    label: "Sectores",
+    count: sectors.length,
+    accent: "#7c3aed"
+  }, {
+    key: "skills",
+    icon: "💡",
+    label: "Skills",
+    count: skills.length,
+    accent: "#16a34a"
+  }, {
+    key: "ubicaciones",
+    icon: "📍",
+    label: "Ubicaciones",
+    count: locations.length,
+    accent: "#dc2626"
+  }];
+  const renderModalContent = () => {
+    if (activeModal === "modulos") {
+      return React.createElement(SimpleItemList, {
+        items: sapModules,
+        value: newSapModule,
+        setValue: setNewSapModule,
+        onAdd: () => {
+          if (newSapModule) {
+            addSapModule(newSapModule);
+            setNewSapModule("");
+          }
+        },
+        onRemove: removeSapModule,
+        placeholder: "Nuevo módulo SAP..."
+      });
+    }
+    if (activeModal === "sectores") {
+      return React.createElement(SimpleItemList, {
+        items: sectors,
+        value: newSector,
+        setValue: setNewSector,
+        onAdd: () => {
+          if (newSector) {
+            addSector(newSector);
+            setNewSector("");
+          }
+        },
+        onRemove: removeSector,
+        placeholder: "Nuevo sector..."
+      });
+    }
+    if (activeModal === "skills") {
+      return React.createElement(SimpleItemList, {
+        items: skills,
+        value: newSkill,
+        setValue: setNewSkill,
+        onAdd: () => {
+          if (newSkill) {
+            addSkill(newSkill);
+            setNewSkill("");
+          }
+        },
+        onRemove: removeSkill,
+        placeholder: "Nueva skill..."
+      });
+    }
+    if (activeModal === "ubicaciones") {
+      return React.createElement(SimpleItemList, {
+        items: locations,
+        value: newLocation,
+        setValue: setNewLocation,
+        onAdd: () => {
+          if (newLocation) {
+            addLocation(newLocation);
+            setNewLocation("");
+          }
+        },
+        onRemove: removeLocation,
+        placeholder: "Nueva ubicación..."
+      });
+    }
+    return null;
+  };
+  const activeTile = TILES.find(t => t.key === activeModal);
+  return /*#__PURE__*/React.createElement("div", {
+    onClick: e => {
+      if (e.target === e.currentTarget) onClose();
+    },
+    style: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: "rgba(0,0,0,0.55)",
+      zIndex: 8000,
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "center",
+      padding: "40px 10px",
+      overflowY: "auto"
+    }
+  }, React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "14px",
+      width: "100%",
+      maxWidth: "640px",
+      boxShadow: "0 24px 80px rgba(0,0,0,0.4)",
+      overflow: "hidden"
+    }
+  }, React.createElement("div", {
+    style: {
+      background: "#354a5e",
+      padding: "16px 20px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between"
+    }
+  }, React.createElement("div", {
+    style: {
+      color: "white",
+      fontSize: "16px",
+      fontWeight: "800"
+    }
+  }, activeTile ? activeTile.icon + " " + activeTile.label : "⚙️ Ajustes de Empleados"), React.createElement("button", {
+    onClick: () => activeModal ? setActiveModal(null) : onClose(),
+    style: {
+      background: "rgba(255,255,255,0.15)",
+      border: "none",
+      color: "white",
+      width: "30px",
+      height: "30px",
+      borderRadius: "8px",
+      cursor: "pointer",
+      fontSize: "15px",
+      fontWeight: "700",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center"
+    }
+  }, activeModal ? "←" : "✕")), React.createElement("div", {
+    style: {
+      padding: "20px"
+    }
+  }, activeModal ? renderModalContent() : React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "16px",
+      flexWrap: "wrap"
+    }
+  }, TILES.map(tile => React.createElement("div", {
+    key: tile.key,
+    onClick: () => setActiveModal(tile.key),
+    onMouseEnter: () => setHoveredTile(tile.key),
+    onMouseLeave: () => setHoveredTile(null),
+    style: {
+      background: "white",
+      border: `1px solid ${hoveredTile === tile.key ? tile.accent : "#d0d7de"}`,
+      borderRadius: "8px",
+      padding: "16px",
+      width: "150px",
+      height: "150px",
+      cursor: "pointer",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      boxShadow: hoveredTile === tile.key ? `0 4px 14px ${tile.accent}30` : "0 1px 4px rgba(0,0,0,0.07)",
+      transition: "all 0.15s",
+      userSelect: "none"
+    }
+  }, React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600",
+      color: C.text,
+      lineHeight: "1.35"
+    }
+  }, tile.label), React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: tile.accent,
+      fontWeight: "600"
+    }
+  }, tile.count + " elemento" + (tile.count !== 1 ? "s" : "")), React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "flex-end"
+    }
+  }, React.createElement("span", {
+    style: {
+      fontSize: "34px"
+    }
+  }, tile.icon))))))));
+};
 const EmployeesView = ({
   employees,
   addEmployee,
@@ -2843,12 +3064,19 @@ const EmployeesView = ({
   skills,
   locations,
   addSapModule,
+  removeSapModule,
+  addSector,
+  removeSector,
   addSkill,
+  removeSkill,
+  addLocation,
+  removeLocation,
   onBack,
   onLogout
 }) => {
   const [editingEmp, setEditingEmp] = useState(null);
   const [creatingEmp, setCreatingEmp] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   return /*#__PURE__*/React.createElement("div", {
     style: {
       minHeight: "100vh",
@@ -2886,6 +3114,22 @@ const EmployeesView = ({
       flex: 1
     }
   }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShowSettings(true),
+    style: {
+      background: C.bg,
+      border: `1px solid ${C.border2}`,
+      color: C.text2,
+      borderRadius: "8px",
+      padding: "8px 14px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      whiteSpace: "nowrap"
+    }
+  }, "⚙️ Ajustes"), /*#__PURE__*/React.createElement("button", {
     onClick: onLogout,
     style: {
       background: "#fee2e2",
@@ -2929,7 +3173,21 @@ const EmployeesView = ({
       setEditingEmp(null);
       setCreatingEmp(false);
     }
-  })));
+  })), showSettings && /*#__PURE__*/React.createElement(EmployeesConfigModal, {
+    sapModules: sapModules,
+    addSapModule: addSapModule,
+    removeSapModule: removeSapModule,
+    sectors: sectors,
+    addSector: addSector,
+    removeSector: removeSector,
+    skills: skills,
+    addSkill: addSkill,
+    removeSkill: removeSkill,
+    locations: locations,
+    addLocation: addLocation,
+    removeLocation: removeLocation,
+    onClose: () => setShowSettings(false)
+  }));
 };
 const HomeScreen = ({
   onEnterEval,
@@ -3307,18 +3565,6 @@ const SettingsView = ({
   moduleTileIcon,
   evaluators,
   setEvaluators,
-  sapModules,
-  addSapModule,
-  removeSapModule,
-  sectors,
-  addSector,
-  removeSector,
-  skills,
-  addSkill,
-  removeSkill,
-  locations,
-  addLocation,
-  removeLocation,
   onBack,
   onLogout
 }) => {
@@ -3327,10 +3573,6 @@ const SettingsView = ({
   const [editingModId, setEditingModId] = useState(null);
   const [editingModVal, setEditingModVal] = useState("");
   const [newEvalName, setNewEvalName] = useState("");
-  const [newSapModule, setNewSapModule] = useState("");
-  const [newSector, setNewSector] = useState("");
-  const [newSkill, setNewSkill] = useState("");
-  const [newLocation, setNewLocation] = useState("");
   const importInputRef = useRef(null);
   const addEval = () => {
     if (newEvalName) {
@@ -3356,30 +3598,6 @@ const SettingsView = ({
     label: "Evaluadores",
     count: evaluators.length,
     accent: "#2563eb"
-  }, {
-    key: "modulos",
-    icon: "🔷",
-    label: "Módulos SAP",
-    count: sapModules.length,
-    accent: "#0891b2"
-  }, {
-    key: "sectores",
-    icon: "🏢",
-    label: "Sectores",
-    count: sectors.length,
-    accent: "#7c3aed"
-  }, {
-    key: "skills",
-    icon: "💡",
-    label: "Skills",
-    count: skills.length,
-    accent: "#16a34a"
-  }, {
-    key: "ubicaciones",
-    icon: "📍",
-    label: "Ubicaciones",
-    count: locations.length,
-    accent: "#dc2626"
   }];
   const renderModalContent = () => {
     if (activeModal === "excel") {
@@ -3537,66 +3755,6 @@ const SettingsView = ({
         onAdd: addEval,
         onRemove: removeEval,
         placeholder: "Nombre del evaluador..."
-      });
-    }
-    if (activeModal === "modulos") {
-      return React.createElement(SimpleItemList, {
-        items: sapModules,
-        value: newSapModule,
-        setValue: setNewSapModule,
-        onAdd: () => {
-          if (newSapModule) {
-            addSapModule(newSapModule);
-            setNewSapModule("");
-          }
-        },
-        onRemove: removeSapModule,
-        placeholder: "Nuevo módulo SAP..."
-      });
-    }
-    if (activeModal === "sectores") {
-      return React.createElement(SimpleItemList, {
-        items: sectors,
-        value: newSector,
-        setValue: setNewSector,
-        onAdd: () => {
-          if (newSector) {
-            addSector(newSector);
-            setNewSector("");
-          }
-        },
-        onRemove: removeSector,
-        placeholder: "Nuevo sector..."
-      });
-    }
-    if (activeModal === "skills") {
-      return React.createElement(SimpleItemList, {
-        items: skills,
-        value: newSkill,
-        setValue: setNewSkill,
-        onAdd: () => {
-          if (newSkill) {
-            addSkill(newSkill);
-            setNewSkill("");
-          }
-        },
-        onRemove: removeSkill,
-        placeholder: "Nueva skill..."
-      });
-    }
-    if (activeModal === "ubicaciones") {
-      return React.createElement(SimpleItemList, {
-        items: locations,
-        value: newLocation,
-        setValue: setNewLocation,
-        onAdd: () => {
-          if (newLocation) {
-            addLocation(newLocation);
-            setNewLocation("");
-          }
-        },
-        onRemove: removeLocation,
-        placeholder: "Nueva ubicación..."
       });
     }
     return null;
@@ -5324,7 +5482,13 @@ function App() {
     skills: skills,
     locations: locations,
     addSapModule: addSapModule,
+    removeSapModule: removeSapModule,
+    addSector: addSector,
+    removeSector: removeSector,
     addSkill: addSkill,
+    removeSkill: removeSkill,
+    addLocation: addLocation,
+    removeLocation: removeLocation,
     onBack: () => setAppScreen("home"),
     onLogout: () => window.doLogout()
   });
@@ -5338,18 +5502,6 @@ function App() {
     } : m)),
     evaluators: evaluators,
     setEvaluators: setEvaluators,
-    sapModules: sapModules,
-    addSapModule: addSapModule,
-    removeSapModule: removeSapModule,
-    sectors: sectors,
-    addSector: addSector,
-    removeSector: removeSector,
-    skills: skills,
-    addSkill: addSkill,
-    removeSkill: removeSkill,
-    locations: locations,
-    addLocation: addLocation,
-    removeLocation: removeLocation,
     onBack: () => setView("eval"),
     onLogout: () => window.doLogout()
   });
@@ -5365,18 +5517,6 @@ function App() {
     moduleTileIcon: "🧭",
     evaluators: evaluators,
     setEvaluators: setEvaluators,
-    sapModules: sapModules,
-    addSapModule: addSapModule,
-    removeSapModule: removeSapModule,
-    sectors: sectors,
-    addSector: addSector,
-    removeSector: removeSector,
-    skills: skills,
-    addSkill: addSkill,
-    removeSkill: removeSkill,
-    locations: locations,
-    addLocation: addLocation,
-    removeLocation: removeLocation,
     onBack: () => setViewOp("eval-op"),
     onLogout: () => window.doLogout()
   });
