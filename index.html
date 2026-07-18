@@ -5727,6 +5727,7 @@ function App() {
   const [canAutoSave, setCanAutoSave] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [retryTick, setRetryTick] = useState(0);
+  const remoteApplyRef = useRef(false);
   const [modules, setModules] = useState([QM_MODULE]);
   const [evaluators, setEvaluators] = useState(["Evaluador 1", "Evaluador 2"]);
   const [employees, setEmployees] = useState([{
@@ -5861,8 +5862,56 @@ function App() {
       setLoadError(!(empOk && cfgOk));
     })();
   }, [retryTick]);
+  // --- Sincronización en tiempo real: escucha cambios de otras sesiones/usuarios ---
+  // Solo se activa una vez la carga inicial ha sido fiable (canAutoSave). Cada cambio recibido
+  // se marca con remoteApplyRef para que el efecto de guardado de abajo NO lo vuelva a escribir
+  // (evita que "reflejar lo que llega" se confunda con "el usuario ha cambiado algo aquí").
+  useEffect(() => {
+    if (!canAutoSave) return;
+    const db = firebase.firestore();
+    const unsubEmp = db.collection("appData").doc("employees").onSnapshot(snap => {
+      if (snap.metadata.hasPendingWrites) return; // eco de nuestra propia escritura, ya lo tenemos
+      if (!snap.exists) return;
+      const list = snap.data().list;
+      if (!list) return;
+      remoteApplyRef.current = true;
+      setEmployees(list.map(e => ({
+        ...e,
+        modules: e.modules?.length ? e.modules : e.modulos?.length ? e.modulos : e.module ? [e.module] : [],
+        skills: e.skills?.length ? e.skills : e.skill ? [e.skill] : []
+      })));
+    }, err => console.error("onSnapshot empleados error:", err));
+    const unsubCfg = db.collection("appData").doc("config").onSnapshot(snap => {
+      if (snap.metadata.hasPendingWrites) return;
+      if (!snap.exists) return;
+      const cfg = snap.data();
+      remoteApplyRef.current = true;
+      if (cfg.modules) {
+        const fixed = cfg.modules.map(m => m.id === "mod-qm" && m.items && m.items.length < 5 ? QM_MODULE : m);
+        setModules(fixed);
+      }
+      if (cfg.evaluators) setEvaluators(cfg.evaluators);
+      if (cfg.evalHistory) setEvalHistory(cfg.evalHistory.map(h => ({
+        ...h,
+        notaFinal: toScale10(h.globalScore != null ? h.globalScore : 1)
+      })));
+      if (cfg.sapModules) setSapModules(cfg.sapModules);
+      if (cfg.sectors) setSectors(cfg.sectors);
+      if (cfg.skills) setSkills(cfg.skills);
+      if (cfg.locations) setLocations(cfg.locations);
+      if (cfg.areaModules) setAreaModules(cfg.areaModules);
+    }, err => console.error("onSnapshot config error:", err));
+    return () => {
+      unsubEmp();
+      unsubCfg();
+    };
+  }, [canAutoSave]);
   useEffect(() => {
     if (!dataReady || !canAutoSave) return;
+    if (remoteApplyRef.current) {
+      remoteApplyRef.current = false;
+      return;
+    } // esto llegó de otra sesión, no lo re-escribas
     (async () => {
       try {
         const db = firebase.firestore();
