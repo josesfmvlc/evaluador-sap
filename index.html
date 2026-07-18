@@ -2071,23 +2071,30 @@ const EvaluationView = ({
   employee,
   evalDate,
   employees,
-  onSave
+  onSave,
+  initialData
 }) => {
   const initScores = () => {
     const s = {};
-    for (const item of mod.items) s[item.id] = {
-      e1: item.v1 || 4,
-      e2: item.v2 || 4
-    };
+    for (const item of mod.items) {
+      const prev = initialData && initialData.scores ? initialData.scores[item.id] : null;
+      s[item.id] = prev ? {
+        e1: prev.e1 ?? (item.v1 || 4),
+        e2: prev.e2 ?? (item.v2 || 4)
+      } : {
+        e1: item.v1 || 4,
+        e2: item.v2 || 4
+      };
+    }
     return s;
   };
   const [scores, setScores] = useState(initScores);
   const [collapseAmb, setCollapseAmb] = useState({});
   const [saved, setSaved] = useState(false);
   const [showNiveles, setShowNiveles] = useState(false);
-  const [eval2Activo, setEval2Activo] = useState(false);
-  const [eval1Id, setEval1Id] = useState("");
-  const [eval2Id, setEval2Id] = useState("");
+  const [eval2Activo, setEval2Activo] = useState(initialData && initialData.evaluador2Activo || false);
+  const [eval1Id, setEval1Id] = useState(initialData && initialData.evaluador1Id || "");
+  const [eval2Id, setEval2Id] = useState(initialData && initialData.evaluador2Id || "");
   const setScore = (id, ev, val) => setScores(s => ({
     ...s,
     [id]: {
@@ -2240,7 +2247,17 @@ const EvaluationView = ({
       fontWeight: "700",
       cursor: "pointer"
     }
-  }, saved ? "✅ Guardado" : "💾 Guardar evaluación"))), React.createElement("div", {
+  }, saved ? "✅ Guardado" : initialData ? "💾 Guardar cambios" : "💾 Guardar evaluación"))), initialData && React.createElement("div", {
+    style: {
+      background: "#fff7e6",
+      border: "1px solid #f0c36d",
+      borderRadius: "8px",
+      padding: "8px 12px",
+      fontSize: "12px",
+      color: "#8a6116",
+      fontWeight: "600"
+    }
+  }, "✏️ Editando evaluación del " + fmtDate(initialData.fecha) + ". Al guardar se creará una nueva versión y quedará traza del cambio."), React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr auto",
@@ -2459,20 +2476,27 @@ const EvaluationViewOperativo = ({
   employee,
   evalDate,
   employees,
-  onSave
+  onSave,
+  initialData
 }) => {
   const initScores = () => {
     const s = {};
-    for (const p of OPERATIVO_PREGUNTAS) s[p.id] = {
-      e1: 4,
-      e2: 4
-    };
+    for (const p of OPERATIVO_PREGUNTAS) {
+      const prev = initialData && initialData.scores ? initialData.scores[p.id] : null;
+      s[p.id] = prev ? {
+        e1: prev.e1 ?? 4,
+        e2: prev.e2 ?? 4
+      } : {
+        e1: 4,
+        e2: 4
+      };
+    }
     return s;
   };
   const [scores, setScores] = useState(initScores);
-  const [eval2Activo, setEval2Activo] = useState(false);
-  const [eval1Id, setEval1Id] = useState("");
-  const [eval2Id, setEval2Id] = useState("");
+  const [eval2Activo, setEval2Activo] = useState(initialData && initialData.evaluador2Activo || false);
+  const [eval1Id, setEval1Id] = useState(initialData && initialData.evaluador1Id || "");
+  const [eval2Id, setEval2Id] = useState(initialData && initialData.evaluador2Id || "");
   const [saved, setSaved] = useState(false);
   const setScore = (id, ev, val) => setScores(s => ({
     ...s,
@@ -2563,7 +2587,18 @@ const EvaluationViewOperativo = ({
       fontWeight: "700",
       cursor: "pointer"
     }
-  }, saved ? "✅ Guardado" : "💾 Guardar evaluación")), React.createElement("div", {
+  }, saved ? "✅ Guardado" : initialData ? "💾 Guardar cambios" : "💾 Guardar evaluación")), initialData && React.createElement("div", {
+    style: {
+      background: "#fff7e6",
+      border: "1px solid #f0c36d",
+      borderRadius: "8px",
+      padding: "8px 12px",
+      fontSize: "12px",
+      color: "#8a6116",
+      fontWeight: "600",
+      marginBottom: "-2px"
+    }
+  }, "✏️ Editando evaluación del " + fmtDate(initialData.fecha) + ". Al guardar se creará una nueva versión y quedará traza del cambio."), React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr auto",
@@ -3819,6 +3854,292 @@ const SettingsView = ({
     }
   }, renderModalContent()))));
 };
+const getVersionChain = (entry, allHistory) => {
+  let root = entry;
+  let guard = 0;
+  while (root.reemplazaA && guard < 50) {
+    const prev = allHistory.find(h => h._hid === root.reemplazaA);
+    if (!prev) break;
+    root = prev;
+    guard++;
+  }
+  const chain = [root];
+  let cur = root;
+  guard = 0;
+  while (cur.reemplazadaPor && guard < 50) {
+    const next = allHistory.find(h => h._hid === cur.reemplazadaPor);
+    if (!next) break;
+    chain.push(next);
+    cur = next;
+    guard++;
+  }
+  return chain;
+};
+const findCriterioDesc = (id, tipo, modules) => {
+  if (tipo === "operativo") {
+    const p = OPERATIVO_PREGUNTAS.find(p => p.id === id);
+    return p ? p.desc : id;
+  }
+  for (const m of modules || []) {
+    const it = (m.items || []).find(i => i.id === id);
+    if (it) return it.desc;
+  }
+  return id;
+};
+const diffVersions = (oldE, newE, modules) => {
+  const changes = [];
+  const ids = new Set([...Object.keys(oldE && oldE.scores || {}), ...Object.keys(newE && newE.scores || {})]);
+  ids.forEach(id => {
+    const o = (oldE && oldE.scores || {})[id] || {};
+    const n = (newE && newE.scores || {})[id] || {};
+    if (o.e1 !== n.e1 || o.e2 !== n.e2) {
+      changes.push({
+        id,
+        desc: findCriterioDesc(id, newE.tipo, modules),
+        before: o,
+        after: n
+      });
+    }
+  });
+  const meta = [];
+  const metaFields = [{
+    key: "fecha",
+    label: "Fecha evaluación"
+  }, {
+    key: "evaluador1Nombre",
+    label: "Evaluador 1"
+  }, {
+    key: "evaluador2Nombre",
+    label: "Evaluador 2"
+  }, {
+    key: "evaluador2Activo",
+    label: "Evaluador 2 activo"
+  }, {
+    key: "moduloNombre",
+    label: "Módulo / Área"
+  }];
+  metaFields.forEach(f => {
+    const ov = oldE ? oldE[f.key] : undefined;
+    const nv = newE ? newE[f.key] : undefined;
+    if (String(ov) !== String(nv)) meta.push({
+      label: f.label,
+      before: ov,
+      after: nv
+    });
+  });
+  const oldEmp = oldE && oldE.empleado ? oldE.empleado.nombre : undefined;
+  const newEmp = newE && newE.empleado ? newE.empleado.nombre : undefined;
+  if (oldEmp !== newEmp) meta.push({
+    label: "Empleado",
+    before: oldEmp,
+    after: newEmp
+  });
+  return {
+    changes,
+    meta
+  };
+};
+const CambiosModal = ({
+  onClose,
+  entry,
+  evalHistory,
+  modules
+}) => {
+  const chain = getVersionChain(entry, evalHistory);
+  const fmtDT = iso => {
+    if (!iso) return "";
+    try {
+      const d = new Date(iso);
+      return d.toLocaleString("es-ES");
+    } catch (e) {
+      return iso;
+    }
+  };
+  return React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(15,23,42,0.55)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1000,
+      padding: "20px"
+    }
+  }, React.createElement("div", {
+    style: {
+      background: C.card,
+      borderRadius: "14px",
+      maxWidth: "760px",
+      width: "100%",
+      maxHeight: "85vh",
+      overflow: "auto",
+      boxShadow: "0 20px 60px rgba(0,0,0,0.3)"
+    }
+  }, React.createElement("div", {
+    style: {
+      position: "sticky",
+      top: 0,
+      background: C.card,
+      padding: "18px 22px",
+      borderBottom: `1px solid ${C.border}`,
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      zIndex: 1
+    }
+  }, React.createElement("div", null, React.createElement("div", {
+    style: {
+      fontSize: "16px",
+      fontWeight: "800",
+      color: C.text
+    }
+  }, "🕓 Histórico de cambios"), React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: C.muted,
+      marginTop: "2px"
+    }
+  }, (entry.empleado?.nombre || "") + " · " + (entry.moduloNombre || "") + " · " + chain.length + " versión" + (chain.length !== 1 ? "es" : ""))), React.createElement("button", {
+    onClick: onClose,
+    style: {
+      background: "none",
+      border: "none",
+      fontSize: "20px",
+      cursor: "pointer",
+      color: C.muted
+    }
+  }, "✕")), React.createElement("div", {
+    style: {
+      padding: "18px 22px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "16px"
+    }
+  }, chain.map((v, i) => {
+    const isFirst = i === 0;
+    const prev = isFirst ? null : chain[i - 1];
+    const {
+      changes,
+      meta
+    } = isFirst ? {
+      changes: [],
+      meta: []
+    } : diffVersions(prev, v, modules);
+    return React.createElement("div", {
+      key: v._hid,
+      style: {
+        border: `1px solid ${C.border}`,
+        borderRadius: "10px",
+        overflow: "hidden"
+      }
+    }, React.createElement("div", {
+      style: {
+        background: isFirst ? C.expandBg : "#fff7e6",
+        padding: "10px 14px",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        flexWrap: "wrap",
+        gap: "8px"
+      }
+    }, React.createElement("div", {
+      style: {
+        fontSize: "13px",
+        fontWeight: "700",
+        color: C.text
+      }
+    }, isFirst ? "🟢 Versión original" : "✏️ Edición " + i), React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: C.text2,
+        textAlign: "right"
+      }
+    }, isFirst ? "Creada: " + fmtDate(v.fecha) : "Editado por " + (v.editadoPor || "desconocido") + " · " + fmtDT(v.fechaEdicion))), React.createElement("div", {
+      style: {
+        padding: "12px 14px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px"
+      }
+    }, !isFirst && meta.length === 0 && changes.length === 0 && React.createElement("div", {
+      style: {
+        fontSize: "12px",
+        color: C.muted
+      }
+    }, "Sin cambios detectados."), meta.length > 0 && React.createElement("div", {
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "4px"
+      }
+    }, meta.map((m, mi) => React.createElement("div", {
+      key: mi,
+      style: {
+        fontSize: "12px"
+      }
+    }, React.createElement("span", {
+      style: {
+        fontWeight: "700",
+        color: C.text2
+      }
+    }, m.label + ": "), React.createElement("span", {
+      style: {
+        color: "#c0392b",
+        textDecoration: "line-through"
+      }
+    }, String(m.before ?? "—")), " → ", React.createElement("span", {
+      style: {
+        color: "#1e8e5a",
+        fontWeight: "700"
+      }
+    }, String(m.after ?? "—"))))), changes.length > 0 && React.createElement("div", {
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        gap: "6px",
+        marginTop: meta.length ? "4px" : 0
+      }
+    }, changes.map((c, ci) => React.createElement("div", {
+      key: ci,
+      style: {
+        fontSize: "12px",
+        background: C.item,
+        borderRadius: "6px",
+        padding: "6px 10px"
+      }
+    }, React.createElement("div", {
+      style: {
+        color: C.text,
+        marginBottom: "3px"
+      }
+    }, c.desc), React.createElement("div", null, React.createElement("span", {
+      style: {
+        color: "#c0392b",
+        fontWeight: "700"
+      }
+    }, "Eval.1: " + (c.before.e1 ?? "—")), c.after.e2 !== undefined || c.before.e2 !== undefined ? React.createElement("span", {
+      style: {
+        color: C.muted
+      }
+    }, "  ·  ") : null, (c.after.e2 !== undefined || c.before.e2 !== undefined) && React.createElement("span", {
+      style: {
+        color: "#c0392b",
+        fontWeight: "700"
+      }
+    }, "Eval.2: " + (c.before.e2 ?? "—")), " → ", React.createElement("span", {
+      style: {
+        color: "#1e8e5a",
+        fontWeight: "700"
+      }
+    }, "Eval.1: " + (c.after.e1 ?? "—")), (c.after.e2 !== undefined || c.before.e2 !== undefined) && React.createElement("span", {
+      style: {
+        color: "#1e8e5a",
+        fontWeight: "700"
+      }
+    }, "  ·  Eval.2: " + (c.after.e2 ?? "—"))))))));
+  }))));
+};
 const HistorialModal = ({
   onClose,
   onBack,
@@ -3826,6 +4147,7 @@ const HistorialModal = ({
   mode,
   evalHistory,
   onDelete,
+  onEdit,
   modules,
   evaluators
 }) => {
@@ -3835,7 +4157,10 @@ const HistorialModal = ({
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [viewingEval, setViewingEval] = useState(null);
+  const [showOldVersions, setShowOldVersions] = useState(false);
+  const [viewingChain, setViewingChain] = useState(null);
   const filtered = evalHistory.filter(h => {
+    const versionOk = showOldVersions || !h.reemplazadaPor;
     const empOk = !filterEmp || (h.empleado?.nombre || "").toLowerCase().includes(filterEmp.toLowerCase());
     const tipoOk = !filterTipo || (h.tipo || "conocimiento") === filterTipo;
     const dateOk = (() => {
@@ -3858,7 +4183,7 @@ const HistorialModal = ({
       }
       return true;
     })();
-    return empOk && dateOk && tipoOk;
+    return versionOk && empOk && dateOk && tipoOk;
   });
   const thStyle = {
     padding: "10px 16px",
@@ -4422,7 +4747,24 @@ const HistorialModal = ({
       outline: "none",
       boxSizing: "border-box"
     }
-  }))), (filterEmp || dateMode || filterTipo) && React.createElement("button", {
+  }))), React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      fontSize: "12px",
+      fontWeight: "600",
+      color: C.text2,
+      cursor: "pointer",
+      userSelect: "none",
+      whiteSpace: "nowrap",
+      paddingBottom: "9px"
+    }
+  }, React.createElement("input", {
+    type: "checkbox",
+    checked: showOldVersions,
+    onChange: e => setShowOldVersions(e.target.checked)
+  }), "Ver versiones anteriores"), (filterEmp || dateMode || filterTipo) && React.createElement("button", {
     onClick: () => {
       setFilterEmp("");
       setFilterTipo("");
@@ -4488,7 +4830,7 @@ const HistorialModal = ({
     style: {
       ...thStyle,
       textAlign: "center",
-      width: "110px"
+      width: "170px"
     }
   }, "Acciones"))), React.createElement("tbody", null, ...filtered.map((h, i) => {
     const isOp = (h.tipo || "conocimiento") === "operativo";
@@ -4520,7 +4862,27 @@ const HistorialModal = ({
         padding: "1px 5px",
         marginLeft: "6px"
       }
-    }, h.empleado.nivel)), React.createElement("td", {
+    }, h.empleado.nivel), h.reemplazadaPor && React.createElement("span", {
+      style: {
+        fontSize: "10px",
+        fontWeight: "700",
+        color: "#92400e",
+        background: "#fef3c7",
+        borderRadius: "4px",
+        padding: "1px 5px",
+        marginLeft: "6px"
+      }
+    }, "Versión anterior"), h.reemplazaA && !h.reemplazadaPor && React.createElement("span", {
+      style: {
+        fontSize: "10px",
+        fontWeight: "700",
+        color: "#1e8e5a",
+        background: "#e7f7ee",
+        borderRadius: "4px",
+        padding: "1px 5px",
+        marginLeft: "6px"
+      }
+    }, "Editada")), React.createElement("td", {
       style: {
         padding: "10px 16px",
         textAlign: "center",
@@ -4591,15 +4953,16 @@ const HistorialModal = ({
       }
     }, lvl.name))), React.createElement("td", {
       style: {
-        padding: "8px 12px",
+        padding: "8px 10px",
         textAlign: "center",
         borderBottom: `1px solid ${C.rowBorder}`
       }
     }, React.createElement("div", {
       style: {
         display: "flex",
-        gap: "6px",
-        justifyContent: "center"
+        gap: "5px",
+        justifyContent: "center",
+        flexWrap: "wrap"
       }
     }, React.createElement("button", {
       onClick: () => setViewingEval(h),
@@ -4609,13 +4972,68 @@ const HistorialModal = ({
         color: "#1d4ed8",
         border: "none",
         borderRadius: "6px",
-        padding: "5px 10px",
+        padding: "5px 9px",
         fontSize: "11px",
         fontWeight: "600",
         cursor: "pointer",
         whiteSpace: "nowrap"
       }
-    }, "👁 Ver"), React.createElement("button", {
+    }, "👁 Ver"), h.reemplazadaPor ? React.createElement("button", {
+      disabled: true,
+      title: "No se puede editar una versión anterior; edita la versión vigente",
+      style: {
+        background: "#f1f5f9",
+        color: "#94a3b8",
+        border: "none",
+        borderRadius: "6px",
+        padding: "5px 9px",
+        fontSize: "11px",
+        fontWeight: "600",
+        cursor: "not-allowed",
+        whiteSpace: "nowrap"
+      }
+    }, "✏️") : React.createElement("button", {
+      onClick: () => onEdit(h),
+      title: "Editar evaluación (crea nueva versión)",
+      style: {
+        background: "#fff3d6",
+        color: "#92400e",
+        border: "none",
+        borderRadius: "6px",
+        padding: "5px 9px",
+        fontSize: "11px",
+        fontWeight: "600",
+        cursor: "pointer",
+        whiteSpace: "nowrap"
+      }
+    }, "✏️"), (h.reemplazaA || h.reemplazadaPor) && React.createElement("button", {
+      onClick: () => setViewingChain(h),
+      title: "Ver histórico de cambios",
+      style: {
+        background: "#ede9fe",
+        color: "#6d28d9",
+        border: "none",
+        borderRadius: "6px",
+        padding: "5px 9px",
+        fontSize: "11px",
+        fontWeight: "600",
+        cursor: "pointer",
+        whiteSpace: "nowrap"
+      }
+    }, "🕓"), h.reemplazadaPor ? React.createElement("button", {
+      disabled: true,
+      title: "No se puede eliminar una versión anterior (queda como traza)",
+      style: {
+        background: "#f1f5f9",
+        color: "#94a3b8",
+        border: "none",
+        borderRadius: "6px",
+        padding: "5px 8px",
+        fontSize: "11px",
+        fontWeight: "600",
+        cursor: "not-allowed"
+      }
+    }, "🗑") : React.createElement("button", {
       onClick: () => {
         if (window.confirm("¿Eliminar esta evaluación?")) onDelete(h._hid, evalHistory.indexOf(h));
       },
@@ -4743,7 +5161,12 @@ const HistorialModal = ({
         color: C.muted,
         fontWeight: "600"
       }
-    }, filtered.length + " evaluación" + (filtered.length !== 1 ? "es" : ""))), filtersDiv, tableDiv))), viewingEval && renderDetail(viewingEval));
+    }, filtered.length + " evaluación" + (filtered.length !== 1 ? "es" : ""))), filtersDiv, tableDiv))), viewingEval && renderDetail(viewingEval), viewingChain && React.createElement(CambiosModal, {
+      onClose: () => setViewingChain(null),
+      entry: viewingChain,
+      evalHistory: evalHistory,
+      modules: modules
+    }));
   }
   return React.createElement(React.Fragment, null, React.createElement("div", {
     onClick: e => {
@@ -4809,7 +5232,12 @@ const HistorialModal = ({
       alignItems: "center",
       justifyContent: "center"
     }
-  }, "✕")), filtersDiv, tableDiv)), viewingEval && renderDetail(viewingEval));
+  }, "✕")), filtersDiv, tableDiv)), viewingEval && renderDetail(viewingEval), viewingChain && React.createElement(CambiosModal, {
+    onClose: () => setViewingChain(null),
+    entry: viewingChain,
+    evalHistory: evalHistory,
+    modules: modules
+  }));
 };
 const ConvergenceDiagram = ({
   cono,
@@ -5220,6 +5648,7 @@ function App() {
   const [selectedAreaOp, setSelectedAreaOp] = useState(null);
   const [evalDateOp, setEvalDateOp] = useState(today());
   const [viewOp, setViewOp] = useState("eval-op");
+  const [editingEntry, setEditingEntry] = useState(null);
   useEffect(() => {
     (async () => {
       try {
@@ -5446,6 +5875,53 @@ function App() {
       _hid: Date.now() + Math.random()
     }, ...prev]);
   };
+  const saveEvaluationEdit = (originalHid, evalData) => {
+    const newHid = Date.now() + Math.random();
+    const editor = typeof window !== "undefined" && window._auth && window._auth.currentUser && window._auth.currentUser.email || "desconocido";
+    const newEntry = {
+      ...evalData,
+      _hid: newHid,
+      reemplazaA: originalHid,
+      editadoPor: editor,
+      fechaEdicion: new Date().toISOString()
+    };
+    setEvalHistory(prev => {
+      const updated = prev.map(h => h._hid === originalHid ? {
+        ...h,
+        reemplazadaPor: newHid
+      } : h);
+      return [newEntry, ...updated];
+    });
+    setEditingEntry(newEntry);
+  };
+  const startEditEvaluation = h => {
+    if ((h.tipo || "conocimiento") === "operativo") {
+      const area = areaModules.find(m => m.id === h.moduloId) || {
+        id: h.moduloId,
+        name: h.moduloNombre,
+        items: []
+      };
+      const emp = employees.find(e => e.id === h.empleado?.id) || h.empleado;
+      setSelectedEmployeeOp(emp);
+      setSelectedAreaOp(area);
+      setEvalDateOp(h.fecha);
+      setEditingEntry(h);
+      setAppScreen("evaluator-op");
+    } else {
+      const mod = modules.find(m => m.id === h.moduloId) || {
+        id: h.moduloId,
+        name: h.moduloNombre,
+        items: [],
+        ambitoOrder: []
+      };
+      const emp = employees.find(e => e.id === h.empleado?.id) || h.empleado;
+      setSelectedEmployee(emp);
+      setSelectedModule(mod);
+      setEvalDate(h.fecha);
+      setEditingEntry(h);
+      setAppScreen("evaluator");
+    }
+  };
   const deleteEvaluation = (hid, fallbackIdx) => {
     if (hid !== undefined) {
       setEvalHistory(prev => prev.filter(h => h._hid !== hid));
@@ -5460,8 +5936,14 @@ function App() {
     }
   }, "Cargando...");
   if (appScreen === "home") return /*#__PURE__*/React.createElement(HomeScreen, {
-    onEnterEval: () => setAppScreen("evaluator"),
-    onEnterEvalOp: () => setAppScreen("evaluator-op"),
+    onEnterEval: () => {
+      setEditingEntry(null);
+      setAppScreen("evaluator");
+    },
+    onEnterEvalOp: () => {
+      setEditingEntry(null);
+      setAppScreen("evaluator-op");
+    },
     onEnterEmployees: () => setAppScreen("employees"),
     onEnterResultados: () => setAppScreen("resultados"),
     onEnterHistorico: () => setAppScreen("historico"),
@@ -5479,6 +5961,7 @@ function App() {
     onLogout: () => window.doLogout(),
     evalHistory: evalHistory,
     onDelete: deleteEvaluation,
+    onEdit: startEditEvaluation,
     modules: [...modules, ...areaModules],
     evaluators: evaluators
   });
@@ -5573,7 +6056,10 @@ function App() {
       gap: "14px"
     }
   }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setAppScreen("home"),
+    onClick: () => {
+      setEditingEntry(null);
+      setAppScreen("home");
+    },
     title: "Inicio",
     style: {
       background: "rgba(255,255,255,0.12)",
@@ -5790,7 +6276,11 @@ function App() {
     employee: selectedEmployeeOp,
     evalDate: evalDateOp,
     employees: employees,
-    onSave: d => saveEvaluation({
+    initialData: editingEntry && (editingEntry.tipo || "conocimiento") === "operativo" ? editingEntry : null,
+    onSave: d => editingEntry ? saveEvaluationEdit(editingEntry._hid, {
+      ...d,
+      tipo: "operativo"
+    }) : saveEvaluation({
       ...d,
       tipo: "operativo"
     })
@@ -5837,7 +6327,10 @@ function App() {
       gap: "14px"
     }
   }, /*#__PURE__*/React.createElement("button", {
-    onClick: () => setAppScreen("home"),
+    onClick: () => {
+      setEditingEntry(null);
+      setAppScreen("home");
+    },
     title: "Inicio",
     style: {
       background: "rgba(255,255,255,0.12)",
@@ -6065,7 +6558,11 @@ function App() {
     employee: selectedEmployee,
     evalDate: evalDate,
     employees: employees,
-    onSave: d => saveEvaluation({
+    initialData: editingEntry && (editingEntry.tipo || "conocimiento") !== "operativo" ? editingEntry : null,
+    onSave: d => editingEntry ? saveEvaluationEdit(editingEntry._hid, {
+      ...d,
+      tipo: "conocimiento"
+    }) : saveEvaluation({
       ...d,
       tipo: "conocimiento"
     })
@@ -6078,7 +6575,6 @@ function App() {
     }
   }, "Selecciona empleado y módulo para comenzar"))))));
 }
-
 </script>
 
 <script>
