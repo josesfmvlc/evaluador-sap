@@ -2181,7 +2181,7 @@ const EvaluationView = ({
       color: globalLvl.color,
       lineHeight: "1"
     }
-  }, globalScore.toFixed(1)), React.createElement("div", {
+  }, notaFinal.toFixed(1) + " / 10"), React.createElement("div", {
     style: {
       fontSize: "11px",
       color: C.text2,
@@ -2206,7 +2206,7 @@ const EvaluationView = ({
       fontWeight: "700",
       color: C.text
     }
-  }, globalScore.toFixed(2)))), React.createElement("div", {
+  }, notaFinal.toFixed(2)))), React.createElement("div", {
     style: {
       display: "flex",
       gap: "8px",
@@ -4044,7 +4044,7 @@ const HistorialModal = ({
         color: lvl.color,
         lineHeight: "1"
       }
-    }, (h.globalScore || 0).toFixed(2)), React.createElement("div", {
+    }, (h.notaFinal != null ? h.notaFinal : toScale10(h.globalScore || 1)).toFixed(1) + " / 10"), React.createElement("div", {
       style: {
         fontSize: "11px",
         color: "rgba(255,255,255,0.7)",
@@ -4510,7 +4510,7 @@ const HistorialModal = ({
   }, "Acciones"))), React.createElement("tbody", null, ...filtered.map((h, i) => {
     const isOp = (h.tipo || "conocimiento") === "operativo";
     const lvl = getLvl(h.globalLevel || Math.round(h.globalScore || 1));
-    const puntuacionDisplay = isOp ? (h.notaFinal || 0).toFixed(1) + " / 10" : (h.globalScore || 0).toFixed(2);
+    const puntuacionDisplay = (h.notaFinal != null ? h.notaFinal : toScale10(h.globalScore != null ? h.globalScore : 1)).toFixed(1) + " / 10";
     const puntuacionColor = isOp ? C.accent : lvl.color;
     return React.createElement("tr", {
       key: h._hid || i,
@@ -5003,7 +5003,7 @@ const ResultadosEvaluacionView = ({
   }, conoEntries.map(e => /*#__PURE__*/React.createElement("option", {
     key: e._hid,
     value: String(e._hid)
-  }, fmtDate(e.fecha), " · ", e.moduloNombre, " · ", e.globalScore.toFixed(2))), /*#__PURE__*/React.createElement("option", {
+  }, fmtDate(e.fecha), " · ", e.moduloNombre, " · ", nota10(e).toFixed(2), " / 10")), /*#__PURE__*/React.createElement("option", {
     value: "avg"
   }, "Media de todas (", conoEntries.length, ")"))), opEntries.length > 1 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: labelStyle
@@ -5014,7 +5014,7 @@ const ResultadosEvaluacionView = ({
   }, opEntries.map(e => /*#__PURE__*/React.createElement("option", {
     key: e._hid,
     value: String(e._hid)
-  }, fmtDate(e.fecha), " · ", e.moduloNombre, " · ", e.globalScore.toFixed(2))), /*#__PURE__*/React.createElement("option", {
+  }, fmtDate(e.fecha), " · ", e.moduloNombre, " · ", nota10(e).toFixed(2), " / 10")), /*#__PURE__*/React.createElement("option", {
     value: "avg"
   }, "Media de todas (", opEntries.length, ")")))), /*#__PURE__*/React.createElement(ConvergenceDiagram, {
     key: diagramKey,
