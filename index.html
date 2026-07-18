@@ -5724,6 +5724,9 @@ function App() {
   const [appScreen, setAppScreen] = useState("home");
   const [currentApp, setCurrentApp] = useState("eval");
   const [dataReady, setDataReady] = useState(false);
+  const [canAutoSave, setCanAutoSave] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [retryTick, setRetryTick] = useState(0);
   const [modules, setModules] = useState([QM_MODULE]);
   const [evaluators, setEvaluators] = useState(["Evaluador 1", "Evaluador 2"]);
   const [employees, setEmployees] = useState([{
@@ -5758,106 +5761,108 @@ function App() {
   const [editingEntry, setEditingEntry] = useState(null);
   useEffect(() => {
     (async () => {
+      let empOk = false;
+      let cfgOk = false;
       try {
         const db = firebase.firestore();
-        let empList = null;
+        // --- Empleados ---
+        // Importante: si la lectura falla (excepción), NO se toca Firestore ni se asume que está vacío.
+        // Solo se migra desde localStorage cuando Firestore ha confirmado (sin error) que el documento no existe.
         try {
+          let empList = null;
           const empDoc = await db.collection("appData").doc("employees").get();
           if (empDoc.exists && empDoc.data().list) {
             empList = empDoc.data().list;
           }
-        } catch (e) {
-          console.error("Firestore read error:", e);
-        }
-        if (!empList) {
-          const localRaw = localStorage.getItem("sap-qm-employees");
-          if (localRaw) {
-            try {
+          if (!empDoc.exists) {
+            const localRaw = localStorage.getItem("sap-qm-employees");
+            if (localRaw) {
               empList = JSON.parse(localRaw);
               await db.collection("appData").doc("employees").set({
                 list: empList
               });
               console.log("Empleados migrados a Firestore:", empList.length);
-            } catch (e) {
-              console.error("Migration error:", e);
             }
           }
+          if (empList) setEmployees(empList.map(e => ({
+            ...e,
+            modules: e.modules?.length ? e.modules : e.modulos?.length ? e.modulos : e.module ? [e.module] : [],
+            skills: e.skills?.length ? e.skills : e.skill ? [e.skill] : []
+          })));
+          empOk = true;
+        } catch (e) {
+          console.error("Fallo leyendo/migrando empleados — no se escribe nada en Firestore:", e);
+          empOk = false;
         }
-        if (empList) setEmployees(empList.map(e => ({
-          ...e,
-          modules: e.modules?.length ? e.modules : e.modulos?.length ? e.modulos : e.module ? [e.module] : [],
-          skills: e.skills?.length ? e.skills : e.skill ? [e.skill] : []
-        })));
         // --- Config compartida (módulos, evaluadores, histórico, sapModules, sectores, skills, ubicaciones) ---
-        const lsGet = key => {
-          try {
-            const v = localStorage.getItem(key);
-            return v ? JSON.parse(v) : null;
-          } catch (e) {
-            return null;
-          }
-        };
-        let cfg = null;
         try {
+          const lsGet = key => {
+            try {
+              const v = localStorage.getItem(key);
+              return v ? JSON.parse(v) : null;
+            } catch (e) {
+              return null;
+            }
+          };
+          let cfg = null;
           const cfgDoc = await db.collection("appData").doc("config").get();
           if (cfgDoc.exists) cfg = cfgDoc.data();
-        } catch (e) {
-          console.error("Firestore config read error:", e);
-        }
-        if (!cfg) {
-          // Migración: no hay config en Firestore todavía, usar lo que haya en local (si algo) y subirlo
-          cfg = {
-            modules: lsGet("sap-qm-modules"),
-            evaluators: lsGet("sap-qm-evaluators"),
-            evalHistory: lsGet("sap-qm-eval-history"),
-            sapModules: lsGet("sap-qm-sap-modules"),
-            sectors: lsGet("sap-qm-sectors"),
-            skills: lsGet("sap-qm-skills"),
-            locations: lsGet("sap-qm-locations"),
-            areaModules: lsGet("sap-op-areas")
-          };
-          try {
+          if (!cfg) {
+            // Confirmado (sin error): no hay config en Firestore todavía -> migración segura desde localStorage
+            cfg = {
+              modules: lsGet("sap-qm-modules"),
+              evaluators: lsGet("sap-qm-evaluators"),
+              evalHistory: lsGet("sap-qm-eval-history"),
+              sapModules: lsGet("sap-qm-sap-modules"),
+              sectors: lsGet("sap-qm-sectors"),
+              skills: lsGet("sap-qm-skills"),
+              locations: lsGet("sap-qm-locations"),
+              areaModules: lsGet("sap-op-areas")
+            };
             await db.collection("appData").doc("config").set(cfg);
             console.log("Config migrada a Firestore");
-          } catch (e) {
-            console.error("Config migration error:", e);
           }
+          if (cfg.modules) {
+            // Si el módulo QM guardado tiene pocos items (datos obsoletos), restaurar el completo
+            const fixed = cfg.modules.map(m => m.id === "mod-qm" && m.items && m.items.length < 5 ? QM_MODULE : m);
+            setModules(fixed);
+          }
+          if (cfg.evaluators) setEvaluators(cfg.evaluators);
+          if (cfg.evalHistory) setEvalHistory(cfg.evalHistory.map(h => ({
+            ...h,
+            // Migración retroactiva: recalcula notaFinal (1-10) para evaluaciones antiguas
+            // (tanto si no lo tenían como si venía de la vieja fórmula proporcional de Operativo)
+            notaFinal: toScale10(h.globalScore != null ? h.globalScore : 1)
+          })));
+          if (cfg.sapModules) setSapModules(cfg.sapModules);
+          if (cfg.sectors) setSectors(cfg.sectors);
+          if (cfg.skills) setSkills(cfg.skills);
+          if (cfg.locations) setLocations(cfg.locations);
+          if (cfg.areaModules) {
+            const existingNames = cfg.areaModules.map(a => a.name);
+            const missingAreas = DEFAULT_AREAS.filter(n => !existingNames.includes(n));
+            setAreaModules(missingAreas.length ? [...cfg.areaModules, ...missingAreas.map(name => ({
+              id: "area-" + Date.now() + "-" + name.replace(/\s+/g, "").toLowerCase(),
+              name,
+              items: [],
+              ambitoOrder: []
+            }))] : cfg.areaModules);
+          }
+          cfgOk = true;
+        } catch (e) {
+          console.error("Fallo leyendo/migrando config — no se escribe nada en Firestore:", e);
+          cfgOk = false;
         }
-        if (cfg.modules) {
-          // Si el módulo QM guardado tiene pocos items (datos obsoletos), restaurar el completo
-          const fixed = cfg.modules.map(m => m.id === "mod-qm" && m.items && m.items.length < 5 ? QM_MODULE : m);
-          setModules(fixed);
-        }
-        if (cfg.evaluators) setEvaluators(cfg.evaluators);
-        if (cfg.evalHistory) setEvalHistory(cfg.evalHistory.map(h => ({
-          ...h,
-          // Migración retroactiva: recalcula notaFinal (1-10) para evaluaciones antiguas
-          // (tanto si no lo tenían como si venía de la vieja fórmula proporcional de Operativo)
-          notaFinal: toScale10(h.globalScore != null ? h.globalScore : 1)
-        })));
-        if (cfg.sapModules) setSapModules(cfg.sapModules);
-        if (cfg.sectors) setSectors(cfg.sectors);
-        if (cfg.skills) setSkills(cfg.skills);
-        if (cfg.locations) setLocations(cfg.locations);
-        if (cfg.areaModules) {
-          const existingNames = cfg.areaModules.map(a => a.name);
-          const missingAreas = DEFAULT_AREAS.filter(n => !existingNames.includes(n));
-          setAreaModules(missingAreas.length ? [...cfg.areaModules, ...missingAreas.map(name => ({
-            id: "area-" + Date.now() + "-" + name.replace(/\s+/g, "").toLowerCase(),
-            name,
-            items: [],
-            ambitoOrder: []
-          }))] : cfg.areaModules);
-        }
-        setDataReady(true);
       } catch (e) {
-        console.error("Load error:", e);
-        setDataReady(true);
+        console.error("Load error inesperado:", e);
       }
+      setDataReady(true);
+      setCanAutoSave(empOk && cfgOk);
+      setLoadError(!(empOk && cfgOk));
     })();
-  }, []);
+  }, [retryTick]);
   useEffect(() => {
-    if (!dataReady) return;
+    if (!dataReady || !canAutoSave) return;
     (async () => {
       try {
         const db = firebase.firestore();
@@ -5893,9 +5898,17 @@ function App() {
         console.error("Save error:", e);
       }
     })();
-  }, [dataReady, modules, evaluators, employees, evalHistory, sapModules, sectors, skills, locations, areaModules]);
+  }, [dataReady, canAutoSave, modules, evaluators, employees, evalHistory, sapModules, sectors, skills, locations, areaModules]);
+  const retryLoad = () => {
+    setLoadError(false);
+    setRetryTick(t => t + 1);
+  };
   const persistEmployees = async list => {
     setEmployees(list);
+    if (!canAutoSave) {
+      console.error("persistEmployees bloqueado: la carga inicial no se completó con éxito, no se escribe en Firestore.");
+      return;
+    }
     try {
       const db = firebase.firestore();
       const toSave = list.map(({
@@ -6042,6 +6055,53 @@ function App() {
       textAlign: "center"
     }
   }, "Cargando...");
+  if (loadError) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "40px 20px",
+      textAlign: "center",
+      maxWidth: "420px",
+      margin: "60px auto",
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "32px",
+      marginBottom: "12px"
+    }
+  }, "⚠️"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "700",
+      fontSize: "15px",
+      marginBottom: "8px",
+      color: C.text
+    }
+  }, "No se ha podido conectar con la base de datos"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      color: C.text2,
+      marginBottom: "20px"
+    }
+  }, "Por seguridad, la aplicación no va a guardar ni sobrescribir nada hasta confirmar la conexión. Revisa tu conexión a internet e inténtalo de nuevo."), /*#__PURE__*/React.createElement("button", {
+    onClick: retryLoad,
+    style: {
+      background: C.accent,
+      color: "white",
+      border: "none",
+      borderRadius: "8px",
+      padding: "10px 20px",
+      fontSize: "13px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "🔄 Reintentar"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: C.muted,
+      marginTop: "16px"
+    }
+  }, "Si el problema persiste, contacta con el administrador de la aplicación."));
   if (appScreen === "home") return /*#__PURE__*/React.createElement(HomeScreen, {
     onEnterEval: () => {
       setEditingEntry(null);
