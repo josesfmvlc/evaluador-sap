@@ -149,6 +149,10 @@ const LEVELS = [{
 }];
 const getLvl = v => LEVELS[Math.min(7, Math.max(0, Math.round(v) - 1))];
 const getColor = v => getLvl(v).color;
+// Conversión afín 1-8 -> 1-10 (1→1, 8→10) para poder promediar Conocimiento y Operativo sobre la misma escala /10
+const toScale10 = v8 => 1 + (v8 - 1) * (9 / 7);
+const from10to8 = v10 => 1 + (v10 - 1) * (7 / 9);
+const getLvlFrom10 = v10 => getLvl(from10to8(v10));
 const today = () => new Date().toISOString().slice(0, 10);
 const fmtDate = iso => {
   if (!iso) return "";
@@ -2117,6 +2121,7 @@ const EvaluationView = ({
   const weightedSum = mod.items.reduce((s, i) => s + i.peso * perItemVal(i), 0);
   const globalScore = totalPeso > 0 ? weightedSum / totalPeso : 0;
   const globalLvl = getLvl(Math.round(globalScore));
+  const notaFinal = toScale10(globalScore); // escala 1-10, para promediar con Operativo en Resultados
   const handleSave = () => {
     onSave({
       fecha: evalDate,
@@ -2126,6 +2131,7 @@ const EvaluationView = ({
       scores,
       globalScore,
       globalLevel: Math.round(globalScore),
+      notaFinal,
       evaluador2Activo: eval2Activo,
       evaluador1Id: eval1Id || null,
       evaluador1Nombre: eval1Name,
@@ -2489,7 +2495,7 @@ const EvaluationViewOperativo = ({
     return eval2Activo ? (sc.e1 + sc.e2) / 2 : sc.e1;
   };
   const globalScore = OPERATIVO_PREGUNTAS.reduce((s, p) => s + perQuestionVal(p), 0) / OPERATIVO_PREGUNTAS.length; // escala 1-8
-  const notaFinal = globalScore / 8 * 10; // escala 0-10
+  const notaFinal = toScale10(globalScore); // escala 1-10 (afín, igual que Conocimiento)
 
   const handleSave = () => {
     onSave({
@@ -4695,7 +4701,7 @@ const ConvergenceDiagram = ({
     fontSize: "18",
     fontWeight: "800",
     fill: "#2563eb"
-  }, cono.score.toFixed(2))), hasOp && /*#__PURE__*/React.createElement("g", {
+  }, cono.score.toFixed(2), " / 10")), hasOp && /*#__PURE__*/React.createElement("g", {
     className: "rz-node-r"
   }, /*#__PURE__*/React.createElement("rect", {
     x: opX,
@@ -4720,7 +4726,7 @@ const ConvergenceDiagram = ({
     fontSize: "18",
     fontWeight: "800",
     fill: "#0d9488"
-  }, op.score.toFixed(2))), hasCono && hasOp && finalScore !== null && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
+  }, op.score.toFixed(2), " / 10")), hasCono && hasOp && finalScore !== null && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
     className: "rz-path",
     pathLength: "100",
     d: "M130,94 C130,170 220,200 280,240",
@@ -4758,7 +4764,7 @@ const ConvergenceDiagram = ({
     fontSize: "20",
     fontWeight: "800",
     fill: finalLvl.color
-  }, finalScore.toFixed(2)), /*#__PURE__*/React.createElement("text", {
+  }, finalScore.toFixed(2), " / 10"), /*#__PURE__*/React.createElement("text", {
     x: "320",
     y: "286",
     textAnchor: "middle",
@@ -4782,10 +4788,13 @@ const ResultadosEvaluacionView = ({
   const effectiveYear = years.includes(selYear) ? selYear : years[0] || "";
   const conoEntries = empHistory.filter(h => (h.tipo || "conocimiento") === "conocimiento" && (h.fecha || "").slice(0, 4) === effectiveYear).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
   const opEntries = empHistory.filter(h => h.tipo === "operativo" && (h.fecha || "").slice(0, 4) === effectiveYear).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+
+  // notaFinal ya viene calculado sobre 1-10 (con fallback por si alguna entrada muy antigua no lo tuviera)
+  const nota10 = e => e.notaFinal != null ? e.notaFinal : toScale10(e.globalScore != null ? e.globalScore : 1);
   const resolveSide = (entries, choiceId) => {
     if (!entries.length) return null;
     if (choiceId === "avg") {
-      const avg = entries.reduce((s, e) => s + e.globalScore, 0) / entries.length;
+      const avg = entries.reduce((s, e) => s + nota10(e), 0) / entries.length;
       return {
         score: avg,
         sourceLabel: `Media de ${entries.length} evaluaciones`
@@ -4794,7 +4803,7 @@ const ResultadosEvaluacionView = ({
     const found = entries.find(e => String(e._hid) === choiceId);
     const use = found || entries[0];
     return {
-      score: use.globalScore,
+      score: nota10(use),
       sourceLabel: fmtDate(use.fecha),
       moduloNombre: use.moduloNombre
     };
@@ -4802,7 +4811,7 @@ const ResultadosEvaluacionView = ({
   const conoRes = resolveSide(conoEntries, conoChoice);
   const opRes = resolveSide(opEntries, opChoice);
   const finalScore = conoRes && opRes ? (conoRes.score + opRes.score) / 2 : null;
-  const finalLvl = finalScore !== null ? getLvl(finalScore) : null;
+  const finalLvl = finalScore !== null ? getLvlFrom10(finalScore) : null;
   const diagramKey = `${selEmp?.id || ""}-${effectiveYear}-${conoChoice || "d"}-${opChoice || "d"}`;
   const sourceSelectStyle = {
     width: "100%",
@@ -5125,7 +5134,12 @@ function App() {
           setModules(fixed);
         }
         if (cfg.evaluators) setEvaluators(cfg.evaluators);
-        if (cfg.evalHistory) setEvalHistory(cfg.evalHistory);
+        if (cfg.evalHistory) setEvalHistory(cfg.evalHistory.map(h => ({
+          ...h,
+          // Migración retroactiva: recalcula notaFinal (1-10) para evaluaciones antiguas
+          // (tanto si no lo tenían como si venía de la vieja fórmula proporcional de Operativo)
+          notaFinal: toScale10(h.globalScore != null ? h.globalScore : 1)
+        })));
         if (cfg.sapModules) setSapModules(cfg.sapModules);
         if (cfg.sectors) setSectors(cfg.sectors);
         if (cfg.skills) setSkills(cfg.skills);
