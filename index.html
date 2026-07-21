@@ -153,6 +153,8 @@ const getColor = v => getLvl(v).color;
 const toScale10 = v8 => 1 + (v8 - 1) * (9 / 7);
 const from10to8 = v10 => 1 + (v10 - 1) * (7 / 9);
 const getLvlFrom10 = v10 => getLvl(from10to8(v10));
+// Rango [min,max] sobre la escala /10 que corresponde a un nivel (v = 1..8 en escala interna)
+const getLvlRange10 = v => [toScale10(Math.max(1, v - 0.5)), toScale10(Math.min(8, v + 0.5))];
 const today = () => new Date().toISOString().slice(0, 10);
 const fmtDate = iso => {
   if (!iso) return "";
@@ -1826,10 +1828,12 @@ const COLS_EXTRA = [{
   label: "🎓 Formación"
 }];
 const NivelesModal = ({
-  onClose
+  onClose,
+  initialSel = null,
+  justification = null
 }) => {
   const [tab, setTab] = useState("basico");
-  const [sel, setSel] = useState(null);
+  const [sel, setSel] = useState(initialSel);
   const cols = tab === "basico" ? COLS_BASICO : COLS_EXTRA;
   const tbtnStyle = active => ({
     flex: 1,
@@ -1911,6 +1915,46 @@ const NivelesModal = ({
       justifyContent: "center"
     }
   }, "✕")),
+  // Justificación de la nota (solo cuando se abre desde Resultados de Evaluación)
+  justification && (() => {
+    const range = getLvlRange10(justification.finalLvl.v);
+    const v8 = from10to8(justification.finalScore);
+    return React.createElement("div", {
+      style: {
+        padding: "14px 20px",
+        background: justification.finalLvl.color + "14",
+        borderBottom: `1px solid ${C.border}`
+      }
+    }, React.createElement("div", {
+      style: {
+        fontSize: "12px",
+        fontWeight: "800",
+        color: C.text,
+        marginBottom: "6px",
+        display: "flex",
+        alignItems: "center",
+        gap: "6px"
+      }
+    }, "🧮 Por qué esta nota da este nivel"), React.createElement("div", {
+      style: {
+        fontSize: "12.5px",
+        color: C.text2,
+        lineHeight: "1.7"
+      }
+    }, `Conocimiento ${justification.cono.score.toFixed(2)}/10 + Operativa ${justification.op.score.toFixed(2)}/10 → media global `, React.createElement("strong", {
+      style: {
+        color: C.text
+      }
+    }, `${justification.finalScore.toFixed(2)}/10`), `. Pasado a la escala interna 1–8: `, React.createElement("strong", {
+      style: {
+        color: C.text
+      }
+    }, `${v8.toFixed(2)}/8`), `, que redondeado da el nivel `, React.createElement("strong", {
+      style: {
+        color: justification.finalLvl.color
+      }
+    }, `${justification.finalLvl.code} · ${justification.finalLvl.name}`), ` (cualquier nota entre ${range[0].toFixed(2)} y ${range[1].toFixed(2)} sobre 10 cae en este nivel).`));
+  })(),
   // Level pills strip
   React.createElement("div", {
     style: {
@@ -5620,7 +5664,8 @@ const ConvergenceDiagram = ({
   cono,
   op,
   finalScore,
-  finalLvl
+  finalLvl,
+  onShowInfo
 }) => {
   const hasCono = !!cono,
     hasOp = !!op;
@@ -5640,9 +5685,30 @@ const ConvergenceDiagram = ({
       padding: "26px 24px",
       display: "flex",
       justifyContent: "center",
-      boxShadow: "0 1px 2px rgba(15,27,45,0.04), 0 20px 40px -24px rgba(15,27,45,0.16)"
+      boxShadow: "0 1px 2px rgba(15,27,45,0.04), 0 20px 40px -24px rgba(15,27,45,0.16)",
+      position: "relative"
     }
-  }, /*#__PURE__*/React.createElement("svg", {
+  }, finalScore !== null && finalLvl && /*#__PURE__*/React.createElement("button", {
+    onClick: onShowInfo,
+    title: "Ver niveles y justificación de la nota",
+    style: {
+      position: "absolute",
+      top: "18px",
+      right: "20px",
+      background: HZ.card,
+      border: `1px solid ${HZ.line}`,
+      borderRadius: "8px",
+      padding: "6px 12px",
+      fontSize: "11.5px",
+      fontWeight: "700",
+      color: HZ.navy,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      boxShadow: "0 1px 2px rgba(15,27,45,0.06)"
+    }
+  }, "📊 Niveles"), /*#__PURE__*/React.createElement("svg", {
     width: "100%",
     viewBox: "0 0 640 350",
     style: {
@@ -5807,6 +5873,7 @@ const ResultadosEvaluacionView = ({
   const [selYear, setSelYear] = useState("");
   const [conoChoice, setConoChoice] = useState(null);
   const [opChoice, setOpChoice] = useState(null);
+  const [showNiveles, setShowNiveles] = useState(false);
   const empHistory = selEmp ? evalHistory.filter(h => h.empleado?.id === selEmp.id) : [];
   const years = Array.from(new Set(empHistory.map(h => (h.fecha || "").slice(0, 4)).filter(Boolean))).sort((a, b) => b.localeCompare(a));
   const effectiveYear = years.includes(selYear) ? selYear : years[0] || "";
@@ -6084,7 +6151,17 @@ const ResultadosEvaluacionView = ({
     cono: conoRes,
     op: opRes,
     finalScore: finalScore,
-    finalLvl: finalLvl
+    finalLvl: finalLvl,
+    onShowInfo: () => setShowNiveles(true)
+  }), showNiveles && /*#__PURE__*/React.createElement(NivelesModal, {
+    onClose: () => setShowNiveles(false),
+    initialSel: finalLvl?.code || null,
+    justification: finalScore !== null && finalLvl ? {
+      cono: conoRes,
+      op: opRes,
+      finalScore,
+      finalLvl
+    } : null
   }), !opEntries.length && skillOpEntries.length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
       background: "#fff7e6",
