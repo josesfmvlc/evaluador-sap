@@ -2024,7 +2024,16 @@ const NivelesModal = ({
       left: 0,
       zIndex: 2
     }
-  }, "Nivel"), ...cols.map(col => React.createElement("th", {
+  }, "Nivel"), React.createElement("th", {
+    style: {
+      padding: "10px 14px",
+      background: "#354a5e",
+      color: "white",
+      fontWeight: "700",
+      textAlign: "left",
+      minWidth: "120px"
+    }
+  }, "🎯 Nota /10"), ...cols.map(col => React.createElement("th", {
     key: col.key,
     style: {
       padding: "10px 14px",
@@ -2085,7 +2094,19 @@ const NivelesModal = ({
         fontWeight: "600",
         lineHeight: "1.2"
       }
-    }, lvl.name)))), ...cols.map(col => React.createElement("td", {
+    }, lvl.name)))), (() => {
+      const r = getLvlRange10(idx + 1);
+      return React.createElement("td", {
+        style: {
+          padding: "10px 14px",
+          color: lvl.color,
+          fontWeight: "700",
+          fontSize: "12.5px",
+          verticalAlign: "top",
+          borderBottom: `1px solid ${C.border}`
+        }
+      }, `${r[0].toFixed(2)} – ${r[1].toFixed(2)}`);
+    })(), ...cols.map(col => React.createElement("td", {
       key: col.key,
       style: {
         padding: "10px 14px",
@@ -2108,7 +2129,13 @@ const NivelesModal = ({
       fontSize: "11px",
       color: C.muted
     }
-  }, "💡 Datos extraídos del Marco de Niveles Hiberus. La escala de valoración V1→V4.3 corresponde a los valores 1–8 en el sistema de evaluación."))));
+  }, "💡 Datos extraídos del Marco de Niveles Hiberus. La escala de valoración V1→V4.3 corresponde a los valores 1–8 en el sistema de evaluación."), React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: C.muted,
+      marginTop: "3px"
+    }
+  }, "⚠️ La columna \"Nota /10\" es una equivalencia orientativa por conversión matemática de escala; los rangos podrán ajustarse más adelante."))));
 };
 const EvaluationView = ({
   module: mod,
