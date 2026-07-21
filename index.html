@@ -193,7 +193,7 @@ const DEFAULT_SAP_MODULES = ["SAP QM", "SAP MM", "SAP CO", "SAP FI", "SAP PP", "
 const DEFAULT_SECTORS = ["Industria de procesos", "Manufacturing", "Servicios y Hoteles", "Estructura"];
 const DEFAULT_SKILLS = ["Preventa", "Jefatura de proyecto", "Arquitectura", "Formación"];
 const DEFAULT_LOCATIONS = ["Valencia", "Barcelona", "Madrid"];
-const DEFAULT_AREAS = ["Jefatura de proyecto", "Preventa", "Referente de conocimiento", "Formación"];
+const DEFAULT_AREAS = ["Jefatura de proyecto", "Preventa", "Referente de conocimiento", "Formación", "Proyectos/Mantenimiento"];
 const DEFAULT_AREA_MODULES = DEFAULT_AREAS.map((name, i) => ({
   id: "area-" + i,
   name,
@@ -6990,6 +6990,7 @@ function App() {
     }
   }, "Selecciona empleado y módulo para comenzar"))))));
 }
+
 </script>
 
 <script>
