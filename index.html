@@ -3674,6 +3674,9 @@ const SettingsView = ({
   locations,
   addLocation,
   removeLocation,
+  factorBono,
+  setFactorBono,
+  showBonoTile,
   onBack,
   onLogout
 }) => {
@@ -3711,7 +3714,13 @@ const SettingsView = ({
     label: "Evaluadores",
     count: evaluators.length,
     accent: "#2563eb"
-  }];
+  }, ...(showBonoTile ? [{
+    key: "bono",
+    icon: "🎯",
+    label: "Bono por skills",
+    countLabel: Math.round((factorBono != null ? factorBono : 0.25) * 100) + "%",
+    accent: "#d946ef"
+  }] : [])];
   const renderModalContent = () => {
     if (activeModal === "excel") {
       return React.createElement(React.Fragment, null, React.createElement("div", {
@@ -3870,6 +3879,65 @@ const SettingsView = ({
         placeholder: "Nombre del evaluador..."
       });
     }
+    if (activeModal === "bono") {
+      const pct = Math.round((factorBono != null ? factorBono : 0.25) * 100);
+      return React.createElement(React.Fragment, null, React.createElement("div", {
+        style: {
+          fontSize: "12px",
+          color: C.text2,
+          lineHeight: "1.5",
+          marginBottom: "16px"
+        }
+      }, "Cuando un empleado tiene una skill (Jefatura de proyecto, Preventa, Formación, Referente de conocimiento...) y su evaluación en esa área supera a su nota operativa base (Proyectos/Mantenimiento), se suma un bono proporcional a la diferencia. Este factor determina qué porcentaje de esa diferencia se añade."), React.createElement("label", {
+        style: {
+          display: "block",
+          fontSize: "11px",
+          fontWeight: "700",
+          color: C.muted,
+          marginBottom: "8px"
+        }
+      }, "FACTOR DE BONO (%)"), React.createElement("div", {
+        style: {
+          display: "flex",
+          alignItems: "center",
+          gap: "12px"
+        }
+      }, React.createElement("input", {
+        type: "number",
+        min: 0,
+        max: 100,
+        step: 5,
+        value: pct,
+        onChange: e => {
+          const v = parseFloat(e.target.value);
+          if (!isNaN(v)) setFactorBono(Math.min(100, Math.max(0, v)) / 100);
+        },
+        style: {
+          width: "100px",
+          background: C.bg,
+          border: `1px solid ${C.border2}`,
+          borderRadius: "6px",
+          padding: "8px 10px",
+          fontSize: "14px",
+          fontWeight: "700",
+          outline: "none"
+        }
+      }), React.createElement("span", {
+        style: {
+          fontSize: "12px",
+          color: C.muted
+        }
+      }, "% de la diferencia (nota área − nota operativa base)")), React.createElement("div", {
+        style: {
+          fontSize: "11px",
+          color: C.muted,
+          marginTop: "14px",
+          background: C.bg,
+          borderRadius: "8px",
+          padding: "10px 12px"
+        }
+      }, "Ejemplo: operativa base 5.00, Referente de conocimiento 7.00, factor " + pct + "% → bono = (7.00 − 5.00) × " + (pct / 100).toFixed(2) + " = " + ((7 - 5) * (pct / 100)).toFixed(2) + " → nota ajustada " + (5 + (7 - 5) * (pct / 100)).toFixed(2)));
+    }
     return null;
   };
   const activeTile = TILES.find(t => t.key === activeModal);
@@ -3975,7 +4043,7 @@ const SettingsView = ({
       color: tile.accent,
       fontWeight: "600"
     }
-  }, tile.count + " elemento" + (tile.count !== 1 ? "s" : "")), React.createElement("div", {
+  }, tile.countLabel || tile.count + " elemento" + (tile.count !== 1 ? "s" : "")), React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "flex-end"
@@ -5662,9 +5730,12 @@ const ConvergenceDiagram = ({
     fill: finalLvl.color
   }, finalLvl.code, " · ", finalLvl.name)))));
 };
+const RESULTADOS_BASE_AREA = "Proyectos/Mantenimiento";
 const ResultadosEvaluacionView = ({
   employees,
   evalHistory,
+  areaModules,
+  factorBono,
   onBack,
   onLogout
 }) => {
@@ -5676,7 +5747,15 @@ const ResultadosEvaluacionView = ({
   const years = Array.from(new Set(empHistory.map(h => (h.fecha || "").slice(0, 4)).filter(Boolean))).sort((a, b) => b.localeCompare(a));
   const effectiveYear = years.includes(selYear) ? selYear : years[0] || "";
   const conoEntries = empHistory.filter(h => (h.tipo || "conocimiento") === "conocimiento" && (h.fecha || "").slice(0, 4) === effectiveYear).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
-  const opEntries = empHistory.filter(h => h.tipo === "operativo" && (h.fecha || "").slice(0, 4) === effectiveYear).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+
+  // areaNameOf: entradas antiguas (previas al selector de área) se tratan como el área base
+  const areaNameOf = h => h.areaNombre || h.moduloNombre || RESULTADOS_BASE_AREA;
+  const allOpEntries = empHistory.filter(h => h.tipo === "operativo" && (h.fecha || "").slice(0, 4) === effectiveYear).sort((a, b) => (b.fecha || "").localeCompare(a.fecha || ""));
+  // opEntries = evaluación operativa base (Proyectos/Mantenimiento, la que se hace a todos)
+  const opEntries = allOpEntries.filter(h => areaNameOf(h) === RESULTADOS_BASE_AREA);
+  // skillOpEntries = evaluaciones de áreas especiales (JP, Preventa, Formación, Referente de conocimiento...)
+  const skillOpEntries = allOpEntries.filter(h => areaNameOf(h) !== RESULTADOS_BASE_AREA);
+  const empSkills = selEmp ? [...new Set(selEmp.skills?.length ? selEmp.skills : selEmp.skill ? [selEmp.skill] : [])] : [];
 
   // notaFinal ya viene calculado sobre 1-10 (con fallback por si alguna entrada muy antigua no lo tuviera)
   const nota10 = e => e.notaFinal != null ? e.notaFinal : toScale10(e.globalScore != null ? e.globalScore : 1);
@@ -5698,7 +5777,36 @@ const ResultadosEvaluacionView = ({
     };
   };
   const conoRes = resolveSide(conoEntries, conoChoice);
-  const opRes = resolveSide(opEntries, opChoice);
+  const opBase = resolveSide(opEntries, opChoice);
+
+  // --- Bono por skills: por cada skill del empleado con evaluación de área en el mismo año,
+  // si su nota supera la operativa base, se suma un bono proporcional a la diferencia. Nunca resta. ---
+  const bonoFactor = factorBono != null ? factorBono : 0.25;
+  const bonoBreakdown = [];
+  let bonoTotal = 0;
+  if (opBase) {
+    for (const areaName of empSkills) {
+      const entries = skillOpEntries.filter(h => areaNameOf(h) === areaName);
+      if (!entries.length) continue;
+      const areaNota = entries.reduce((s, e) => s + nota10(e), 0) / entries.length;
+      const diff = areaNota - opBase.score;
+      if (diff > 0) {
+        const bono = diff * bonoFactor;
+        bonoTotal += bono;
+        bonoBreakdown.push({
+          areaName,
+          areaNota,
+          bono
+        });
+      }
+    }
+  }
+  const opRes = opBase ? {
+    score: Math.min(10, opBase.score + bonoTotal),
+    raw: opBase.score,
+    bonoTotal,
+    sourceLabel: opBase.sourceLabel
+  } : null;
   const finalScore = conoRes && opRes ? (conoRes.score + opRes.score) / 2 : null;
   const finalLvl = finalScore !== null ? getLvlFrom10(finalScore) : null;
   const diagramKey = `${selEmp?.id || ""}-${effectiveYear}-${conoChoice || "d"}-${opChoice || "d"}`;
@@ -5869,7 +5977,7 @@ const ResultadosEvaluacionView = ({
       color: C.muted,
       fontSize: "13px"
     }
-  }, "Este empleado no tiene evaluaciones registradas todavía") : !conoEntries.length && !opEntries.length ? /*#__PURE__*/React.createElement("div", {
+  }, "Este empleado no tiene evaluaciones registradas todavía") : !conoEntries.length && !allOpEntries.length ? /*#__PURE__*/React.createElement("div", {
     style: {
       padding: "40px",
       textAlign: "center",
@@ -5896,7 +6004,7 @@ const ResultadosEvaluacionView = ({
     value: "avg"
   }, "Media de todas (", conoEntries.length, ")"))), opEntries.length > 1 && /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: labelStyle
-  }, "EVALUACIÓN OPERATIVA A USAR"), /*#__PURE__*/React.createElement("select", {
+  }, "EVALUACIÓN OPERATIVA BASE A USAR (Proyectos/Mantenimiento)"), /*#__PURE__*/React.createElement("select", {
     value: opChoice || String(opEntries[0]._hid),
     onChange: e => setOpChoice(e.target.value),
     style: sourceSelectStyle
@@ -5911,7 +6019,59 @@ const ResultadosEvaluacionView = ({
     op: opRes,
     finalScore: finalScore,
     finalLvl: finalLvl
-  }))));
+  }), !opEntries.length && skillOpEntries.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#fff7e6",
+      border: "1px solid #f0c36d",
+      borderRadius: "8px",
+      padding: "10px 14px",
+      fontSize: "12px",
+      color: "#8a6116",
+      fontWeight: "600",
+      marginTop: "14px"
+    }
+  }, "⚠️ Este empleado tiene evaluaciones de área en ", effectiveYear, " pero ninguna operativa base (", RESULTADOS_BASE_AREA, "), así que no se puede calcular el bono."), opRes && bonoBreakdown.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      border: `1px solid ${C.border}`,
+      borderRadius: "12px",
+      padding: "16px 20px",
+      marginTop: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      fontWeight: "700",
+      color: C.muted,
+      textTransform: "uppercase",
+      letterSpacing: "0.05em",
+      marginBottom: "10px"
+    }
+  }, "🎯 Bono por skills sobre la nota operativa"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: C.text2,
+      marginBottom: "10px"
+    }
+  }, "Base: ", /*#__PURE__*/React.createElement("strong", null, opRes.raw.toFixed(2), " / 10"), " → Ajustada: ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: "#0d9488"
+    }
+  }, opRes.score.toFixed(2), " / 10"), " (+", opRes.bonoTotal.toFixed(2), ")"), bonoBreakdown.map(b => /*#__PURE__*/React.createElement("div", {
+    key: b.areaName,
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      fontSize: "12px",
+      padding: "6px 0",
+      borderTop: `1px solid ${C.rowBorder}`
+    }
+  }, /*#__PURE__*/React.createElement("span", null, b.areaName, " · ", b.areaNota.toFixed(2), " / 10"), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: "700",
+      color: "#16a34a"
+    }
+  }, "+", b.bono.toFixed(2))))))));
 };
 function App() {
   const [appScreen, setAppScreen] = useState("home");
@@ -5948,6 +6108,7 @@ function App() {
   const [skills, setSkills] = useState(DEFAULT_SKILLS);
   const [locations, setLocations] = useState(DEFAULT_LOCATIONS);
   const [areaModules, setAreaModules] = useState(DEFAULT_AREA_MODULES);
+  const [factorBono, setFactorBono] = useState(0.25);
   const [selectedEmployeeOp, setSelectedEmployeeOp] = useState(null);
   const [selectedAreaOp, setSelectedAreaOp] = useState(null);
   const [evalDateOp, setEvalDateOp] = useState(today());
@@ -6011,7 +6172,8 @@ function App() {
               sectors: lsGet("sap-qm-sectors"),
               skills: lsGet("sap-qm-skills"),
               locations: lsGet("sap-qm-locations"),
-              areaModules: lsGet("sap-op-areas")
+              areaModules: lsGet("sap-op-areas"),
+              factorBono: lsGet("sap-op-factor-bono")
             };
             await db.collection("appData").doc("config").set(cfg);
             console.log("Config migrada a Firestore");
@@ -6042,6 +6204,7 @@ function App() {
               ambitoOrder: []
             }))] : cfg.areaModules);
           }
+          if (cfg.factorBono != null) setFactorBono(cfg.factorBono);
           cfgOk = true;
         } catch (e) {
           console.error("Fallo leyendo/migrando config — no se escribe nada en Firestore:", e);
@@ -6093,6 +6256,7 @@ function App() {
       if (cfg.skills) setSkills(cfg.skills);
       if (cfg.locations) setLocations(cfg.locations);
       if (cfg.areaModules) setAreaModules(cfg.areaModules);
+      if (cfg.factorBono != null) setFactorBono(cfg.factorBono);
     }, err => console.error("onSnapshot config error:", err));
     return () => {
       unsubEmp();
@@ -6123,7 +6287,8 @@ function App() {
           sectors,
           skills,
           locations,
-          areaModules
+          areaModules,
+          factorBono
         });
         // Backup local (no es la fuente de verdad, solo caché por si falla la red)
         try {
@@ -6135,12 +6300,13 @@ function App() {
           localStorage.setItem("sap-qm-skills", JSON.stringify(skills));
           localStorage.setItem("sap-qm-locations", JSON.stringify(locations));
           localStorage.setItem("sap-op-areas", JSON.stringify(areaModules));
+          localStorage.setItem("sap-op-factor-bono", JSON.stringify(factorBono));
         } catch (e) {}
       } catch (e) {
         console.error("Save error:", e);
       }
     })();
-  }, [dataReady, canAutoSave, modules, evaluators, employees, evalHistory, sapModules, sectors, skills, locations, areaModules]);
+  }, [dataReady, canAutoSave, modules, evaluators, employees, evalHistory, sapModules, sectors, skills, locations, areaModules, factorBono]);
   const retryLoad = () => {
     setLoadError(false);
     setRetryTick(t => t + 1);
@@ -6361,6 +6527,8 @@ function App() {
   if (appScreen === "resultados") return /*#__PURE__*/React.createElement(ResultadosEvaluacionView, {
     employees: employees,
     evalHistory: evalHistory,
+    areaModules: areaModules,
+    factorBono: factorBono,
     onBack: () => setAppScreen("home"),
     onLogout: () => window.doLogout()
   });
@@ -6444,6 +6612,9 @@ function App() {
     locations: locations,
     addLocation: addLocation,
     removeLocation: removeLocation,
+    factorBono: factorBono,
+    setFactorBono: setFactorBono,
+    showBonoTile: true,
     onBack: () => setViewOp("eval-op"),
     onLogout: () => window.doLogout()
   });
@@ -6990,7 +7161,6 @@ function App() {
     }
   }, "Selecciona empleado y módulo para comenzar"))))));
 }
-
 </script>
 
 <script>
