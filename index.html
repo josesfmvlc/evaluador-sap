@@ -5,7 +5,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@700;800&display=swap">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>EvaluadorSAP QM</title>
   <style>
@@ -5607,6 +5607,15 @@ const HistorialModal = ({
     modules: modules
   }));
 };
+const HZ = {
+  card: "#ffffff",
+  line: "#E3E9F2",
+  sub: "#5B6B82",
+  navy: "#0A2540",
+  blue: "#2F6FE0",
+  teal: "#0EA88F",
+  font: "'Manrope',system-ui,sans-serif"
+};
 const ConvergenceDiagram = ({
   cono,
   op,
@@ -5618,14 +5627,20 @@ const ConvergenceDiagram = ({
   const onlyOne = hasCono !== hasOp;
   const conoX = onlyOne ? 220 : 30;
   const opX = onlyOne ? 220 : 410;
+  const ringR = 56;
+  const ringC = 2 * Math.PI * ringR;
+  const pct = finalScore !== null ? Math.max(0, Math.min(1, finalScore / 10)) : 0;
+  const ringOffset = ringC * (1 - pct);
+  const lvlColor = finalLvl ? finalLvl.color : HZ.blue;
   return /*#__PURE__*/React.createElement("div", {
     style: {
-      background: C.card,
-      border: `1px solid ${C.border}`,
-      borderRadius: "12px",
-      padding: "24px",
+      background: HZ.card,
+      border: `1px solid ${HZ.line}`,
+      borderRadius: "20px",
+      padding: "26px 24px",
       display: "flex",
-      justifyContent: "center"
+      justifyContent: "center",
+      boxShadow: "0 1px 2px rgba(15,27,45,0.04), 0 20px 40px -24px rgba(15,27,45,0.16)"
     }
   }, /*#__PURE__*/React.createElement("svg", {
     width: "100%",
@@ -5633,102 +5648,151 @@ const ConvergenceDiagram = ({
     style: {
       maxWidth: "620px"
     }
-  }, hasCono && /*#__PURE__*/React.createElement("g", {
-    className: "rz-node-l"
-  }, /*#__PURE__*/React.createElement("rect", {
+  }, /*#__PURE__*/React.createElement("defs", null, /*#__PURE__*/React.createElement("linearGradient", {
+    id: "hzBlueCard",
+    x1: "0",
+    y1: "0",
+    x2: "1",
+    y2: "1"
+  }, /*#__PURE__*/React.createElement("stop", {
+    offset: "0",
+    stopColor: "#EAF2FB"
+  }), /*#__PURE__*/React.createElement("stop", {
+    offset: "1",
+    stopColor: "#ffffff"
+  })), /*#__PURE__*/React.createElement("linearGradient", {
+    id: "hzTealCard",
+    x1: "0",
+    y1: "0",
+    x2: "1",
+    y2: "1"
+  }, /*#__PURE__*/React.createElement("stop", {
+    offset: "0",
+    stopColor: "#E3F7F3"
+  }), /*#__PURE__*/React.createElement("stop", {
+    offset: "1",
+    stopColor: "#ffffff"
+  }))), hasCono && /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
     x: conoX,
     y: "30",
     width: "200",
-    height: "64",
-    rx: "10",
-    fill: "#eff6ff",
-    stroke: "#2563eb",
+    height: "66",
+    rx: "16",
+    fill: "url(#hzBlueCard)",
+    stroke: "#D7E4FA",
     strokeWidth: "1"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: conoX + 20,
+    cy: "50",
+    r: "4",
+    fill: HZ.blue
   }), /*#__PURE__*/React.createElement("text", {
-    x: conoX + 100,
+    x: conoX + 32,
     y: "54",
-    textAnchor: "middle",
-    fontSize: "13",
-    fontWeight: "700",
-    fill: "#1a2332"
-  }, "📊 Conocimiento"), /*#__PURE__*/React.createElement("text", {
-    x: conoX + 100,
-    y: "78",
-    textAnchor: "middle",
-    fontSize: "18",
+    fontSize: "12",
+    fontWeight: "600",
+    fill: HZ.sub
+  }, "Conocimiento"), /*#__PURE__*/React.createElement("text", {
+    x: conoX + 20,
+    y: "80",
+    fontSize: "22",
     fontWeight: "800",
-    fill: "#2563eb"
-  }, cono.score.toFixed(2), " / 10")), hasOp && /*#__PURE__*/React.createElement("g", {
-    className: "rz-node-r"
-  }, /*#__PURE__*/React.createElement("rect", {
+    fill: HZ.blue,
+    fontFamily: HZ.font
+  }, cono.score.toFixed(2), /*#__PURE__*/React.createElement("tspan", {
+    fontSize: "12",
+    fontWeight: "600",
+    fill: HZ.sub
+  }, " / 10"))), hasOp && /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("rect", {
     x: opX,
     y: "30",
     width: "200",
-    height: "64",
-    rx: "10",
-    fill: "#f0fdfa",
-    stroke: "#0d9488",
+    height: "66",
+    rx: "16",
+    fill: "url(#hzTealCard)",
+    stroke: "#CDEEE7",
     strokeWidth: "1"
+  }), /*#__PURE__*/React.createElement("circle", {
+    cx: opX + 20,
+    cy: "50",
+    r: "4",
+    fill: HZ.teal
   }), /*#__PURE__*/React.createElement("text", {
-    x: opX + 100,
+    x: opX + 32,
     y: "54",
-    textAnchor: "middle",
-    fontSize: "13",
-    fontWeight: "700",
-    fill: "#1a2332"
-  }, "🧭 Operativa"), /*#__PURE__*/React.createElement("text", {
-    x: opX + 100,
-    y: "78",
-    textAnchor: "middle",
-    fontSize: "18",
+    fontSize: "12",
+    fontWeight: "600",
+    fill: HZ.sub
+  }, "Operativa"), /*#__PURE__*/React.createElement("text", {
+    x: opX + 20,
+    y: "80",
+    fontSize: "22",
     fontWeight: "800",
-    fill: "#0d9488"
-  }, op.score.toFixed(2), " / 10")), hasCono && hasOp && finalScore !== null && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
-    className: "rz-path",
-    pathLength: "100",
-    d: "M130,94 C130,170 220,200 280,240",
+    fill: HZ.teal,
+    fontFamily: HZ.font
+  }, op.score.toFixed(2), /*#__PURE__*/React.createElement("tspan", {
+    fontSize: "12",
+    fontWeight: "600",
+    fill: HZ.sub
+  }, " / 10"))), hasCono && hasOp && finalScore !== null && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("path", {
+    d: "M130,96 C130,150 280,170 300,214",
     fill: "none",
-    stroke: "#2563eb",
-    strokeWidth: "1.5"
+    stroke: HZ.blue,
+    strokeWidth: "2",
+    opacity: "0.5"
   }), /*#__PURE__*/React.createElement("path", {
-    className: "rz-path",
-    pathLength: "100",
-    d: "M510,94 C510,170 420,200 360,240",
+    d: "M510,96 C510,150 360,170 340,214",
     fill: "none",
-    stroke: "#0d9488",
-    strokeWidth: "1.5"
-  }), /*#__PURE__*/React.createElement("g", {
-    className: "rz-final"
-  }, /*#__PURE__*/React.createElement("circle", {
-    className: "rz-ring",
+    stroke: HZ.teal,
+    strokeWidth: "2",
+    opacity: "0.5"
+  }), /*#__PURE__*/React.createElement("g", null, /*#__PURE__*/React.createElement("circle", {
     cx: "320",
     cy: "270",
-    r: "56",
+    r: ringR,
     fill: "none",
-    stroke: finalLvl.color,
-    strokeWidth: "1"
+    stroke: HZ.line,
+    strokeWidth: "10"
   }), /*#__PURE__*/React.createElement("circle", {
     cx: "320",
     cy: "270",
-    r: "46",
-    fill: "white",
-    stroke: finalLvl.color,
-    strokeWidth: "2"
+    r: ringR,
+    fill: "none",
+    stroke: lvlColor,
+    strokeWidth: "10",
+    strokeLinecap: "round",
+    strokeDasharray: ringC,
+    strokeDashoffset: ringOffset,
+    transform: "rotate(-90 320 270)"
   }), /*#__PURE__*/React.createElement("text", {
     x: "320",
-    y: "264",
+    y: "266",
     textAnchor: "middle",
-    fontSize: "20",
+    fontSize: "24",
     fontWeight: "800",
-    fill: finalLvl.color
-  }, finalScore.toFixed(2), " / 10"), /*#__PURE__*/React.createElement("text", {
+    fill: HZ.navy,
+    fontFamily: HZ.font
+  }, finalScore.toFixed(2), /*#__PURE__*/React.createElement("tspan", {
+    fontSize: "12",
+    fontWeight: "600",
+    fill: HZ.sub
+  }, " /10")), /*#__PURE__*/React.createElement("rect", {
+    x: "258",
+    y: "277",
+    width: "124",
+    height: "21",
+    rx: "10.5",
+    fill: lvlColor,
+    fillOpacity: "0.12"
+  }), /*#__PURE__*/React.createElement("text", {
     x: "320",
-    y: "286",
+    y: "291",
     textAnchor: "middle",
-    fontSize: "11",
+    fontSize: "10.5",
     fontWeight: "700",
-    fill: finalLvl.color
-  }, finalLvl.code, " · ", finalLvl.name)))));
+    letterSpacing: "0.03em",
+    fill: lvlColor
+  }, finalLvl.code, " · ", finalLvl.name.toUpperCase())))));
 };
 const RESULTADOS_BASE_AREA = "Proyectos/Mantenimiento";
 const ResultadosEvaluacionView = ({
@@ -5823,8 +5887,9 @@ const ResultadosEvaluacionView = ({
     display: "block",
     fontSize: "11px",
     fontWeight: "700",
-    color: C.muted,
-    marginBottom: "6px"
+    color: HZ.sub,
+    letterSpacing: "0.07em",
+    marginBottom: "7px"
   };
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -5911,17 +5976,18 @@ const ResultadosEvaluacionView = ({
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
-      background: C.card,
-      borderRadius: "12px",
-      padding: "20px",
-      border: `1px solid ${C.border}`,
-      marginBottom: "20px"
+      background: HZ.card,
+      borderRadius: "18px",
+      padding: "22px 24px",
+      border: `1px solid ${HZ.line}`,
+      marginBottom: "20px",
+      boxShadow: "0 1px 2px rgba(15,27,45,0.03), 0 16px 32px -24px rgba(15,27,45,0.14)"
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-      gap: "12px"
+      gap: "14px"
     }
   }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: labelStyle
@@ -6032,46 +6098,85 @@ const ResultadosEvaluacionView = ({
     }
   }, "⚠️ Este empleado tiene evaluaciones de área en ", effectiveYear, " pero ninguna operativa base (", RESULTADOS_BASE_AREA, "), así que no se puede calcular el bono."), opRes && bonoBreakdown.length > 0 && /*#__PURE__*/React.createElement("div", {
     style: {
-      background: C.card,
-      border: `1px solid ${C.border}`,
-      borderRadius: "12px",
-      padding: "16px 20px",
-      marginTop: "14px"
+      background: HZ.card,
+      border: `1px solid ${HZ.line}`,
+      borderRadius: "18px",
+      padding: "20px 22px",
+      marginTop: "16px",
+      boxShadow: "0 1px 2px rgba(15,27,45,0.03), 0 16px 32px -24px rgba(15,27,45,0.14)"
     }
   }, /*#__PURE__*/React.createElement("div", {
     style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
       fontSize: "11px",
       fontWeight: "700",
-      color: C.muted,
+      color: HZ.sub,
       textTransform: "uppercase",
-      letterSpacing: "0.05em",
-      marginBottom: "10px"
+      letterSpacing: "0.06em",
+      marginBottom: "14px"
     }
-  }, "🎯 Bono por skills sobre la nota operativa"), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", {
     style: {
-      fontSize: "12px",
-      color: C.text2,
-      marginBottom: "10px"
+      width: "22px",
+      height: "22px",
+      borderRadius: "8px",
+      background: HZ.navy,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "12px"
     }
-  }, "Base: ", /*#__PURE__*/React.createElement("strong", null, opRes.raw.toFixed(2), " / 10"), " → Ajustada: ", /*#__PURE__*/React.createElement("strong", {
+  }, "🎯"), "Bono por skills sobre la nota operativa"), /*#__PURE__*/React.createElement("div", {
     style: {
-      color: "#0d9488"
+      fontSize: "13px",
+      color: HZ.sub,
+      marginBottom: "14px"
     }
-  }, opRes.score.toFixed(2), " / 10"), " (+", opRes.bonoTotal.toFixed(2), ")"), bonoBreakdown.map(b => /*#__PURE__*/React.createElement("div", {
+  }, "Base: ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: HZ.navy
+    }
+  }, opRes.raw.toFixed(2), " / 10"), " → Ajustada: ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: HZ.teal,
+      fontFamily: HZ.font,
+      fontSize: "14px"
+    }
+  }, opRes.score.toFixed(2), " / 10"), " ", /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: HZ.teal,
+      fontWeight: "700"
+    }
+  }, "(+", opRes.bonoTotal.toFixed(2), ")")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px"
+    }
+  }, bonoBreakdown.map(b => /*#__PURE__*/React.createElement("div", {
     key: b.areaName,
     style: {
       display: "flex",
       justifyContent: "space-between",
-      fontSize: "12px",
-      padding: "6px 0",
-      borderTop: `1px solid ${C.rowBorder}`
+      alignItems: "center",
+      fontSize: "13px",
+      padding: "10px 14px",
+      background: "#F5F9FE",
+      borderRadius: "12px"
     }
-  }, /*#__PURE__*/React.createElement("span", null, b.areaName, " · ", b.areaNota.toFixed(2), " / 10"), /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement("span", null, b.areaName, " ", /*#__PURE__*/React.createElement("span", {
     style: {
-      fontWeight: "700",
-      color: "#16a34a"
+      color: HZ.sub
     }
-  }, "+", b.bono.toFixed(2))))))));
+  }, "· ", b.areaNota.toFixed(2), " / 10")), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontWeight: "800",
+      color: HZ.teal,
+      fontFamily: HZ.font
+    }
+  }, "+", b.bono.toFixed(2)))))))));
 };
 function App() {
   const [appScreen, setAppScreen] = useState("home");
