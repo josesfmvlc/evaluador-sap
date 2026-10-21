@@ -3633,7 +3633,42 @@ const HomeScreen = ({
       fontSize: "38px",
       filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
     }
-  }, "\uD83D\uDC65")))))));
+  }, "\uD83D\uDC65"))), /*#__PURE__*/React.createElement("div", {
+    onMouseEnter: () => setHovered("test"),
+    onMouseLeave: () => setHovered(null),
+    style: {
+      background: "white",
+      border: `1px solid ${hovered === "test" ? "#2563eb" : "#d0d7de"}`,
+      borderRadius: "16px",
+      padding: "16px",
+      width: "180px",
+      height: "180px",
+      cursor: "default",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "space-between",
+      boxShadow: hovered === "test" ? "0 4px 14px rgba(37,99,235,0.18)" : "0 1px 4px rgba(0,0,0,0.07)",
+      transition: "all 0.15s",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      fontWeight: "600",
+      color: "#1a2332",
+      lineHeight: "1.35"
+    }
+  }, "TEST"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "flex-end"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "38px",
+      filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
+    }
+  }, "\uD83E\uDDEA")))))));
 };
 const SimpleItemList = ({
   items,
