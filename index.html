@@ -290,10 +290,55 @@ const excelDateToISO = v => {
   }
   return "";
 };
-const parseNivel = v => {
-  const m = String(v || "").trim().match(/^(V\d(?:\.\d)?|R)\b/i);
-  return m ? m[1].toUpperCase() : "";
-};
+function exportarEmpleadosExcel(employees) {
+  if (!employees.length) {
+    alert("No hay empleados que exportar.");
+    return;
+  }
+  const lista = employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+  const modsDe = e => e.modules && e.modules.length ? e.modules : e.module ? [e.module] : [];
+  const skillsDe = e => e.skills && e.skills.length ? e.skills : e.skill ? [e.skill] : [];
+  const nMod = Math.max(3, ...lista.map(e => modsDe(e).length));
+  const nSkill = Math.max(3, ...lista.map(e => skillsDe(e).length));
+  const fecha = v => {
+    const m = String(v || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}/${m[2]}/${m[1]}` : "";
+  };
+  const cab = ["Nombre", "Sector", ...Array.from({ length: nSkill }, (_, i) => "Skill " + (i + 1)), "Ubicación", "Antigüedad", "Experiencia SAP", ...Array.from({ length: nMod }, (_, i) => "Módulo " + (i + 1))];
+  const filas = lista.map(e => {
+    const sk = skillsDe(e), md = modsDe(e);
+    return [e.nombre || "", e.sector || "", ...Array.from({ length: nSkill }, (_, i) => sk[i] || ""), e.location || "", fecha(e.antiguedad), fecha(e.expSap), ...Array.from({ length: nMod }, (_, i) => md[i] || "")];
+  });
+  const ws = XLSX.utils.aoa_to_sheet([cab, ...filas]);
+  ws["!cols"] = cab.map((h, i) => ({ wch: i === 0 ? 34 : 18 }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Empleados");
+  XLSX.writeFile(wb, "empleados_" + new Date().toISOString().slice(0, 10) + ".xlsx");
+}
+
+function descargarPlantillaEmpleados() {
+  const cab = ["Nombre", "Sector", "Skill 1", "Skill 2", "Skill 3", "Ubicación", "Antigüedad", "Experiencia SAP", "Módulo 1", "Módulo 2", "Módulo 3"];
+  const ws = XLSX.utils.aoa_to_sheet([cab]);
+  ws["!cols"] = cab.map((h, i) => ({ wch: i === 0 ? 34 : 18 }));
+  const ayuda = [
+    ["Columna", "Qué poner", "Ejemplo"],
+    ["Nombre", "Obligatorio, en la primera columna. Si ya existe un empleado con ese nombre se actualiza; si no, se añade.", "Apellido1 Apellido2, Nombre"],
+    ["Sector", "Texto libre.", "Industria"],
+    ["Skill 1, 2, 3...", "Un skill por columna. Puedes añadir más columnas cuyo título empiece por «Skill».", "Funcional"],
+    ["Ubicación", "Texto libre.", "Valencia"],
+    ["Antigüedad", "Fecha de incorporación a la empresa: DD/MM/AAAA, AAAA-MM-DD, fecha de Excel o solo el año.", "15/03/2018"],
+    ["Experiencia SAP", "Fecha desde la que tiene experiencia SAP, mismo formato que Antigüedad.", "01/09/2015"],
+    ["Módulo 1, 2, 3...", "Un módulo por columna. Puedes añadir más columnas cuyo título empiece por «Módulo».", "SAP QM"],
+    [],
+    ["Notas", "Se lee solo la primera hoja (Plantilla). Los títulos de columna pueden ir en cualquier orden, excepto Nombre, que debe ser la primera. Las celdas vacías se admiten."]
+  ];
+  const wa = XLSX.utils.aoa_to_sheet(ayuda);
+  wa["!cols"] = [{ wch: 20 }, { wch: 90 }, { wch: 30 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Plantilla");
+  XLSX.utils.book_append_sheet(wb, wa, "Instrucciones");
+  XLSX.writeFile(wb, "plantilla_empleados.xlsx");
+}
 function parseEmployeesExcel(ab) {
   const wb = XLSX.read(new Uint8Array(ab), {
     type: "array",
@@ -315,8 +360,11 @@ function parseEmployeesExcel(ab) {
     if (h.includes("modulo") || h.includes("mod ")) acc.push(i);
     return acc;
   }, []);
+  const skillIdxs = headers.reduce((acc, h, i) => {
+    if (h.includes("skill")) acc.push(i);
+    return acc;
+  }, []);
   const idx = {
-    nivel: findH("nivel"),
     sector: findH("sector"),
     skill: findH("skill"),
     location: findH("ubicacion", "ubicacion", "location"),
@@ -329,18 +377,19 @@ function parseEmployeesExcel(ab) {
     const nombre = String(r[0] || "").trim();
     if (!nombre) continue;
     const modules = moduleIdxs.map(mi => String(r[mi] || "").trim()).filter(Boolean);
+    const skills = skillIdxs.map(si => String(r[si] || "").trim()).filter(Boolean);
     const emp = {
       id: "emp-" + Date.now() + Math.random(),
       nombre,
-      nivel: parseNivel(idx.nivel >= 0 ? r[idx.nivel] : ""),
       modules,
       module: modules[0] || "",
       sector: idx.sector >= 0 ? String(r[idx.sector] || "").trim() : "",
-      skill: idx.skill >= 0 ? String(r[idx.skill] || "").trim() : "",
+      skill: skills[0] || "",
       location: idx.location >= 0 ? String(r[idx.location] || "").trim() : "",
       antiguedad: idx.antiguedad >= 0 ? excelDateToISO(r[idx.antiguedad]) : "",
       expSap: idx.expSap >= 0 ? excelDateToISO(r[idx.expSap]) : ""
     };
+    if (skillIdxs.length) emp.skills = skills;
     emps.push(emp);
   }
   return emps;
@@ -820,17 +869,19 @@ const EmployeeListWithFilters = ({
   removeEmployee,
   updateEmployee,
   onBulkAdd,
+  onBulkRemove,
   onCreateNew
 }) => {
   const [filters, setFilters] = useState({
     nombre: "",
-    nivel: [],
     module: [],
     skill: [],
     antiguedad: [],
     expSap: []
   });
   const [importMsg, setImportMsg] = useState("");
+  const [selMode, setSelMode] = useState(false);
+  const [sel, setSel] = useState([]);
   const bulkRef = useRef(null);
   const setF = (k, v) => setFilters(f => ({
     ...f,
@@ -854,7 +905,6 @@ const EmployeeListWithFilters = ({
     r.readAsArrayBuffer(f);
     e.target.value = "";
   };
-  const allNiveles = [...new Set(employees.map(e => e.nivel).filter(Boolean))].sort();
   const allModules = [...new Set(employees.flatMap(e => e.modules && e.modules.length ? e.modules : e.module ? [e.module] : []))].filter(Boolean).sort();
   const allSkills = [...new Set(employees.flatMap(e => e.skills && e.skills.length ? e.skills : e.skill ? [e.skill] : []))].filter(Boolean).sort();
   const allAntig = [...new Set(employees.map(e => e.antiguedad ? e.antiguedad.slice(0, 4) : "").filter(Boolean))].sort();
@@ -862,7 +912,43 @@ const EmployeeListWithFilters = ({
   const filtered = employees.filter(e => {
     const modList = e.modules && e.modules.length ? e.modules : e.module ? [e.module] : [];
     const skillList = e.skills && e.skills.length ? e.skills : e.skill ? [e.skill] : [];
-    return (!filters.nombre || e.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) && (!filters.nivel.length || filters.nivel.includes(e.nivel || "")) && (!filters.module.length || modList.some(m => filters.module.includes(m))) && (!filters.skill.length || skillList.some(s => filters.skill.includes(s))) && (!filters.antiguedad.length || filters.antiguedad.includes(e.antiguedad ? e.antiguedad.slice(0, 4) : "")) && (!filters.expSap.length || filters.expSap.includes(e.expSap ? e.expSap.slice(0, 4) : ""));
+    return (!filters.nombre || e.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) && (!filters.module.length || modList.some(m => filters.module.includes(m))) && (!filters.skill.length || skillList.some(s => filters.skill.includes(s))) && (!filters.antiguedad.length || filters.antiguedad.includes(e.antiguedad ? e.antiguedad.slice(0, 4) : "")) && (!filters.expSap.length || filters.expSap.includes(e.expSap ? e.expSap.slice(0, 4) : ""));
+  });
+  const toggleSel = id => setSel(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
+  const selVisibles = filtered.filter(e => sel.includes(e.id));
+  const todosSel = filtered.length > 0 && selVisibles.length === filtered.length;
+  const salirSel = () => {
+    setSelMode(false);
+    setSel([]);
+  };
+  const borrarSel = () => {
+    if (!selVisibles.length) return;
+    const n = selVisibles.length;
+    if (!window.confirm(`¿Eliminar ${n} empleado${n === 1 ? "" : "s"}? Esta acción no se puede deshacer.`)) return;
+    onBulkRemove(selVisibles.map(e => e.id));
+    setImportMsg(`✅ ${n} eliminado${n === 1 ? "" : "s"}`);
+    setTimeout(() => setImportMsg(""), 4000);
+    salirSel();
+  };
+  const masivoBtn = (bg, color, border) => ({
+    background: bg,
+    color,
+    border,
+    borderRadius: "6px",
+    padding: "6px 12px",
+    fontSize: "11px",
+    fontWeight: "600",
+    cursor: "pointer"
+  });
+  const checkSel = (checked, onChange) => /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked,
+    onChange,
+    style: {
+      marginRight: "10px",
+      cursor: "pointer",
+      verticalAlign: "middle"
+    }
   });
   return /*#__PURE__*/React.createElement("div", {
     style: {
@@ -913,7 +999,39 @@ const EmployeeListWithFilters = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "➕ Nuevo empleado"), /*#__PURE__*/React.createElement("input", {
+  }, "➕ Nuevo empleado"), /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      descargarPlantillaEmpleados();
+    },
+    title: "Descarga un Excel vacío con las columnas que espera Importar Excel",
+    style: {
+      background: C.card,
+      color: C.accent,
+      border: `1px solid ${C.accent}`,
+      borderRadius: "6px",
+      padding: "6px 12px",
+      fontSize: "11px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "📄 Plantilla Excel"), /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      exportarEmpleadosExcel(employees);
+    },
+    title: "Descarga todos los empleados en el formato de Importar Excel",
+    style: {
+      background: C.card,
+      color: C.accent,
+      border: `1px solid ${C.accent}`,
+      borderRadius: "6px",
+      padding: "6px 12px",
+      fontSize: "11px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "📤 Exportar empleados"), /*#__PURE__*/React.createElement("input", {
     ref: bulkRef,
     type: "file",
     accept: ".xlsx",
@@ -936,7 +1054,37 @@ const EmployeeListWithFilters = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "📥 Importar Excel"))), /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+  }, "📥 Importar Excel"), !selMode && /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      setSelMode(true);
+    },
+    title: "Seleccionar varios empleados para eliminarlos a la vez",
+    style: masivoBtn(C.card, "#dc2626", "1px solid #dc2626")
+  }, "☑️ Borrado masivo"), selMode && /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      setSel(todosSel ? [] : filtered.map(x => x.id));
+    },
+    style: masivoBtn(C.card, C.accent, `1px solid ${C.accent}`)
+  }, todosSel ? "Quitar selección" : "Seleccionar todos"), selMode && /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      borrarSel();
+    },
+    disabled: !selVisibles.length,
+    style: {
+      ...masivoBtn("#dc2626", "white", "none"),
+      opacity: selVisibles.length ? 1 : 0.5,
+      cursor: selVisibles.length ? "pointer" : "not-allowed"
+    }
+  }, `🗑 Borrar (${selVisibles.length})`), selMode && /*#__PURE__*/React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      salirSel();
+    },
+    style: masivoBtn(C.card, C.text2, `1px solid ${C.border2}`)
+  }, "Cancelar"))), /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     style: {
       marginBottom: "16px",
       display: "grid",
@@ -955,11 +1103,6 @@ const EmployeeListWithFilters = ({
       fontSize: "12px",
       outline: "none"
     }
-  }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
-    label: "Nivel",
-    options: allNiveles,
-    selected: filters.nivel,
-    onChange: v => setF("nivel", v)
   }), /*#__PURE__*/React.createElement(MultiSelectDropdown, {
     label: "Módulo",
     options: allModules,
@@ -1005,7 +1148,7 @@ const EmployeeListWithFilters = ({
       flex: 1,
       minWidth: "180px"
     }
-  }, "Nombre / Nivel"), /*#__PURE__*/React.createElement("div", {
+  }, selMode && checkSel(todosSel, () => setSel(todosSel ? [] : filtered.map(x => x.id))), "Nombre"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
@@ -1059,23 +1202,13 @@ const EmployeeListWithFilters = ({
       flex: 1,
       minWidth: "180px"
     }
-  }, /*#__PURE__*/React.createElement("span", {
+  }, selMode && checkSel(sel.includes(e.id), () => toggleSel(e.id)), /*#__PURE__*/React.createElement("span", {
     style: {
       fontSize: "13px",
       fontWeight: "600",
       color: C.text
     }
-  }, e.nombre), e.nivel && /*#__PURE__*/React.createElement("span", {
-    style: {
-      marginLeft: "8px",
-      fontSize: "10px",
-      fontWeight: "700",
-      color: "white",
-      background: C.accent,
-      borderRadius: "4px",
-      padding: "2px 6px"
-    }
-  }, e.nivel)), /*#__PURE__*/React.createElement("div", {
+  }, e.nombre)), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
@@ -1326,7 +1459,6 @@ const ItemListSection = ({
     }
   }, "Añadir"))));
 };
-const NIVEL_OPTS = ["", "V1", "V2", "V2.1", "V2.2", "V3", "V3.1", "V3.2", "V4", "V4.1", "V4.2", "V4.3", "R"];
 const EditEmployeeModal = ({
   emp,
   isNew,
@@ -1341,7 +1473,6 @@ const EditEmployeeModal = ({
 }) => {
   const [form, setForm] = useState({
     nombre: "",
-    nivel: "",
     location: "",
     antiguedad: "",
     expSap: "",
@@ -1441,15 +1572,6 @@ const EditEmployeeModal = ({
     onChange: e => set("nombre", e.target.value),
     style: inp
   })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
-    style: lbl
-  }, "Nivel"), /*#__PURE__*/React.createElement("select", {
-    value: form.nivel || "",
-    onChange: e => set("nivel", e.target.value),
-    style: inp
-  }, NIVEL_OPTS.map(n => /*#__PURE__*/React.createElement("option", {
-    key: n,
-    value: n
-  }, n || "—")))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
     style: lbl
   }, "Ubicación"), /*#__PURE__*/React.createElement("select", {
     value: form.location || "",
@@ -3187,6 +3309,7 @@ const EmployeesView = ({
   removeEmployee,
   updateEmployee,
   onBulkAdd,
+  onBulkRemove,
   sapModules,
   sectors,
   skills,
@@ -3297,6 +3420,7 @@ const EmployeesView = ({
     removeEmployee: removeEmployee,
     updateEmployee: updateEmployee,
     onBulkAdd: onBulkAdd,
+    onBulkRemove: onBulkRemove,
     onCreateNew: () => setCreatingEmp(true)
   }), (editingEmp || creatingEmp) && /*#__PURE__*/React.createElement(EditEmployeeModal, {
     emp: editingEmp || {},
@@ -3314,12 +3438,2066 @@ const EmployeesView = ({
     }
   })));
 };
+// ===================== Gestión de carga =====================
+// Los datos (nombres, horas) NO van en este HTML (es público): se importan desde la propia app y se guardan en Firestore:
+//   appData/carga_cfg          -> mapeo persona→sector/módulo, mapeo proyecto→sector, reglas (DDN, excluidos), índice de meses e historial
+//   appData/carga_m_AAAA-MM    -> imputaciones del mes agregadas por persona y proyecto
+// Esta vista lee y escribe solo esos documentos; no toca appData/employees ni appData/config.
+// Modo pruebas: abriendo la app con ?pruebas=1 se usan documentos aparte (appData/pruebas_carga_*), sin tocar los reales
+const CARGA_PRUEBAS = typeof location !== "undefined" && /[?&]pruebas=1(&|$)/.test(location.search);
+const CARGA_PREFIJO = CARGA_PRUEBAS ? "pruebas_" : "";
+const CARGA_CFG_DOC = CARGA_PREFIJO + "carga_cfg";
+const cargaMesDoc = mes => CARGA_PREFIJO + "carga_m_" + mes;
+// Colores de gráficos: paleta categórica validada (orden fijo, apto para daltonismo), rampa secuencial azul y colores de estado
+const CV = {
+  proy: "#2a78d6", disp: "#eb6834", ddn: "#1baf7a", vac: "#eda100", otros: "#c3c2b7",
+  grid: "#e1e0d9", axis: "#c3c2b7", muted: "#898781", ink: "#0b0b0b", ink2: "#52514e",
+  good: "#0ca30c", warn: "#fab219", serious: "#ec835a", crit: "#d03b3b", goodText: "#006300"
+};
+const CARGA_RAMPA = ["#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#256abf", "#184f95", "#0d366b"];
+const CARGA_GRUPOS = [
+  { key: "proy", label: "Proyecto", cats: ["Proyecto"], color: CV.proy },
+  { key: "disp", label: "Disponibilidad", cats: ["Disponibilidad", "Formación SAP", "Formación no SAP", "Onboarding", "Gestión de Equipos"], color: CV.disp },
+  { key: "ddn", label: "Desarrollo de Negocio", cats: ["Desarrollo de Negocio"], color: CV.ddn },
+  { key: "vac", label: "Vacaciones / Bajas", cats: ["Vacaciones", "Bajas y ausencias"], color: CV.vac },
+  { key: "otros", label: "Otros", cats: ["Becarios", "Genérica", "Management & Operation"], color: CV.otros }
+];
+const CARGA_CAT_GRUPO = Object.fromEntries(CARGA_GRUPOS.flatMap(g => g.cats.map(c => [c, g.key])));
+const CARGA_MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const cargaMesActual = () => new Date().toISOString().slice(0, 7);
+const cargaMesLabel = m => CARGA_MESES[parseInt(m.slice(5, 7), 10) - 1] + "-" + m.slice(2, 4);
+const cargaNorm = s => String(s == null ? "" : s).normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim();
+const cargaFmtH = n => (Math.round(n * 10) / 10).toLocaleString("es-ES");
+const cargaFmtP = v => v == null ? "—" : (v * 100).toLocaleString("es-ES", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + "%";
+const cargaFmtPct = (n, total) => total ? cargaFmtP(n / total) : "—";
+// Semáforo de % disponibilidad (mismo criterio que el formato condicional del Excel antiguo); siempre con texto, nunca solo color
+const cargaSemaforo = (disp, total) => {
+  if (!total) return null;
+  const p = disp / total;
+  return p <= 0.3 ? { color: CV.good, label: "≤ 30 %" } : p <= 0.4 ? { color: CV.warn, label: "30-40 %" } : { color: CV.crit, label: "> 40 %" };
+};
+// Categoría a partir del nombre del proyecto. Mismo orden que la fórmula IFS de "Datos en Bruto" del Excel antiguo;
+// la lista de proyectos que cuentan como Desarrollo de Negocio se edita en Ajustes (no se escribe aquí).
+const cargaCategoria = (proyecto, ddnSet) => {
+  const p = cargaNorm(proyecto);
+  if (p.includes("DISPONIBILIDAD")) return "Disponibilidad";
+  if (p.includes("FORMACION NO SAP")) return "Formación no SAP";
+  if (p.includes("FORMACION SAP")) return "Formación SAP";
+  if (p.includes("VACACIONES")) return "Vacaciones";
+  if (p.includes("ONBOARDING")) return "Onboarding";
+  if (p.includes("DESARROLLO DE NEGOCIO")) return "Desarrollo de Negocio";
+  if (p.includes("LEGAL - SAPHIA")) return "Desarrollo de Negocio";
+  if (ddnSet.has(p)) return "Desarrollo de Negocio";
+  if (p.includes("BECARIOS")) return "Becarios";
+  if (p.includes("BAJAS Y AUSENCIAS")) return "Bajas y ausencias";
+  if (p.includes("GESTION DE EQUIPOS")) return "Gestión de Equipos";
+  if (p.includes("GENERICA")) return "Genérica";
+  if (p.includes("MANAGEMENT & OPERATION")) return "Management & Operation";
+  return "Proyecto";
+};
+// Acumuladores de horas por grupo (+ formación, que es parte de disponibilidad)
+const cargaCero = () => ({ total: 0, disp: 0, proy: 0, ddn: 0, vac: 0, otros: 0, form: 0 });
+const cargaAcumular = (t, r) => {
+  t.total += r.h;
+  t[r.grupo] += r.h;
+  if (r.cat === "Formación SAP" || r.cat === "Formación no SAP") t.form += r.h;
+  return t;
+};
+const cargaSumar = rows => rows.reduce(cargaAcumular, cargaCero());
+const cargaMediana = arr => {
+  const v = arr.filter(x => x > 0).sort((a, b) => a - b);
+  if (!v.length) return 0;
+  const m = Math.floor(v.length / 2);
+  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
+};
+const cargaNiceMax = v => {
+  if (!(v > 0)) return 1;
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+};
+const CARGA_METRICAS = {
+  disp_p: { label: "% Disponibilidad", pct: true, val: t => t.total ? t.disp / t.total : null },
+  proy_p: { label: "% Proyecto", pct: true, val: t => t.total ? t.proy / t.total : null },
+  ddn_p: { label: "% DDN", pct: true, val: t => t.total ? t.ddn / t.total : null },
+  vac_p: { label: "% Vac./Bajas", pct: true, val: t => t.total ? t.vac / t.total : null },
+  disp_h: { label: "Horas disponibles", val: t => t.disp },
+  proy_h: { label: "Horas proyecto", val: t => t.proy },
+  form_h: { label: "Horas formación", val: t => t.form },
+  ddn_h: { label: "Horas DDN", val: t => t.ddn }
+};
+const CARGA_DIMS = { modulo: "Módulo", sector: "Sector", persona: "Persona" };
+// ---------- Lectura de ficheros ----------
+const cargaLeerFichero = file => new Promise((resolve, reject) => {
+  const fr = new FileReader();
+  fr.onload = e => resolve(e.target.result);
+  fr.onerror = () => reject(new Error("No se pudo leer " + file.name));
+  fr.readAsArrayBuffer(file);
+});
+// CSV con ; o , (detectado en la cabecera), en UTF-8 o Windows-1252
+const cargaParseCSV = ab => {
+  let txt;
+  try { txt = new TextDecoder("utf-8", { fatal: true }).decode(ab); } catch (e) { txt = new TextDecoder("windows-1252").decode(ab); }
+  txt = txt.replace(/^﻿/, "");
+  const first = txt.split(/\r?\n/, 1)[0] || "";
+  const sep = (first.match(/;/g) || []).length >= (first.match(/,/g) || []).length ? ";" : ",";
+  const rows = [];
+  let row = [], cur = "", q = false;
+  for (let i = 0; i < txt.length; i++) {
+    const ch = txt[i];
+    if (q) {
+      if (ch === '"') { if (txt[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch;
+    } else if (ch === '"') q = true;
+    else if (ch === sep) { row.push(cur); cur = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && txt[i + 1] === "\n") i++;
+      row.push(cur); rows.push(row); row = []; cur = "";
+    } else cur += ch;
+  }
+  if (cur !== "" || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+};
+// Tablas de Excel (Insertar > Tabla) del .xlsx: sus límites mandan sobre lo que haya escrito debajo
+const cargaTablasExcel = datos => {
+  try {
+    const z = XLSX.CFB.read(datos, { type: "array" });
+    return z.FullPaths.filter(p => /xl\/tables\/table\d+\.xml$/i.test(p)).map(p => {
+      const x = new TextDecoder().decode(XLSX.CFB.find(z, p).content);
+      const ref = (x.match(/\bref="([^"]+)"/) || [])[1];
+      if (!ref) return null;
+      const rg = XLSX.utils.decode_range(ref);
+      return { filaIni: rg.s.r, filaFin: rg.e.r, cols: [...x.matchAll(/<tableColumn [^>]*name="([^"]+)"/g)].map(m => cargaNorm(m[1])) };
+    }).filter(Boolean);
+  } catch (e) {
+    return [];
+  }
+};
+// Devuelve [{name, rows, r0, tablas}] con todas las hojas del fichero (un CSV es una sola hoja); r0 = fila de la hoja donde empieza rows
+const cargaHojas = (ab, fileName) => {
+  if (/\.csv$/i.test(fileName)) return [{ name: fileName, rows: cargaParseCSV(ab), r0: 0, tablas: [] }];
+  const datos = new Uint8Array(ab);
+  const wb = XLSX.read(datos, { type: "array" });
+  const tablas = cargaTablasExcel(datos);
+  return wb.SheetNames.map(n => {
+    const ws = wb.Sheets[n];
+    return { name: n, rows: XLSX.utils.sheet_to_json(ws, { header: 1, defval: "", raw: true, blankrows: true }), r0: ws["!ref"] ? XLSX.utils.decode_range(ws["!ref"]).s.r : 0, tablas };
+  });
+};
+// Busca en las primeras filas una cabecera con todas las columnas obligatorias; devuelve {fila, idx} o null
+const cargaCabecera = (rows, req, opt = {}) => {
+  for (let r = 0; r < Math.min(rows.length, 10); r++) {
+    const h = (rows[r] || []).map(cargaNorm);
+    const find = alias => h.findIndex(x => alias.includes(x));
+    const idx = {};
+    if (!Object.entries(req).every(([k, a]) => (idx[k] = find(a)) >= 0)) continue;
+    Object.entries(opt).forEach(([k, a]) => { idx[k] = find(a); });
+    return { fila: r, idx };
+  }
+  return null;
+};
+// Fecha de una imputación → "AAAA-MM-DD" (número de serie de Excel, "AAAA-MM-DD" o "DD/MM/AAAA")
+const cargaFecha = v => {
+  if (typeof v === "number" && v > 20000 && v < 80000) return new Date(Math.round((v - 25569) * 86400000)).toISOString().slice(0, 10);
+  const s = String(v || "").trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})/);
+  if (m) return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return "";
+};
+const cargaFmtFecha = d => d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : "";
+// Meses ("AAAA-MM") que abarca un rango de días, ambos incluidos
+const cargaMesesEntre = (desde, hasta) => {
+  const out = [];
+  let a = +desde.slice(0, 4), m = +desde.slice(5, 7);
+  const fin = hasta.slice(0, 7);
+  for (let k = 0; k < 240; k++) {
+    const mes = `${a}-${String(m).padStart(2, "0")}`;
+    out.push(mes);
+    if (mes >= fin) break;
+    if (++m > 12) { m = 1; a++; }
+  }
+  return out;
+};
+// Documento de un mes en Firestore (formato 2): personas y proyectos una sola vez y las filas en texto compacto
+// "persona<TAB>proyecto<TAB>día<TAB>horas" por línea (pocos bytes y sin límite de campos indexados)
+const cargaCodificarMes = (mes, filas) => {
+  const personas = [], proyectos = [], iPer = new Map(), iPro = new Map();
+  const lineas = filas.map(f => {
+    const kp = f.nom + "|" + f.ape, kq = f.cod + "|" + f.pro;
+    if (!iPer.has(kp)) { iPer.set(kp, personas.length); personas.push({ n: f.nom, a: f.ape }); }
+    if (!iPro.has(kq)) { iPro.set(kq, proyectos.length); proyectos.push({ c: f.cod, p: f.pro }); }
+    return [iPer.get(kp), iPro.get(kq), f.dia.slice(8, 10), Math.round(f.h * 100) / 100].join("\t");
+  });
+  return { mes, formato: 2, personas, proyectos, filas: lineas.join("\n") };
+};
+// Lee un documento de mes: formato 2 (por día) o el formato antiguo (agregado por mes, sin día)
+const cargaDecodificarMes = (mes, data) => {
+  if (Array.isArray(data.filas)) return data.filas.map(f => ({ ...f, mes, dia: "" }));
+  const P = data.personas || [], Q = data.proyectos || [];
+  return String(data.filas || "").split("\n").filter(Boolean).map(l => {
+    const [pi, qi, d, h] = l.split("\t");
+    const p = P[+pi] || { n: "?", a: "" }, q = Q[+qi] || { c: "", p: "?" };
+    return { nom: p.n, ape: p.a, cod: q.c, pro: q.p, mes, dia: `${mes}-${d}`, h: +h };
+  });
+};
+const cargaNum = v => {
+  if (typeof v === "number") return v;
+  const s = String(v || "").trim();
+  const n = parseFloat(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s);
+  return isNaN(n) ? 0 : n;
+};
+// Imputaciones: export "InformeDetallado" o la hoja "Datos en Bruto" del Excel antiguo.
+// Solo se leen nombre, apellidos, horas, fecha y proyecto: cualquier otra columna (DNI, observaciones...) se ignora.
+const cargaParseImputaciones = hojas => {
+  for (const hoja of hojas) {
+    const cab = cargaCabecera(hoja.rows,
+      { nom: ["NOMBRE"], ape: ["APELLIDO 1", "APELLIDO1", "APELLIDOS"], h: ["HORAS"], fecha: ["FECHA"], pro: ["NOMBRE PROYECTO"] },
+      { ape2: ["APELLIDO2", "APELLIDO 2"], cod: ["CODIGO DE PROYECTO", "CODIGO PROYECTO"] });
+    if (!cab) continue;
+    const { idx } = cab;
+    // Si la cabecera es la de una tabla de Excel, solo se leen sus filas (en el Excel antiguo hay restos sueltos debajo de la tabla)
+    const tabla = (hoja.tablas || []).find(t => t.filaIni === hoja.r0 + cab.fila && ["NOMBRE", "HORAS", "FECHA", "NOMBRE PROYECTO"].every(c => t.cols.includes(c)));
+    const fin = tabla ? Math.min(hoja.rows.length, tabla.filaFin - hoja.r0 + 1) : hoja.rows.length;
+    const acc = new Map();
+    let leidas = 0, descartadas = 0;
+    for (let r = cab.fila + 1; r < fin; r++) {
+      const row = hoja.rows[r] || [];
+      const nom = String(row[idx.nom] || "").trim();
+      const ape = [row[idx.ape], idx.ape2 >= 0 ? row[idx.ape2] : ""].map(x => String(x || "").trim()).filter(Boolean).join(" ");
+      const dia = cargaFecha(row[idx.fecha]);
+      const h = cargaNum(row[idx.h]);
+      if (!nom || !dia || !h) { if (nom || h) descartadas++; continue; }
+      const pro = String(row[idx.pro] || "").trim();
+      const cod = idx.cod >= 0 ? String(row[idx.cod] || "").trim() : "";
+      const k = [nom, ape, dia, cod, pro].join("|");
+      const prev = acc.get(k);
+      if (prev) prev.h += h; else acc.set(k, { nom, ape, mes: dia.slice(0, 7), dia, cod, pro, h });
+      leidas++;
+    }
+    const filas = [...acc.values()].map(f => ({ ...f, h: Math.round(f.h * 100) / 100 }));
+    const dias = filas.map(f => f.dia).sort();
+    return { hoja: hoja.name + (tabla ? " (tabla de Excel)" : ""), filas, leidas, descartadas, desde: dias[0] || "", hasta: dias[dias.length - 1] || "", horas: filas.reduce((s, f) => s + f.h, 0) };
+  }
+  return null;
+};
+// Mapeo persona → sector/módulo: hoja "Mapeo Personas" del Excel antiguo (Nombre, Apellidos, Sector, Modulo, Modulo 2)
+// o CSV tipo "Cuadro de Mando" (NombreCompleto "Apellidos, Nombre", hBU, Modulo Principal, Modulo)
+const cargaParseMapeo = hojas => {
+  for (const hoja of hojas) {
+    const cab = cargaCabecera(hoja.rows,
+      { sector: ["SECTOR", "HBU"], modulo: ["MODULO PRINCIPAL", "MODULO"] },
+      { nom: ["NOMBRE"], ape: ["APELLIDOS"], completo: ["NOMBRECOMPLETO", "NOMBRE COMPLETO"] });
+    if (!cab) continue;
+    const { idx } = cab;
+    const porPartes = idx.nom >= 0 && idx.ape >= 0;
+    if (!porPartes && idx.completo < 0) continue;
+    const cabNorm = (hoja.rows[cab.fila] || []).map(cargaNorm);
+    const iMod2 = cabNorm.findIndex((x, i) => i !== idx.modulo && ["MODULO", "MODULO 2", "MODULO2"].includes(x));
+    const personas = [];
+    for (let r = cab.fila + 1; r < hoja.rows.length; r++) {
+      const row = hoja.rows[r] || [];
+      const txt = i => String(row[i] == null ? "" : row[i]).trim();
+      let nom, ape;
+      if (porPartes) { nom = txt(idx.nom); ape = txt(idx.ape); } else {
+        const c = txt(idx.completo), p = c.indexOf(",");
+        if (p >= 0) { ape = c.slice(0, p).trim(); nom = c.slice(p + 1).trim(); } else { nom = c; ape = ""; }
+      }
+      if (!nom) continue;
+      let modulo = txt(idx.modulo), modulo2 = iMod2 >= 0 ? txt(iMod2) : "";
+      if (!modulo2 && modulo.includes("/")) {
+        const partes = modulo.split("/");
+        modulo = partes[0].trim();
+        modulo2 = partes.slice(1).join("/").trim();
+      }
+      personas.push({ nom, ape, sector: txt(idx.sector), modulo, modulo2 });
+    }
+    if (personas.length) return { hoja: hoja.name, personas };
+  }
+  return null;
+};
+// Mapeo proyecto → sector: hoja "Mapeo Proyectos" del Excel antiguo (Código, Nombre, Sector)
+// o export de proyectos (Código, Nombre, ..., Hbu, ...): si hay columna Hbu, el sector se toma de ella
+const cargaParseProyectos = hojas => {
+  for (const hoja of hojas) {
+    const cab = cargaCabecera(hoja.rows, { cod: ["CODIGO"], nom: ["NOMBRE"] },
+      { hbu: ["HBU"], sector: ["SECTOR"], cliente: ["CLIENTE"], grupo: ["GRUPO"], tipo: ["TIPO"], estado: ["ESTADO"], region: ["REGION"], subsector: ["SUBSECTOR"] });
+    if (!cab) continue;
+    const { idx } = cab;
+    const iSec = idx.hbu >= 0 ? idx.hbu : idx.sector;
+    if (iSec < 0) continue;
+    const proyectos = [];
+    for (let r = cab.fila + 1; r < hoja.rows.length; r++) {
+      const row = hoja.rows[r] || [];
+      const txt = i => i >= 0 ? String(row[i] == null ? "" : row[i]).trim() : "";
+      const cod = txt(idx.cod), nom = txt(idx.nom);
+      if (!cod && !nom) continue;
+      const p = { cod, nom, sector: txt(iSec) };
+      // En el export de proyectos la columna "Sector" es el mercado (Growth, INTERNO...): se guarda aparte
+      if (idx.hbu >= 0 && idx.sector >= 0 && txt(idx.sector)) p.mercado = txt(idx.sector);
+      ["cliente", "grupo", "tipo", "estado", "region", "subsector"].forEach(k => { const v = txt(idx[k]); if (v) p[k] = v; });
+      proyectos.push(p);
+    }
+    if (proyectos.length) return { hoja: hoja.name + (idx.hbu >= 0 ? " (sector = columna Hbu)" : ""), proyectos };
+  }
+  return null;
+};
+// Actualiza el mapeo de proyectos guardado con un fichero nuevo, por código (o por nombre si no hay código):
+// altas, cambios campo a campo y se conservan los que no vienen (las imputaciones antiguas pueden seguir usándolos)
+const CARGA_CAMPOS_PRO = { nom: "Nombre", sector: "Sector (Hbu)", estado: "Estado", cliente: "Cliente", grupo: "Grupo", tipo: "Tipo", region: "Región", subsector: "Subsector", mercado: "Mercado" };
+const cargaFusionarProyectos = (actuales, nuevos, fecha) => {
+  const clave = p => p.cod ? "c:" + String(p.cod).trim() : "n:" + cargaNorm(p.nom);
+  const mapa = new Map((actuales || []).map(p => [clave(p), p]));
+  const vienen = new Set();
+  const altas = [], cambios = [], completados = [];
+  for (const n of nuevos) {
+    const k = clave(n);
+    vienen.add(k);
+    const a = mapa.get(k);
+    const limpio = Object.fromEntries(Object.entries(n).filter(([, v]) => v !== "" && v != null));
+    if (!a) { altas.push(n); mapa.set(k, { ...limpio, alta: fecha, actualizado: fecha }); continue; }
+    const campos = Object.keys(CARGA_CAMPOS_PRO).filter(c => limpio[c] !== undefined && (a[c] || "") !== limpio[c]);
+    // Cambio real = un valor que ya existía pasa a ser otro; si el campo estaba vacío solo se completa
+    const reales = campos.filter(c => a[c]);
+    if (reales.length) cambios.push({ cod: n.cod, nom: n.nom, campos: reales.map(c => ({ campo: CARGA_CAMPOS_PRO[c], antes: a[c], despues: limpio[c] })) });
+    else if (campos.length) completados.push(n);
+    mapa.set(k, { ...a, ...limpio, actualizado: campos.length ? fecha : (a.actualizado || fecha) });
+  }
+  const ausentes = (actuales || []).filter(p => !vienen.has(clave(p)));
+  return { lista: [...mapa.values()], altas, cambios, completados, ausentes };
+};
+// Búsqueda en el mapeo de personas: primero por nombre+apellidos; si no, por apellidos (solo si no están repetidos)
+const cargaIndiceMapeo = mapeo => {
+  const completo = new Map(), porApe = new Map();
+  for (const p of mapeo || []) {
+    completo.set(cargaNorm(p.nom + "|" + p.ape), p);
+    const a = cargaNorm(p.ape);
+    if (a) porApe.set(a, porApe.has(a) ? null : p);
+  }
+  return (nom, ape) => completo.get(cargaNorm(nom + "|" + ape)) || porApe.get(cargaNorm(ape)) || null;
+};
+// ---------- Enlace con Gestión de empleados ----------
+// El sector y módulo de cada persona pueden salir de appData/employees (la app de Gestión de empleados) en vez de un fichero.
+// La persona de las imputaciones ("Nombre" + "Apellido 1") se busca por las palabras de su nombre: da igual el orden o la coma.
+const CARGA_STOP = new Set(["DE", "DEL", "LA", "LAS", "LOS", "Y", "I", "DA", "DO", "DOS"]);
+// Fuera también símbolos sueltos: hay ficheros con la ñ estropeada ("Begon~a", "Begon?a")
+const cargaTokens = s => cargaNorm(String(s || "").replace(/[,.;]/g, " ")).split(" ").map(t => t.replace(/[^A-Z0-9]/g, "")).filter(t => t && !CARGA_STOP.has(t));
+// Equivalencia por defecto entre los sectores de Gestión de empleados y los sectores (Hbu) de los proyectos; se puede corregir en Ajustes
+const CARGA_SECTORES_HBU = [["BASIS", "SAPHIA-Basis"], ["INDUSTRIA", "Saphia - Industria de Procesos"], ["MANUFACTUR", "Saphia - Manufacturing"], ["SERVICIO", "Saphia - Servicios"], ["ESTRUCTURA", "SAPHIA"]];
+const cargaSectorEquivalente = (sector, equiv) => {
+  if (!sector) return "";
+  if (equiv && equiv[sector]) return equiv[sector];
+  const n = cargaNorm(sector);
+  if (n.startsWith("SAPHIA")) return sector;
+  const r = CARGA_SECTORES_HBU.find(([k]) => n.includes(k));
+  return r ? r[1] : sector;
+};
+const cargaModuloCorto = m => String(m || "").replace(/^\s*SAP\s+/i, "").trim();
+const cargaIndiceEmpleados = (empleados, equiv) => {
+  const lista = (empleados || []).filter(e => e && e.nombre).map(e => ({ e, t: cargaTokens(e.nombre) })).filter(x => x.t.length);
+  const exacto = new Map();
+  for (const x of lista) { const k = [...x.t].sort().join(" "); exacto.set(k, exacto.has(k) ? null : x); }
+  const aMapeo = (x, aprox) => {
+    const mods = (x.e.modules && x.e.modules.length ? x.e.modules : [x.e.module]).map(cargaModuloCorto).filter(Boolean);
+    return { nom: x.e.nombre, ape: "", sector: cargaSectorEquivalente(x.e.sector, equiv), modulo: mods[0] || "", modulo2: mods[1] || "", empleado: x.e.nombre, aprox,
+      sectorOrigen: x.e.sector || "", modulosOrigen: (x.e.modules && x.e.modules.length ? x.e.modules : [x.e.module]).filter(Boolean).join(", ") };
+  };
+  return (nom, ape) => {
+    const t = cargaTokens(nom + " " + ape);
+    if (!t.length) return null;
+    const ex = exacto.get([...t].sort().join(" "));
+    if (ex) return aMapeo(ex, false);
+    if (ex === null) return null; // dos empleados con el mismo nombre: mejor no adivinar
+    // Aproximado: falta el segundo apellido o un segundo nombre en uno de los dos lados (al menos 2 palabras en común y candidato único)
+    const st = new Set(t);
+    const cand = lista.filter(x => { const c = x.t.filter(w => st.has(w)).length; return c >= 2 && (c === x.t.length || c === t.length); });
+    return cand.length === 1 ? aMapeo(cand[0], true) : null;
+  };
+};
+// Origen del sector/módulo de las personas: "empleados" (Gestión de empleados) o "fichero" (mapeo importado)
+const cargaOrigenPersonas = cfg => cfg.origenPersonas || (CARGA_PRUEBAS ? "empleados" : "fichero");
+// cfg.equivSectores se guarda como lista [{de, a}] (así se sustituye entera al guardar)
+const cargaEquivObj = lista => Object.fromEntries((lista || []).filter(x => x && x.de && x.a).map(x => [x.de, x.a]));
+// Memoria de asignaciones (cfg.asignaciones): por persona, periodos { desde: "AAAA-MM", sectorOrigen, modulo, modulo2, empleado }.
+// Así el histórico no cambia aunque la persona se borre de Gestión de empleados o cambie de sector/módulo:
+// cada mes usa el periodo vigente entonces. "0000-00" = desde siempre. El sector se traduce al leer (equivalencias de Ajustes).
+const CARGA_DESDE_SIEMPRE = "0000-00";
+const cargaClavePersona = (nom, ape) => cargaTokens(nom + " " + ape).sort().join(" ");
+const cargaMismaAsignacion = (a, b) => (a.sectorOrigen || "") === (b.sectorOrigen || "") && (a.modulo || "") === (b.modulo || "") && (a.modulo2 || "") === (b.modulo2 || "");
+const cargaPeriodoDe = (periodos, mes) => { let p = periodos[0]; for (const x of periodos) if (x.desde <= mes) p = x; return p; };
+const cargaAsigTexto = p => `${p.sectorOrigen || "sin sector"} / ${[p.modulo, p.modulo2].filter(Boolean).join(", ") || "sin módulo"}`;
+const cargaPeriodoTexto = p => `${p.desde === CARGA_DESDE_SIEMPRE ? "Desde el inicio" : "Desde " + cargaMesLabel(p.desde)}: ${cargaAsigTexto(p)}`;
+// Compara la memoria con lo que hay ahora en Gestión de empleados y la actualiza:
+// persona nueva → periodo "desde siempre"; cambio de sector/módulo → periodo nuevo desde desdeCambio; ya no está → se marca la baja y se conserva
+const cargaActualizarAsignaciones = (asignaciones, personas, empleados, equiv, desdeCambio, hoy) => {
+  const vivo = cargaIndiceEmpleados(empleados, equiv);
+  const mapa = new Map((asignaciones || []).map(a => [a.clave, { ...a, periodos: [...(a.periodos || [])] }]));
+  const res = { nuevas: [], cambios: [], bajas: [], vueltas: [] };
+  const vistas = new Set();
+  for (const { nom, ape } of personas) {
+    const clave = cargaClavePersona(nom, ape);
+    if (!clave || vistas.has(clave)) continue;
+    vistas.add(clave);
+    const m = vivo(nom, ape), a = mapa.get(clave), persona = (nom + " " + ape).trim();
+    if (!m) {
+      if (a && !a.baja) { a.baja = hoy; res.bajas.push(persona); }
+      continue;
+    }
+    const per = { sectorOrigen: m.sectorOrigen || "", modulo: m.modulo || "", modulo2: m.modulo2 || "", empleado: m.empleado };
+    if (!a || !a.periodos.length) { mapa.set(clave, { clave, persona, periodos: [{ desde: CARGA_DESDE_SIEMPRE, ...per }] }); res.nuevas.push(persona); continue; }
+    if (a.baja) { delete a.baja; res.vueltas.push(persona); }
+    const ultimo = a.periodos[a.periodos.length - 1];
+    if (!cargaMismaAsignacion(ultimo, per)) {
+      res.cambios.push({ persona, antes: cargaAsigTexto(ultimo), despues: cargaAsigTexto(per) });
+      if (ultimo.desde >= desdeCambio) a.periodos[a.periodos.length - 1] = { ...ultimo, ...per }; // mismo mes: se corrige el periodo
+      else a.periodos.push({ desde: desdeCambio, ...per });
+    } else if (ultimo.empleado !== per.empleado) a.periodos[a.periodos.length - 1] = { ...ultimo, empleado: per.empleado };
+  }
+  return { lista: [...mapa.values()], ...res };
+};
+// Devuelve (nom, ape, mes) → { sector, modulo, ... } o null. Con Gestión de empleados manda la memoria; si la persona aún no está en ella, se lee en directo
+const cargaResolverPersonas = (cfg, empleados) => {
+  if (cargaOrigenPersonas(cfg) !== "empleados") return cargaIndiceMapeo(cfg.mapeo);
+  const equiv = cargaEquivObj(cfg.equivSectores);
+  const vivo = cargaIndiceEmpleados(empleados, equiv);
+  const memoria = new Map((cfg.asignaciones || []).map(a => [a.clave, a]));
+  return (nom, ape, mes) => {
+    const a = memoria.get(cargaClavePersona(nom, ape));
+    if (!a || !a.periodos || !a.periodos.length) return vivo(nom, ape);
+    const p = mes ? cargaPeriodoDe(a.periodos, mes) : a.periodos[a.periodos.length - 1];
+    return { nom, ape: "", sector: cargaSectorEquivalente(p.sectorOrigen, equiv), modulo: p.modulo, modulo2: p.modulo2, empleado: p.empleado, aprox: false, memoria: true, baja: a.baja || "" };
+  };
+};
+// Búsqueda en el mapeo de proyectos: por código; si no, por nombre (solo si no está repetido)
+const cargaIndiceProyectos = proyectos => {
+  const porCod = new Map(), porNom = new Map();
+  for (const p of proyectos || []) {
+    if (p.cod) porCod.set(String(p.cod).trim(), p);
+    const n = cargaNorm(p.nom);
+    if (n) porNom.set(n, porNom.has(n) ? null : p);
+  }
+  return (cod, nom) => (cod && porCod.get(String(cod).trim())) || porNom.get(cargaNorm(nom)) || null;
+};
+// Una persona está excluida si contiene todas las palabras de alguna línea de la lista (p. ej. "Nombre Apellido")
+const cargaEsExcluido = (persona, excluidos) => {
+  const palabras = new Set(cargaNorm(persona).split(" "));
+  return (excluidos || []).some(e => {
+    const p = cargaNorm(e).split(" ").filter(Boolean);
+    return p.length > 0 && p.every(x => palabras.has(x));
+  });
+};
+// Imputaciones enriquecidas con sector/módulo de la persona, categoría y sector/código del proyecto (sin excluidos)
+const cargaEnriquecer = (filas, cfg, empleados) => {
+  const buscar = cargaResolverPersonas(cfg, empleados);
+  const buscarPro = cargaIndiceProyectos(cfg.proyectos);
+  const ddnSet = new Set((cfg.ddnProyectos || []).map(cargaNorm));
+  const porPersona = new Map(), porProyecto = new Map();
+  const out = [];
+  for (const f of filas) {
+    const persona = (f.nom + " " + f.ape).trim();
+    const kper = persona + "|" + f.mes; // el sector/módulo puede cambiar de un mes a otro (memoria de asignaciones)
+    let info = porPersona.get(kper);
+    if (!info) {
+      const m = buscar(f.nom, f.ape, f.mes);
+      info = { excluido: cargaEsExcluido(persona, cfg.excluidos), sector: (m && m.sector) || "Sin mapear", modulo: (m && m.modulo) || "Sin mapear" };
+      porPersona.set(kper, info);
+    }
+    if (info.excluido) continue;
+    const kp = f.cod + "|" + f.pro;
+    let pinfo = porProyecto.get(kp);
+    if (!pinfo) {
+      const p = buscarPro(f.cod, f.pro);
+      const cat = cargaCategoria(f.pro, ddnSet);
+      pinfo = { cat, grupo: CARGA_CAT_GRUPO[cat], cod: f.cod || (p && p.cod) || "", secPro: (p && p.sector) || "Sin clasificar", cliente: (p && p.cliente) || "", tipo: (p && p.tipo) || "" };
+      porProyecto.set(kp, pinfo);
+    }
+    out.push({ persona, sector: info.sector, modulo: info.modulo, mes: f.mes, dia: f.dia, pro: f.pro, h: f.h, ...pinfo });
+  }
+  return out;
+};
+const cargaUsuario = () => (window._auth && window._auth.currentUser && window._auth.currentUser.email) || "desconocido";
+// ---------- Piezas visuales comunes ----------
+const cargaBtn = (primario, extra = {}) => ({
+  background: primario ? C.accent : C.item, color: primario ? "white" : C.text, border: primario ? "none" : `1px solid ${C.border2}`,
+  borderRadius: "8px", padding: "8px 16px", fontSize: "13px", fontWeight: "600", cursor: "pointer", ...extra
+});
+const CargaPunto = ({ color, size = 10, radius = 2 }) => React.createElement("span", { style: { width: size + "px", height: size + "px", borderRadius: radius + "px", background: color, display: "inline-block", flexShrink: 0 } });
+const CargaLeyenda = ({ items }) => React.createElement("div", { style: { display: "flex", gap: "12px", flexWrap: "wrap" } }, items.map(it => React.createElement("span", { key: it.label, style: { fontSize: "11px", color: CV.ink2, display: "inline-flex", alignItems: "center", gap: "5px" } },
+  React.createElement(CargaPunto, { color: it.color }), it.label)));
+const CargaSemaforoCelda = ({ disp, total }) => {
+  const s = cargaSemaforo(disp, total);
+  return React.createElement("span", { title: s ? "Semáforo de disponibilidad: " + s.label : "", style: { display: "inline-flex", alignItems: "center", gap: "6px", justifyContent: "flex-end" } },
+    s && React.createElement(CargaPunto, { color: s.color, size: 8, radius: 4 }), cargaFmtPct(disp, total));
+};
+const CargaBarra = ({ t }) => React.createElement("div", {
+  style: { display: "flex", gap: "2px", height: "10px", minWidth: "120px" }
+}, t.total > 0 ? CARGA_GRUPOS.map(g => t[g.key] > 0 && React.createElement("div", {
+  key: g.key,
+  title: `${g.label}: ${cargaFmtH(t[g.key])} h (${cargaFmtPct(t[g.key], t.total)})`,
+  style: { flex: t[g.key] + " 0 0", background: g.color, borderRadius: "2px", minWidth: "2px" }
+})) : React.createElement("div", { style: { flex: 1, background: C.track, borderRadius: "2px" } }));
+const CargaModal = ({ title, onClose, children, width = "640px" }) => React.createElement("div", {
+  style: { position: "fixed", inset: 0, background: "rgba(15,23,42,0.45)", zIndex: 1000, display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "40px 16px", overflowY: "auto" }
+}, React.createElement("div", {
+  style: { background: C.card, borderRadius: "12px", width: "100%", maxWidth: width, boxShadow: "0 20px 50px rgba(0,0,0,0.25)" }
+}, React.createElement("div", {
+  style: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 20px", borderBottom: `1px solid ${C.border}` }
+}, React.createElement("div", { style: { fontSize: "15px", fontWeight: "700", color: C.text } }, title),
+  React.createElement("button", { onClick: onClose, style: { background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: C.muted } }, "✕")),
+  React.createElement("div", { style: { padding: "18px 20px" } }, children)));
+// Tooltip flotante para los gráficos (mejora la lectura; los valores están también en tablas o etiquetas)
+const useCargaTip = () => {
+  const [tip, setTip] = useState(null);
+  const ref = useRef(null);
+  const mostrar = (e, contenido) => {
+    const r = ref.current && ref.current.getBoundingClientRect();
+    if (r) setTip({ x: e.clientX - r.left, y: e.clientY - r.top, w: r.width, contenido });
+  };
+  const ocultar = () => setTip(null);
+  const el = tip && React.createElement("div", {
+    style: { position: "absolute", left: Math.max(0, Math.min(tip.x + 14, tip.w - 230)) + "px", top: (tip.y + 14) + "px", pointerEvents: "none", background: CV.ink, color: "white", borderRadius: "6px", padding: "7px 10px", fontSize: "11px", lineHeight: "1.55", zIndex: 30, minWidth: "140px", maxWidth: "230px", boxShadow: "0 4px 14px rgba(0,0,0,0.25)" }
+  }, tip.contenido);
+  return { ref, mostrar, ocultar, el };
+};
+const cargaTipFila = (color, label, valor, key) => React.createElement("div", { key: key || label, style: { display: "flex", alignItems: "center", gap: "6px" } },
+  color && React.createElement(CargaPunto, { color, size: 8 }), React.createElement("span", { style: { flex: 1, opacity: 0.85 } }, label), React.createElement("b", null, valor));
+const CargaSeg = ({ opciones, valor, onChange }) => React.createElement("div", { style: { display: "inline-flex", border: `1px solid ${C.border2}`, borderRadius: "6px", overflow: "hidden" } },
+  opciones.map(([k, l], i) => React.createElement("button", {
+    key: k, onClick: () => onChange(k),
+    style: { background: valor === k ? "#e0edff" : C.card, color: valor === k ? C.accent : C.text2, border: "none", borderLeft: i ? `1px solid ${C.border2}` : "none", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap" }
+  }, l)));
+const CargaCard = ({ titulo, sub, acciones, children, ancho }) => React.createElement("div", {
+  style: { background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px 16px", gridColumn: ancho ? "1 / -1" : undefined, minWidth: 0 }
+}, React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", flexWrap: "wrap", marginBottom: "12px" } },
+  React.createElement("div", null,
+    React.createElement("div", { style: { fontSize: "14px", fontWeight: "700", color: C.text } }, titulo),
+    sub && React.createElement("div", { style: { fontSize: "11px", color: C.muted, marginTop: "2px" } }, sub)),
+  acciones && React.createElement("div", { style: { display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" } }, acciones)),
+  children);
+// Línea temporal de porcentajes: un único eje, etiqueta directa al final de cada serie, cruceta + tooltip al pasar el ratón
+const CargaLineas = ({ meses, etiquetas, series, alto = 230 }) => {
+  const tip = useCargaTip();
+  const [hover, setHover] = useState(null);
+  const W = 660, H = alto, m = { l: 46, r: 150, t: 12, b: 28 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const top = cargaNiceMax(Math.max(0.05, ...series.flatMap(s => s.values.filter(v => v != null))));
+  const x = i => m.l + (meses.length === 1 ? iw / 2 : i * iw / (meses.length - 1));
+  const y = v => m.t + ih - (v / top) * ih;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => f * top);
+  const finales = series.map(s => {
+    let i = s.values.length - 1;
+    while (i >= 0 && s.values[i] == null) i--;
+    return i < 0 ? null : { s, i, y: y(s.values[i]) };
+  }).filter(Boolean).sort((a, b) => a.y - b.y);
+  for (let k = 1; k < finales.length; k++) if (finales[k].y - finales[k - 1].y < 14) finales[k].y = finales[k - 1].y + 14;
+  const banda = meses.length > 1 ? iw / (meses.length - 1) : iw;
+  return React.createElement("div", { ref: tip.ref, style: { position: "relative" } },
+    React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", height: "auto", display: "block" }, onMouseLeave: () => { setHover(null); tip.ocultar(); } },
+      ticks.map((t, i) => React.createElement("g", { key: i },
+        React.createElement("line", { x1: m.l, x2: m.l + iw, y1: y(t), y2: y(t), stroke: i === 0 ? CV.axis : CV.grid, strokeWidth: 1 }),
+        React.createElement("text", { x: m.l - 8, y: y(t) + 4, textAnchor: "end", fontSize: 11, fill: CV.muted, style: { fontVariantNumeric: "tabular-nums" } }, Math.round(t * 100) + "%"))),
+      meses.map((mm, i) => React.createElement("text", { key: mm, x: x(i), y: H - 8, textAnchor: "middle", fontSize: 11, fill: CV.muted }, etiquetas[i])),
+      hover != null && React.createElement("line", { x1: x(hover), x2: x(hover), y1: m.t, y2: m.t + ih, stroke: CV.axis, strokeWidth: 1 }),
+      series.map(s => {
+        const pts = s.values.map((v, i) => v == null ? null : [x(i), y(v)]).filter(Boolean);
+        return React.createElement("g", { key: s.key },
+          pts.length > 1 && React.createElement("polyline", { points: pts.map(p => p.join(",")).join(" "), fill: "none", stroke: s.color, strokeWidth: 2, strokeLinejoin: "round", strokeLinecap: "round" }),
+          pts.map((p, i) => React.createElement("circle", { key: i, cx: p[0], cy: p[1], r: hover != null && x(hover) === p[0] ? 5 : 4, fill: s.color, stroke: C.card, strokeWidth: 2 })));
+      }),
+      finales.map(f => React.createElement("text", { key: f.s.key, x: x(f.i) + 10, y: f.y + 4, fontSize: 11, fill: CV.ink2 }, `${f.s.label} ${cargaFmtP(f.s.values[f.i])}`)),
+      meses.map((mm, i) => React.createElement("rect", {
+        key: "h" + mm, x: x(i) - banda / 2, y: m.t, width: banda, height: ih, fill: "transparent",
+        onMouseMove: e => { setHover(i); tip.mostrar(e, [React.createElement("div", { key: "t", style: { fontWeight: "700", marginBottom: "3px" } }, etiquetas[i]), ...series.map(s => cargaTipFila(s.color, s.label, cargaFmtP(s.values[i])))]); }
+      }))),
+    tip.el);
+};
+// Columnas apiladas de horas por mes (composición), 2px de separación entre segmentos y total encima
+const cargaPathTop = (x, y, w, h, r) => {
+  r = Math.min(r, w / 2, h);
+  return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`;
+};
+const CargaColumnas = ({ etiquetas, totales, alto = 230 }) => {
+  const tip = useCargaTip();
+  const W = 660, H = alto, m = { l: 52, r: 12, t: 20, b: 28 };
+  const iw = W - m.l - m.r, ih = H - m.t - m.b;
+  const top = cargaNiceMax(Math.max(1, ...totales.map(t => t.total)));
+  const banda = iw / Math.max(1, totales.length);
+  const bw = Math.min(64, banda * 0.6);
+  const y = v => m.t + ih - (v / top) * ih;
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => f * top);
+  return React.createElement("div", { ref: tip.ref, style: { position: "relative" } },
+    React.createElement("svg", { viewBox: `0 0 ${W} ${H}`, style: { width: "100%", height: "auto", display: "block" }, onMouseLeave: tip.ocultar },
+      ticks.map((t, i) => React.createElement("g", { key: i },
+        React.createElement("line", { x1: m.l, x2: m.l + iw, y1: y(t), y2: y(t), stroke: i === 0 ? CV.axis : CV.grid, strokeWidth: 1 }),
+        React.createElement("text", { x: m.l - 8, y: y(t) + 4, textAnchor: "end", fontSize: 11, fill: CV.muted, style: { fontVariantNumeric: "tabular-nums" } }, cargaFmtH(t)))),
+      totales.map((t, i) => {
+        const x0 = m.l + i * banda + (banda - bw) / 2;
+        let acum = 0;
+        const segs = CARGA_GRUPOS.filter(g => t[g.key] > 0);
+        return React.createElement("g", { key: i },
+          segs.map((g, k) => {
+            const y1 = y(acum + t[g.key]), y0 = y(acum);
+            acum += t[g.key];
+            const hueco = k < segs.length - 1 ? 2 : 0; // 2px de separación con el segmento de encima
+            const h = Math.max(0.5, y0 - y1 - hueco);
+            const props = {
+              key: g.key, fill: g.color,
+              onMouseMove: e => tip.mostrar(e, [React.createElement("div", { key: "t", style: { fontWeight: "700", marginBottom: "3px" } }, etiquetas[i]), cargaTipFila(g.color, g.label, `${cargaFmtH(t[g.key])} h · ${cargaFmtPct(t[g.key], t.total)}`), cargaTipFila(null, "Total", cargaFmtH(t.total) + " h", "tot")])
+            };
+            return k === segs.length - 1
+              ? React.createElement("path", { ...props, d: cargaPathTop(x0, y1, bw, h, 4) })
+              : React.createElement("rect", { ...props, x: x0, y: y1 + hueco, width: bw, height: h });
+          }),
+          React.createElement("text", { x: x0 + bw / 2, y: y(t.total) - 6, textAnchor: "middle", fontSize: 11, fill: CV.ink2, fontWeight: 600 }, cargaFmtH(t.total)),
+          React.createElement("text", { x: x0 + bw / 2, y: H - 8, textAnchor: "middle", fontSize: 11, fill: CV.muted }, etiquetas[i]));
+      })),
+    tip.el);
+};
+// Mapa de calor (filas × meses) con rampa secuencial de un solo tono; el valor va escrito en la celda
+const CargaHeatmap = ({ filas, etiquetas, metrica, maxAlto = "420px" }) => {
+  const tip = useCargaTip();
+  const max = Math.max(0.0001, ...filas.flatMap(f => f.valores.filter(v => v != null)));
+  const fmt = v => v == null ? "" : metrica.pct ? cargaFmtP(v) : cargaFmtH(v);
+  const paso = v => Math.min(CARGA_RAMPA.length - 1, Math.floor(v / max * CARGA_RAMPA.length));
+  const thS = { padding: "6px 8px", fontSize: "11px", color: C.text2, fontWeight: "700", textAlign: "center", position: "sticky", top: 0, background: C.card, zIndex: 1, whiteSpace: "nowrap" };
+  return React.createElement("div", null,
+    React.createElement("div", { ref: tip.ref, style: { position: "relative", maxHeight: maxAlto, overflow: "auto" }, onMouseLeave: tip.ocultar },
+      React.createElement("table", { style: { borderCollapse: "separate", borderSpacing: "2px", width: "100%" } },
+        React.createElement("thead", null, React.createElement("tr", null,
+          React.createElement("th", { style: { ...thS, textAlign: "left" } }, ""),
+          etiquetas.map(e => React.createElement("th", { key: e, style: thS }, e)),
+          React.createElement("th", { style: { ...thS, textAlign: "right" } }, "Horas"))),
+        React.createElement("tbody", null, filas.map(f => React.createElement("tr", { key: f.label },
+          React.createElement("td", { style: { fontSize: "12px", color: C.text, padding: "4px 8px", whiteSpace: "nowrap", maxWidth: "220px", overflow: "hidden", textOverflow: "ellipsis" }, title: f.label }, f.label),
+          f.valores.map((v, i) => {
+            const s = v == null ? -1 : paso(v);
+            return React.createElement("td", {
+              key: i,
+              onMouseMove: e => tip.mostrar(e, [React.createElement("div", { key: "t", style: { fontWeight: "700", marginBottom: "3px" } }, `${f.label} · ${etiquetas[i]}`), cargaTipFila(null, metrica.label, v == null ? "sin datos" : fmt(v))]),
+              style: { background: s < 0 ? C.item : CARGA_RAMPA[s], color: s >= 3 ? "white" : CV.ink, fontSize: "11px", textAlign: "center", padding: "5px 6px", borderRadius: "4px", minWidth: "58px", fontVariantNumeric: "tabular-nums" }
+            }, v == null ? "—" : fmt(v));
+          }),
+          React.createElement("td", { style: { fontSize: "11px", color: C.text2, textAlign: "right", padding: "4px 8px", fontVariantNumeric: "tabular-nums" } }, cargaFmtH(f.horas)))))),
+      tip.el),
+    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "6px", marginTop: "8px", fontSize: "11px", color: CV.muted } },
+      fmt(0), React.createElement("div", { style: { display: "flex", gap: "2px" } }, CARGA_RAMPA.map(c => React.createElement("span", { key: c, style: { width: "22px", height: "8px", background: c, borderRadius: "2px" } }))), fmt(max)));
+};
+// Ranking en barras horizontales (una serie = un color)
+const CargaRanking = ({ items, metrica }) => {
+  const max = Math.max(0.0001, ...items.map(i => i.valor));
+  return React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "6px" } }, items.map(it => React.createElement("div", { key: it.label, style: { display: "grid", gridTemplateColumns: "minmax(110px, 38%) 1fr auto", gap: "10px", alignItems: "center" } },
+    React.createElement("div", { style: { fontSize: "12px", color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }, title: it.label }, it.label),
+    React.createElement("div", { style: { height: "10px", background: C.track, borderRadius: "2px" } },
+      React.createElement("div", { style: { width: Math.max(1, it.valor / max * 100) + "%", height: "100%", background: CV.proy, borderRadius: "2px 4px 4px 2px" } })),
+    React.createElement("div", { style: { fontSize: "12px", color: C.text, fontWeight: "600", minWidth: "110px", textAlign: "right", fontVariantNumeric: "tabular-nums" } },
+      metrica.pct ? cargaFmtP(it.valor) : cargaFmtH(it.valor) + " h",
+      React.createElement("span", { style: { color: C.muted, fontWeight: "400", marginLeft: "6px" } }, it.sub)))));
+};
+const CargaSpark = ({ valores, max = 1, w = 84, h = 22 }) => {
+  const pts = valores.map((v, i) => v == null ? null : [valores.length === 1 ? w / 2 : 3 + i * (w - 6) / (valores.length - 1), h - 3 - (Math.min(v, max) / max) * (h - 6)]).filter(Boolean);
+  return React.createElement("svg", { width: w, height: h, style: { display: "block" } },
+    React.createElement("line", { x1: 0, x2: w, y1: h - 3, y2: h - 3, stroke: CV.grid, strokeWidth: 1 }),
+    pts.length > 1 && React.createElement("polyline", { points: pts.map(p => p.join(",")).join(" "), fill: "none", stroke: CV.proy, strokeWidth: 1.5, strokeLinejoin: "round" }),
+    pts.length > 0 && React.createElement("circle", { cx: pts[pts.length - 1][0], cy: pts[pts.length - 1][1], r: 2.5, fill: CV.proy }));
+};
+const CARGA_SEVERIDAD = { critical: { color: CV.crit, icono: "▲", orden: 3 }, serious: { color: CV.serious, icono: "◆", orden: 2 }, warning: { color: CV.warn, icono: "●", orden: 1 }, info: { color: CV.muted, icono: "i", orden: 0 }, good: { color: CV.good, icono: "✓", orden: -1 } };
+const CargaBadge = ({ nivel, texto }) => {
+  const s = CARGA_SEVERIDAD[nivel];
+  return React.createElement("span", { style: { display: "inline-flex", alignItems: "center", gap: "5px", background: C.item, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "2px 8px", fontSize: "11px", color: CV.ink, whiteSpace: "nowrap", marginRight: "4px", marginBottom: "2px" } },
+    React.createElement("span", { style: { color: s.color, fontSize: "10px", fontWeight: "700" } }, s.icono), texto);
+};
+// ---------- Análisis (lo comparten el panel de KPIs y las exportaciones) ----------
+// Agrupa por una dimensión (módulo, sector, persona, secPro...) con totales por mes
+const cargaAgruparDim = (datos, dim) => {
+  const mapa = new Map();
+  for (const d of datos) {
+    let e = mapa.get(d[dim]);
+    if (!e) { e = { label: d[dim], tot: cargaCero(), meses: {}, personas: new Set() }; mapa.set(d[dim], e); }
+    cargaAcumular(e.tot, d);
+    cargaAcumular(e.meses[d.mes] = e.meses[d.mes] || cargaCero(), d);
+    e.personas.add(d.persona);
+  }
+  return [...mapa.values()];
+};
+const cargaPctDe = (t, k) => t && t.total ? t[k] / t.total : null;
+// mesActual: los meses >= mesActual se consideran en curso y no se usan como referencia
+const cargaAnalisis = (datos, hayMapeoProyectos, mesActual = cargaMesActual()) => {
+  const meses = [...new Set(datos.map(d => d.mes))].sort();
+  const cerrados = meses.filter(m => m < mesActual);
+  const mesRef = cerrados.length ? cerrados[cerrados.length - 1] : meses[meses.length - 1];
+  const mesPrev = meses[meses.indexOf(mesRef) - 1] || null;
+  const refLabel = mesRef ? cargaMesLabel(mesRef) : "";
+  const prevLabel = mesPrev ? cargaMesLabel(mesPrev) : "";
+  const tMes = Object.fromEntries(meses.map(m => [m, cargaCero()]));
+  const mapaPers = new Map();
+  for (const d of datos) {
+    cargaAcumular(tMes[d.mes], d);
+    let p = mapaPers.get(d.persona);
+    if (!p) { p = { persona: d.persona, sector: d.sector, modulo: d.modulo, mesUlt: d.mes, meses: {}, propio: {} }; mapaPers.set(d.persona, p); }
+    if (d.mes > p.mesUlt) { p.sector = d.sector; p.modulo = d.modulo; p.mesUlt = d.mes; } // se muestra su asignación más reciente
+    cargaAcumular(p.meses[d.mes] = p.meses[d.mes] || cargaCero(), d);
+    if (d.grupo === "proy" && d.secPro === d.sector) p.propio[d.mes] = (p.propio[d.mes] || 0) + d.h;
+  }
+  const personas = [...mapaPers.values()];
+  const mediana = Object.fromEntries(meses.map(m => [m, cargaMediana(personas.map(p => p.meses[m] ? p.meses[m].total : 0))]));
+  const tRef = (mesRef && tMes[mesRef]) || cargaCero();
+  const tPrev = mesPrev ? tMes[mesPrev] : null;
+  const dims = { modulo: cargaAgruparDim(datos, "modulo"), sector: cargaAgruparDim(datos, "sector"), persona: cargaAgruparDim(datos, "persona") };
+  // Alertas por persona en el mes de referencia
+  const alertas = [];
+  for (const p of personas) {
+    const t = p.meses[mesRef];
+    if (!t || !t.total) continue;
+    const lista = [];
+    const disp = t.disp / t.total;
+    let seguidos = 0;
+    for (let i = meses.indexOf(mesRef); i >= 0; i--) {
+      const tm = p.meses[meses[i]];
+      if (tm && tm.total && tm.disp / tm.total > 0.3) seguidos++; else break;
+    }
+    if (disp > 0.4) lista.push({ nivel: "critical", tipo: "dispAlta", texto: `Disponibilidad ${cargaFmtP(disp)}` + (seguidos >= 2 ? ` · ${seguidos} meses seguidos > 30 %` : "") });
+    else if (disp > 0.3) lista.push({ nivel: "warning", tipo: "dispMedia", texto: `Disponibilidad ${cargaFmtP(disp)}` + (seguidos >= 2 ? ` · ${seguidos} meses seguidos` : "") });
+    if (mediana[mesRef] && t.total > mediana[mesRef] * 1.15) lista.push({ nivel: "serious", tipo: "sobrecarga", texto: `Imputa ${cargaFmtH(t.total)} h (+${Math.round((t.total / mediana[mesRef] - 1) * 100)} % sobre la mediana)` });
+    const tp = mesPrev && p.meses[mesPrev];
+    if (tp && tp.total) {
+      const caida = tp.proy / tp.total - t.proy / t.total;
+      if (caida >= 0.25) lista.push({ nivel: "warning", tipo: "caida", texto: `Proyecto cae ${Math.round(caida * 100)} pp vs ${prevLabel}` });
+    }
+    if (hayMapeoProyectos && t.proy >= 40 && (p.propio[mesRef] || 0) / t.proy < 0.5 && p.sector !== "Sin mapear") lista.push({ nivel: "info", tipo: "fuera", texto: `${cargaFmtP(1 - (p.propio[mesRef] || 0) / t.proy)} del proyecto fuera de su sector` });
+    if (p.sector === "Sin mapear") lista.push({ nivel: "info", tipo: "sinMapear", texto: "Sin sector/módulo en el mapeo" });
+    if (lista.length) alertas.push({ ...p, t, disp, seguidos, lista, sev: Math.max(...lista.map(a => CARGA_SEVERIDAD[a.nivel].orden)) });
+  }
+  alertas.sort((a, b) => b.sev - a.sev || b.disp - a.disp);
+  // Carga cruzada: sector de la persona × sector del proyecto (horas de proyecto)
+  let cruce = null;
+  if (hayMapeoProyectos) {
+    const filas = new Map(), cols = new Set();
+    for (const d of datos) {
+      if (d.grupo !== "proy") continue;
+      cols.add(d.secPro);
+      let f = filas.get(d.sector);
+      if (!f) { f = { sector: d.sector, total: 0, celdas: {} }; filas.set(d.sector, f); }
+      f.total += d.h;
+      f.celdas[d.secPro] = (f.celdas[d.secPro] || 0) + d.h;
+    }
+    const lista = [...filas.values()];
+    cruce = {
+      filas: lista.sort((a, b) => a.sector.localeCompare(b.sector, "es")),
+      cols: [...cols].sort((a, b) => (a === "Sin clasificar") - (b === "Sin clasificar") || a.localeCompare(b, "es")),
+      total: lista.reduce((s, f) => s + f.total, 0),
+      fuera: lista.reduce((s, f) => s + (f.sector === "Sin mapear" ? 0 : f.total - (f.celdas[f.sector] || 0) - (f.celdas["Sin clasificar"] || 0)), 0),
+      sinClas: lista.reduce((s, f) => s + (f.celdas["Sin clasificar"] || 0), 0)
+    };
+  }
+  // Proyectos con más horas
+  const mapaPro = new Map();
+  for (const d of datos) {
+    if (d.grupo !== "proy") continue;
+    const k = d.cod + "|" + d.pro;
+    let p = mapaPro.get(k);
+    if (!p) { p = { pro: d.pro, cod: d.cod, secPro: d.secPro, cliente: d.cliente, tipo: d.tipo, h: 0, personas: new Set(), meses: {} }; mapaPro.set(k, p); }
+    p.h += d.h;
+    p.personas.add(d.persona);
+    p.meses[d.mes] = (p.meses[d.mes] || 0) + d.h;
+  }
+  const listaPro = [...mapaPro.values()].sort((a, b) => b.h - a.h);
+  const proyectos = { lista: listaPro, total: listaPro.reduce((s, p) => s + p.h, 0), top5: listaPro.slice(0, 5).reduce((s, p) => s + p.h, 0) };
+  // Lectura rápida: frases con lo más relevante para decidir (sin nombres de personas)
+  const insights = [];
+  if (mesRef) {
+    if (meses.some(m => m >= mesActual)) insights.push({ nivel: "info", texto: `${cargaMesLabel(meses[meses.length - 1])} está en curso: sus datos son parciales y no se usan como referencia. Referencia: ${refLabel}.` });
+    const pr = cargaPctDe(tRef, "proy"), pp = cargaPctDe(tPrev, "proy");
+    if (pr != null) insights.push({ nivel: pp != null && pr < pp - 0.03 ? "warning" : "good", texto: `Ocupación en proyecto en ${refLabel}: ${cargaFmtP(pr)}` + (pp != null ? ` (${pr >= pp ? "+" : "−"}${Math.abs(Math.round((pr - pp) * 1000) / 10).toLocaleString("es-ES")} pp vs ${prevLabel}).` : ".") });
+    const fte = mediana[mesRef] ? tRef.disp / mediana[mesRef] : 0;
+    if (tRef.disp > 0) insights.push({ nivel: "info", texto: `Capacidad sin asignar en ${refLabel}: ${cargaFmtH(tRef.disp)} h de disponibilidad, unas ${fte.toLocaleString("es-ES", { maximumFractionDigits: 1 })} personas a jornada completa.` });
+    const modulos = dims.modulo.filter(e => e.label !== "Sin mapear" && e.meses[mesRef]).map(e => ({ label: e.label, t: e.meses[mesRef] })).sort((a, b) => b.t.disp - a.t.disp);
+    if (modulos.length && modulos[0].t.disp > 0) insights.push({ nivel: "info", texto: `Más horas disponibles por módulo en ${refLabel}: ` + modulos.slice(0, 3).filter(x => x.t.disp > 0).map(x => `${x.label} (${cargaFmtH(x.t.disp)} h, ${cargaFmtPct(x.t.disp, x.t.total)})`).join(", ") + "." });
+    const cargados = modulos.filter(x => x.t.total >= 100).sort((a, b) => b.t.proy / b.t.total - a.t.proy / a.t.total);
+    if (cargados.length) insights.push({ nivel: "info", texto: `Módulos más cargados de proyecto en ${refLabel}: ` + cargados.slice(0, 3).map(x => `${x.label} (${cargaFmtPct(x.t.proy, x.t.total)})`).join(", ") + "." });
+    const sectores = dims.sector.filter(e => e.label !== "Sin mapear" && e.meses[mesRef] && e.meses[mesRef].total >= 100).map(e => ({ label: e.label, t: e.meses[mesRef] })).sort((a, b) => b.t.disp / b.t.total - a.t.disp / a.t.total);
+    if (sectores.length) insights.push({ nivel: sectores[0].t.disp / sectores[0].t.total > 0.3 ? "warning" : "info", texto: `Sector con más disponibilidad en ${refLabel}: ${sectores[0].label} (${cargaFmtPct(sectores[0].t.disp, sectores[0].t.total)})` + (sectores.length > 1 ? `; el más ocupado en proyecto: ${[...sectores].sort((a, b) => b.t.proy / b.t.total - a.t.proy / a.t.total)[0].label}.` : ".") });
+    const altas = alertas.filter(a => a.disp > 0.4);
+    const sostenidas = alertas.filter(a => a.seguidos >= 2);
+    insights.push({ nivel: altas.length ? "critical" : "good", texto: altas.length ? `${altas.length} persona${altas.length === 1 ? "" : "s"} con más del 40 % de disponibilidad en ${refLabel}` + (sostenidas.length ? `; ${sostenidas.length} lleva${sostenidas.length === 1 ? "" : "n"} 2 o más meses seguidos por encima del 30 %.` : ".") : `Nadie supera el 40 % de disponibilidad en ${refLabel}.` });
+    const sobre = alertas.filter(a => a.lista.some(l => l.tipo === "sobrecarga"));
+    if (sobre.length) insights.push({ nivel: "serious", texto: `${sobre.length} persona${sobre.length === 1 ? "" : "s"} imputa${sobre.length === 1 ? "" : "n"} más de un 15 % por encima de la mediana del mes: posible sobrecarga.` });
+    if (cruce && cruce.total) insights.push({ nivel: "info", texto: `${cargaFmtPct(cruce.fuera, cruce.total)} de las horas de proyecto del periodo se dedican a proyectos de otro sector` + (cruce.sinClas ? `; ${cargaFmtPct(cruce.sinClas, cruce.total)} son de proyectos sin sector en el mapeo.` : ".") });
+    if (listaPro.length >= 5) insights.push({ nivel: "info", texto: `Concentración: los 5 proyectos con más horas suman ${cargaFmtPct(proyectos.top5, proyectos.total)} de las horas de proyecto del periodo.` });
+    const vacMax = meses.filter(m => m < mesActual).map(m => ({ m, p: cargaPctDe(tMes[m], "vac") || 0 })).sort((a, b) => b.p - a.p)[0];
+    if (vacMax && vacMax.p > 0.1) insights.push({ nivel: "info", texto: `Pico de vacaciones/bajas: ${cargaMesLabel(vacMax.m)} con ${cargaFmtP(vacMax.p)} de las horas; tenlo en cuenta al planificar.` });
+  }
+  return { meses, mesRef, mesPrev, refLabel, prevLabel, tMes, tRef, tPrev, personas, mediana, dims, alertas, cruce, proyectos, insights, mesActual };
+};
+// ---------- Exportaciones ----------
+// Librerías que solo hacen falta al exportar: se cargan bajo demanda (la app no pesa más al abrirse)
+const CARGA_LIBS = {
+  pptx: ["https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js", () => !!window.PptxGenJS],
+  h2c: ["https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js", () => !!window.html2canvas],
+  jspdf: ["https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js", () => !!(window.jspdf && window.jspdf.jsPDF)]
+};
+const cargaLibsPendientes = {};
+const cargaCargarLib = ([url, cargada]) => {
+  if (cargada()) return Promise.resolve();
+  if (!cargaLibsPendientes[url]) cargaLibsPendientes[url] = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = url;
+    s.onload = () => cargada() ? resolve() : reject(new Error("No se pudo inicializar " + url));
+    s.onerror = () => { delete cargaLibsPendientes[url]; reject(new Error("No se pudo descargar " + url + " (¿sin conexión?)")); };
+    document.head.appendChild(s);
+  });
+  return cargaLibsPendientes[url];
+};
+const cargaHoy = () => new Date().toISOString().slice(0, 10);
+// PDF: captura cada bloque del panel de KPIs y lo maqueta en A4 apaisado (los bloques más altos que una página se trocean)
+const cargaExportarPDF = async (contenedor, titulo, subtitulo, nombre) => {
+  await cargaCargarLib(CARGA_LIBS.h2c);
+  await cargaCargarLib(CARGA_LIBS.jspdf);
+  const pdf = new window.jspdf.jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+  const W = 297, H = 210, M = 10, TOPE = M + 16, PIE = H - 10, ancho = W - 2 * M;
+  let pagina = 0, y = TOPE;
+  const nuevaPagina = () => {
+    if (pagina) pdf.addPage();
+    pagina++;
+    pdf.setFillColor(0, 205, 226); pdf.rect(M, M, 1.2, 9, "F");
+    pdf.setFont("helvetica", "bold"); pdf.setFontSize(13); pdf.setTextColor(25, 37, 91); pdf.text(titulo, M + 4, M + 4.5);
+    pdf.setFont("helvetica", "normal"); pdf.setFontSize(8); pdf.setTextColor(59, 71, 121); pdf.text(subtitulo, M + 4, M + 9);
+    pdf.text(`Página ${pagina}`, W - M, H - 5, { align: "right" });
+    y = TOPE;
+  };
+  nuevaPagina();
+  for (const bloque of contenedor.children) {
+    const canvas = await window.html2canvas(bloque, { scale: 2, backgroundColor: "#f0f4f8", logging: false });
+    if (!canvas.width || !canvas.height) continue;
+    const mmPx = ancho / canvas.width;
+    const alto = canvas.height * mmPx;
+    if (y + alto > PIE && y > TOPE && alto <= PIE - TOPE) nuevaPagina();
+    if (y + alto <= PIE) {
+      pdf.addImage(canvas.toDataURL("image/jpeg", 0.92), "JPEG", M, y, ancho, alto);
+      y += alto + 4;
+      continue;
+    }
+    if (y > TOPE) nuevaPagina();
+    for (let origen = 0; origen < canvas.height;) {
+      const trozo = Math.min(canvas.height - origen, Math.floor((PIE - y) / mmPx));
+      const c = document.createElement("canvas");
+      c.width = canvas.width; c.height = trozo;
+      c.getContext("2d").drawImage(canvas, 0, origen, canvas.width, trozo, 0, 0, canvas.width, trozo);
+      pdf.addImage(c.toDataURL("image/jpeg", 0.92), "JPEG", M, y, ancho, trozo * mmPx);
+      origen += trozo;
+      y += trozo * mmPx + 4;
+      if (origen < canvas.height) nuevaPagina();
+    }
+  }
+  pdf.save(nombre);
+};
+// Excel: un libro con el resumen y todas las tablas del análisis (con los filtros aplicados)
+const cargaHojaExcel = (filas, { pct = [], horas = [], anchos = [], desde = 1 } = {}) => {
+  const ws = XLSX.utils.aoa_to_sheet(filas);
+  for (let r = desde; r < filas.length; r++) {
+    pct.forEach(c => { const cel = ws[XLSX.utils.encode_cell({ r, c })]; if (cel && cel.t === "n") cel.z = "0.0%"; });
+    horas.forEach(c => { const cel = ws[XLSX.utils.encode_cell({ r, c })]; if (cel && cel.t === "n") cel.z = "#,##0.0"; });
+  }
+  ws["!cols"] = anchos.map(w => ({ wch: w }));
+  return ws;
+};
+const cargaFilasGrupo = (t) => [t.total, t.proy, cargaPctDe(t, "proy"), t.disp, cargaPctDe(t, "disp"), t.form, t.ddn, cargaPctDe(t, "ddn"), t.vac, cargaPctDe(t, "vac"), t.otros];
+const CARGA_CAB_GRUPO = ["Horas", "Horas proyecto", "% Proyecto", "Horas disponibilidad", "% Disponibilidad", "Horas formación", "Horas DDN", "% DDN", "Horas vac./bajas", "% Vac./Bajas", "Horas otros"];
+const cargaExportarExcel = (an, datos, filtrosTexto, nombre) => {
+  const wb = XLSX.utils.book_new();
+  const r2 = v => v == null ? null : Math.round(v * 10000) / 10000;
+  const fmtGrupo = (n) => ({ pct: [n + 2, n + 4, n + 7, n + 9], horas: [n, n + 1, n + 3, n + 5, n + 6, n + 8, n + 10] });
+  const { tRef, tPrev, refLabel, prevLabel, meses } = an;
+  const resumen = [
+    ["Gestión de carga · KPIs"], ["Generado", new Date().toLocaleString("es-ES")], ["Filtros", filtrosTexto], ["Mes de referencia", refLabel + (prevLabel ? ` (comparado con ${prevLabel})` : "")], [],
+    ["Indicador", refLabel, prevLabel || "—"],
+    ["Horas imputadas", tRef.total, tPrev ? tPrev.total : null],
+    ["% Proyecto (ocupación)", r2(cargaPctDe(tRef, "proy")), r2(cargaPctDe(tPrev, "proy"))],
+    ["% Disponibilidad", r2(cargaPctDe(tRef, "disp")), r2(cargaPctDe(tPrev, "disp"))],
+    ["Horas disponibles", tRef.disp, tPrev ? tPrev.disp : null],
+    ["Personas equivalentes disponibles", an.mediana[an.mesRef] ? Math.round(tRef.disp / an.mediana[an.mesRef] * 10) / 10 : null, tPrev && an.mediana[an.mesPrev] ? Math.round(tPrev.disp / an.mediana[an.mesPrev] * 10) / 10 : null],
+    ["% Desarrollo de Negocio", r2(cargaPctDe(tRef, "ddn")), r2(cargaPctDe(tPrev, "ddn"))],
+    ["% Vacaciones / Bajas", r2(cargaPctDe(tRef, "vac")), r2(cargaPctDe(tPrev, "vac"))],
+    [], ["Lectura rápida"], ...an.insights.map(i => [i.texto])
+  ];
+  const wsR = cargaHojaExcel(resumen, { anchos: [42, 18, 18] });
+  [7, 8, 11, 12].forEach(r => [1, 2].forEach(c => { const cel = wsR[XLSX.utils.encode_cell({ r, c })]; if (cel && cel.t === "n") cel.z = "0.0%"; }));
+  XLSX.utils.book_append_sheet(wb, wsR, "Resumen");
+  XLSX.utils.book_append_sheet(wb, cargaHojaExcel([["Mes", ...CARGA_CAB_GRUPO], ...meses.map(m => [cargaMesLabel(m), ...cargaFilasGrupo(an.tMes[m]).map(r2)])], { ...fmtGrupo(1), anchos: [10, ...CARGA_CAB_GRUPO.map(() => 15)] }), "Evolución mensual");
+  const porDim = (dim, cab) => {
+    const filas = [];
+    for (const e of [...an.dims[dim]].sort((a, b) => String(a.label).localeCompare(String(b.label), "es")))
+      for (const m of meses) if (e.meses[m]) filas.push([e.label, ...(dim === "persona" ? [an.personas.find(p => p.persona === e.label).sector, an.personas.find(p => p.persona === e.label).modulo] : []), cargaMesLabel(m), ...cargaFilasGrupo(e.meses[m]).map(r2)]);
+    const extra = dim === "persona" ? 2 : 0;
+    return cargaHojaExcel([[cab, ...(extra ? ["Sector", "Módulo"] : []), "Mes", ...CARGA_CAB_GRUPO], ...filas], { ...fmtGrupo(2 + extra), anchos: [28, ...(extra ? [28, 16] : []), 10, ...CARGA_CAB_GRUPO.map(() => 15)] });
+  };
+  XLSX.utils.book_append_sheet(wb, porDim("modulo", "Módulo"), "Por módulo");
+  XLSX.utils.book_append_sheet(wb, porDim("sector", "Sector"), "Por sector");
+  XLSX.utils.book_append_sheet(wb, porDim("persona", "Persona"), "Por persona");
+  XLSX.utils.book_append_sheet(wb, cargaHojaExcel([["Código", "Proyecto", "Cliente", "Sector proyecto", "Personas", "Horas", ...meses.map(cargaMesLabel)],
+    ...an.proyectos.lista.map(p => [p.cod, p.pro, p.cliente || "", p.secPro, p.personas.size, r2(p.h), ...meses.map(m => r2(p.meses[m] || 0))])], { horas: [5, ...meses.map((_, i) => 6 + i)], anchos: [13, 46, 24, 28, 9, 11, ...meses.map(() => 10)] }), "Proyectos");
+  XLSX.utils.book_append_sheet(wb, cargaHojaExcel([["Persona", "Sector", "Módulo", "Alertas", `Horas ${refLabel}`, `% Disponibilidad ${refLabel}`, `% Proyecto ${refLabel}`],
+    ...an.alertas.map(a => [a.persona, a.sector, a.modulo, a.lista.map(l => l.texto).join(" | "), r2(a.t.total), r2(a.disp), r2(cargaPctDe(a.t, "proy"))])], { pct: [5, 6], horas: [4], anchos: [28, 28, 16, 70, 12, 16, 16] }), "Alertas");
+  if (an.cruce) XLSX.utils.book_append_sheet(wb, cargaHojaExcel([["Sector persona \\ proyecto", ...an.cruce.cols, "Total", "% en su sector"],
+    ...an.cruce.filas.map(f => [f.sector, ...an.cruce.cols.map(c => r2(f.celdas[c] || 0)), r2(f.total), f.sector === "Sin mapear" ? null : r2((f.celdas[f.sector] || 0) / f.total)])], { horas: an.cruce.cols.map((_, i) => i + 1).concat([an.cruce.cols.length + 1]), pct: [an.cruce.cols.length + 2], anchos: [30, ...an.cruce.cols.map(() => 18), 12, 14] }), "Carga cruzada (horas)");
+  XLSX.utils.book_append_sheet(wb, cargaHojaExcel([["Persona", "Sector", "Módulo", "Mes", "Fecha", "Código", "Proyecto", "Categoría", "Sector proyecto", "Horas"],
+    ...datos.map(d => [d.persona, d.sector, d.modulo, cargaMesLabel(d.mes), cargaFmtFecha(d.dia), d.cod, d.pro, d.cat, d.grupo === "proy" ? d.secPro : "", d.h])], { horas: [9], anchos: [28, 28, 16, 9, 11, 13, 46, 22, 28, 9] }), "Detalle");
+  XLSX.writeFile(wb, nombre);
+};
+// Trimestres presentes en los datos; "completo" = sus 3 meses están cargados y cerrados
+const cargaTrimestres = (meses, mesActual = cargaMesActual()) => {
+  const mapa = new Map();
+  for (const m of meses) {
+    const anio = m.slice(0, 4), q = Math.floor((parseInt(m.slice(5, 7), 10) - 1) / 3) + 1, clave = `${anio}-T${q}`;
+    if (!mapa.has(clave)) mapa.set(clave, { clave, anio, q, meses: [] });
+    mapa.get(clave).meses.push(m);
+  }
+  return [...mapa.values()].sort((a, b) => a.clave.localeCompare(b.clave)).map(t => ({
+    ...t, meses: t.meses.sort(), completo: t.meses.length === 3 && t.meses.every(m => m < mesActual),
+    label: `T${t.q} ${t.anio}`, rango: `${CARGA_MESES[(t.q - 1) * 3]}–${CARGA_MESES[(t.q - 1) * 3 + 2]} ${t.anio}`
+  }));
+};
+// PowerPoint corporativo del trimestre: sin nombres de personas, solo módulos, sectores y proyectos
+const HB = { primary: "0945F7", deep: "19255B", turq: "00CDE2", ice: "F7F8FD", violet: "5B53FF", mist: "EDF0FF", slate: "3B4779", sky: "D7E2FF", teal: "006671", lavender: "DDDDFE", navy: "001F90", white: "FFFFFF" };
+const cargaHex = c => c.replace("#", "").toUpperCase();
+const cargaCorta = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
+const cargaCrearPPT = (datosBase, trim, alcance, hayMapeoProyectos) => {
+  const FT = "Montserrat", FB = "Lato";
+  const datosQ = datosBase.filter(d => trim.meses.includes(d.mes));
+  const an = cargaAnalisis(datosQ, hayMapeoProyectos, "9999-99"); // trimestre cerrado: el mes de referencia es su último mes
+  const tQ = cargaSumar(datosQ);
+  const qPrevMeses = (() => { const q = trim.q === 1 ? 4 : trim.q - 1, a = trim.q === 1 ? String(+trim.anio - 1) : trim.anio; return [0, 1, 2].map(i => `${a}-${String((q - 1) * 3 + 1 + i).padStart(2, "0")}`); })();
+  const datosPrev = datosBase.filter(d => qPrevMeses.includes(d.mes));
+  const tPrevQ = datosPrev.length ? cargaSumar(datosPrev) : null;
+  const prevLabel = `T${trim.q === 1 ? 4 : trim.q - 1}`;
+  const fteMedio = trim.meses.reduce((s, m) => s + (an.mediana[m] ? an.tMes[m].disp / an.mediana[m] : 0), 0) / trim.meses.length;
+  const ctxMeses = [...new Set(datosBase.map(d => d.mes))].filter(m => m <= trim.meses[trim.meses.length - 1]).sort().slice(-6);
+  const tCtx = Object.fromEntries(ctxMeses.map(m => [m, cargaSumar(datosBase.filter(d => d.mes === m))]));
+  const modulos = an.dims.modulo.filter(e => e.label !== "Sin mapear" && e.tot.total >= 100);
+  const sectores = an.dims.sector.filter(e => e.label !== "Sin mapear" && e.tot.total >= 50).sort((a, b) => b.tot.total - a.tot.total);
+  const pptx = new window.PptxGenJS();
+  pptx.layout = "LAYOUT_WIDE"; // 13,33 × 7,5 in
+  pptx.author = cargaUsuario();
+  pptx.company = "hiberus";
+  pptx.title = `Gestión de carga · Resultados ${trim.label}`;
+  const pie = `Gestión de carga · Resultados ${trim.label} · ${alcance}`;
+  pptx.defineSlideMaster({
+    title: "HB_BASE", background: { color: HB.ice },
+    objects: [
+      { rect: { x: 0, y: 7.08, w: 13.333, h: 0.02, fill: { color: HB.sky } } },
+      { text: { text: pie, options: { x: 0.5, y: 7.12, w: 10, h: 0.3, fontFace: FB, fontSize: 9, color: HB.slate } } }
+    ],
+    slideNumber: { x: 12.4, y: 7.12, w: 0.5, h: 0.3, fontFace: FB, fontSize: 9, color: HB.slate, align: "right" }
+  });
+  const nueva = () => pptx.addSlide({ masterName: "HB_BASE" });
+  const titulo = (s, t, sub) => {
+    s.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.42, w: 0.07, h: 0.62, fill: { color: HB.turq }, line: { color: HB.turq, width: 0 } });
+    s.addText(t, { x: 0.72, y: 0.34, w: 12, h: 0.55, fontFace: FT, fontSize: 24, bold: true, color: HB.deep, margin: 0 });
+    if (sub) s.addText(sub, { x: 0.72, y: 0.86, w: 12, h: 0.32, fontFace: FB, fontSize: 12, color: HB.slate, margin: 0 });
+  };
+  const tarjeta = (s, x, y, w, h, fill = HB.white, linea = HB.sky) => s.addShape(pptx.ShapeType.roundRect, { x, y, w, h, rectRadius: 0.08, fill: { color: fill }, line: { color: linea, width: 1 } });
+  const pctTxt = v => v == null ? "—" : (v * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 }) + "%";
+  const deltaTxt = (a, b, sentido, pp = true) => {
+    if (a == null || b == null) return null;
+    const d = pp ? (a - b) * 100 : (b ? (a / b - 1) * 100 : 0);
+    if (Math.abs(d) < 0.05) return { text: `= vs ${prevLabel}`, color: HB.slate };
+    const bueno = sentido === 0 ? null : (d > 0) === (sentido > 0);
+    return { text: `${d > 0 ? "▲" : "▼"} ${Math.abs(Math.round(d * 10) / 10).toLocaleString("es-ES")}${pp ? " pp" : " %"} vs ${prevLabel}`, color: bueno == null ? HB.slate : bueno ? "006300" : "D03B3B" };
+  };
+  const ejes = { catAxisLabelFontFace: FB, catAxisLabelFontSize: 11, catAxisLabelColor: HB.slate, valAxisLabelFontFace: FB, valAxisLabelFontSize: 10, valAxisLabelColor: "898781", valGridLine: { color: "E1E0D9", size: 0.5 }, catGridLine: { style: "none" }, catAxisLineShow: false, valAxisLineShow: false, legendFontFace: FB, legendFontSize: 11, legendColor: HB.deep };
+  const coloresGrupo = CARGA_GRUPOS.map(g => cargaHex(g.color));
+  // 1. Portada
+  let s = pptx.addSlide();
+  s.background = { color: HB.deep };
+  s.addShape(pptx.ShapeType.ellipse, { x: 8.6, y: -1.6, w: 6.4, h: 6.4, fill: { color: HB.primary, transparency: 35 }, line: { color: HB.primary, width: 0 } });
+  s.addShape(pptx.ShapeType.ellipse, { x: 10.6, y: 3.4, w: 4.2, h: 4.2, fill: { color: HB.violet, transparency: 45 }, line: { color: HB.violet, width: 0 } });
+  s.addShape(pptx.ShapeType.ellipse, { x: 9.3, y: 4.6, w: 1.1, h: 1.1, fill: { color: HB.turq }, line: { color: HB.turq, width: 0 } });
+  s.addShape(pptx.ShapeType.rect, { x: 0.8, y: 2.35, w: 1.2, h: 0.08, fill: { color: HB.turq }, line: { color: HB.turq, width: 0 } });
+  s.addText("Gestión de carga", { x: 0.8, y: 1.6, w: 8, h: 0.6, fontFace: FB, fontSize: 18, color: HB.sky, margin: 0 });
+  s.addText(`Resultados del trimestre`, { x: 0.8, y: 2.6, w: 8.2, h: 1.0, fontFace: FT, fontSize: 44, bold: true, color: HB.white, margin: 0 });
+  s.addText(`${trim.label} · ${trim.rango}`, { x: 0.8, y: 3.6, w: 8, h: 0.7, fontFace: FT, fontSize: 28, color: HB.turq, margin: 0 });
+  s.addText(`Alcance: ${alcance}`, { x: 0.8, y: 4.6, w: 8, h: 0.4, fontFace: FB, fontSize: 14, color: HB.sky, margin: 0 });
+  s.addText(`Generado el ${new Date().toLocaleDateString("es-ES")}${trim.completo ? "" : " · trimestre incompleto: datos parciales"}`, { x: 0.8, y: 6.5, w: 8, h: 0.35, fontFace: FB, fontSize: 11, color: HB.sky, margin: 0 });
+  // 2. El trimestre en cifras
+  s = nueva();
+  titulo(s, "El trimestre en cifras", `${trim.label} (${trim.rango}) comparado con ${prevLabel}${tPrevQ ? "" : " (sin datos del trimestre anterior)"}`);
+  const cifras = [
+    { label: "Ocupación en proyecto", valor: pctTxt(cargaPctDe(tQ, "proy")), sub: `${cargaFmtH(tQ.proy)} h de proyecto`, d: deltaTxt(cargaPctDe(tQ, "proy"), cargaPctDe(tPrevQ, "proy"), 1), color: HB.primary },
+    { label: "Disponibilidad", valor: pctTxt(cargaPctDe(tQ, "disp")), sub: `${cargaFmtH(tQ.disp)} h sin asignar a proyecto`, d: deltaTxt(cargaPctDe(tQ, "disp"), cargaPctDe(tPrevQ, "disp"), -1), color: cargaHex(CV.disp) },
+    { label: "Capacidad libre media", valor: fteMedio.toLocaleString("es-ES", { maximumFractionDigits: 1 }), sub: "personas a jornada completa / mes", d: null, color: HB.deep },
+    { label: "Desarrollo de Negocio", valor: pctTxt(cargaPctDe(tQ, "ddn")), sub: `${cargaFmtH(tQ.ddn)} h en preventa y DDN`, d: deltaTxt(cargaPctDe(tQ, "ddn"), cargaPctDe(tPrevQ, "ddn"), 0), color: cargaHex(CV.ddn) },
+    { label: "Vacaciones y bajas", valor: pctTxt(cargaPctDe(tQ, "vac")), sub: `${cargaFmtH(tQ.vac)} h`, d: deltaTxt(cargaPctDe(tQ, "vac"), cargaPctDe(tPrevQ, "vac"), 0), color: cargaHex(CV.vac) },
+    { label: "Horas imputadas", valor: cargaFmtH(tQ.total), sub: `${an.personas.length} personas · ${an.proyectos.lista.length} proyectos`, d: deltaTxt(tQ.total, tPrevQ ? tPrevQ.total : null, 0, false), color: HB.deep }
+  ];
+  cifras.forEach((c, i) => {
+    const x = 0.5 + (i % 3) * 4.15, y = 1.55 + Math.floor(i / 3) * 2.7;
+    tarjeta(s, x, y, 3.95, 2.45);
+    s.addShape(pptx.ShapeType.rect, { x: x + 0.3, y: y + 0.35, w: 0.45, h: 0.06, fill: { color: c.color }, line: { color: c.color, width: 0 } });
+    s.addText(c.label, { x: x + 0.3, y: y + 0.45, w: 3.4, h: 0.4, fontFace: FB, fontSize: 13, color: HB.slate, margin: 0 });
+    s.addText(c.valor, { x: x + 0.3, y: y + 0.85, w: 3.4, h: 0.85, fontFace: FT, fontSize: 40, bold: true, color: HB.deep, margin: 0 });
+    s.addText(c.sub, { x: x + 0.3, y: y + 1.7, w: 3.4, h: 0.3, fontFace: FB, fontSize: 11, color: HB.slate, margin: 0 });
+    if (c.d) s.addText(c.d.text, { x: x + 0.3, y: y + 2.0, w: 3.4, h: 0.3, fontFace: FB, fontSize: 11, bold: true, color: c.d.color, margin: 0 });
+  });
+  // 3. Mensajes clave (agregados, sin personas)
+  const mensajes = [];
+  const pQ = cargaPctDe(tQ, "proy"), pP = cargaPctDe(tPrevQ, "proy");
+  mensajes.push(`La ocupación en proyecto del trimestre fue del ${pctTxt(pQ)}` + (pP != null ? `, ${pQ >= pP ? "+" : "−"}${Math.abs(Math.round((pQ - pP) * 1000) / 10).toLocaleString("es-ES")} pp respecto a ${prevLabel}.` : "."));
+  const modDisp = [...modulos].sort((a, b) => b.tot.disp - a.tot.disp).filter(e => e.tot.disp > 0);
+  if (modDisp.length) mensajes.push(`La capacidad libre se concentra en ${modDisp.slice(0, 3).map(e => `${e.label} (${cargaFmtH(e.tot.disp)} h)`).join(", ")}: palanca para nuevas oportunidades.`);
+  const modOcup = [...modulos].sort((a, b) => b.tot.proy / b.tot.total - a.tot.proy / a.tot.total);
+  if (modOcup.length) mensajes.push(`Módulos más tensionados: ${modOcup.slice(0, 3).map(e => `${e.label} (${pctTxt(e.tot.proy / e.tot.total)})`).join(", ")}. Riesgo si entran nuevos proyectos.`);
+  const secDisp = [...sectores].sort((a, b) => b.tot.disp / b.tot.total - a.tot.disp / a.tot.total);
+  if (secDisp.length > 1) mensajes.push(`${secDisp[0].label} es el sector con más disponibilidad (${pctTxt(secDisp[0].tot.disp / secDisp[0].tot.total)}); ${secDisp[secDisp.length - 1].label} el más ocupado.`);
+  if (an.cruce && an.cruce.total) mensajes.push(`${pctTxt(an.cruce.fuera / an.cruce.total)} de las horas de proyecto se prestan a otros sectores: la colaboración entre sectores es relevante.`);
+  if (an.proyectos.lista.length >= 5) mensajes.push(`Los 5 proyectos principales concentran el ${pctTxt(an.proyectos.top5 / an.proyectos.total)} de las horas de proyecto.`);
+  const nAltas = an.alertas.filter(a => a.disp > 0.4).length;
+  mensajes.push(nAltas ? `Al cierre del trimestre, ${nAltas} persona${nAltas === 1 ? "" : "s"} superan el 40 % de disponibilidad: prioridad de asignación.` : "Al cierre del trimestre nadie supera el 40 % de disponibilidad.");
+  s = nueva();
+  titulo(s, "Mensajes clave", `Lo que nos dice ${trim.label}`);
+  mensajes.slice(0, 6).forEach((m, i) => {
+    const x = 0.5 + (i % 2) * 6.2, y = 1.5 + Math.floor(i / 2) * 1.8;
+    tarjeta(s, x, y, 6.0, 1.6, i === 0 ? HB.mist : HB.white);
+    s.addText(String(i + 1).padStart(2, "0"), { x: x + 0.25, y: y + 0.3, w: 0.9, h: 0.8, fontFace: FT, fontSize: 30, bold: true, color: i === 0 ? HB.primary : HB.turq, margin: 0 });
+    s.addText(m, { x: x + 1.2, y: y + 0.15, w: 4.6, h: 1.3, fontFace: FB, fontSize: 14, color: HB.deep, valign: "middle", margin: 0 });
+  });
+  // 4. Evolución mensual
+  s = nueva();
+  titulo(s, "Evolución mensual", `Reparto de las horas imputadas en los últimos ${ctxMeses.length} meses`);
+  const gruposLinea = CARGA_GRUPOS.filter(g => g.key !== "otros");
+  tarjeta(s, 0.5, 1.45, 8.7, 5.4);
+  s.addChart(pptx.ChartType.line, gruposLinea.map(g => ({ name: g.label, labels: ctxMeses.map(cargaMesLabel), values: ctxMeses.map(m => cargaPctDe(tCtx[m], g.key) || 0) })),
+    { x: 0.7, y: 1.6, w: 8.3, h: 5.1, ...ejes, chartColors: gruposLinea.map(g => cargaHex(g.color)), lineSize: 2, lineDataSymbol: "circle", lineDataSymbolSize: 7, valAxisLabelFormatCode: "0%", valAxisMinVal: 0, showLegend: true, legendPos: "t" });
+  const mejor = [...trim.meses].sort((a, b) => cargaPctDe(an.tMes[b], "proy") - cargaPctDe(an.tMes[a], "proy"))[0];
+  const masVac = [...trim.meses].sort((a, b) => cargaPctDe(an.tMes[b], "vac") - cargaPctDe(an.tMes[a], "vac"))[0];
+  [[`Ocupación media ${trim.label}`, pctTxt(pQ), HB.primary], [`Mes con más ocupación`, `${cargaMesLabel(mejor)} · ${pctTxt(cargaPctDe(an.tMes[mejor], "proy"))}`, HB.deep], [`Mes con más vacaciones/bajas`, `${cargaMesLabel(masVac)} · ${pctTxt(cargaPctDe(an.tMes[masVac], "vac"))}`, HB.deep]].forEach(([l, v, c], i) => {
+    const y = 1.45 + i * 1.85;
+    tarjeta(s, 9.45, y, 3.4, 1.65, i === 0 ? HB.deep : HB.white, i === 0 ? HB.deep : HB.sky);
+    s.addText(l, { x: 9.7, y: y + 0.2, w: 3, h: 0.4, fontFace: FB, fontSize: 12, color: i === 0 ? HB.sky : HB.slate, margin: 0 });
+    s.addText(v, { x: 9.7, y: y + 0.65, w: 3, h: 0.7, fontFace: FT, fontSize: i === 0 ? 32 : 22, bold: true, color: i === 0 ? HB.white : c, margin: 0 });
+  });
+  // 5. ¿En qué se van las horas?
+  s = nueva();
+  titulo(s, "¿En qué se van las horas?", "Composición de las horas imputadas por mes y en el conjunto del trimestre");
+  tarjeta(s, 0.5, 1.45, 7.6, 5.4);
+  s.addChart(pptx.ChartType.bar, CARGA_GRUPOS.map(g => ({ name: g.label, labels: trim.meses.map(cargaMesLabel), values: trim.meses.map(m => Math.round(an.tMes[m][g.key])) })),
+    { x: 0.7, y: 1.6, w: 7.2, h: 5.1, ...ejes, barDir: "col", barGrouping: "stacked", barGapWidthPct: 70, chartColors: coloresGrupo, valAxisLabelFormatCode: "#,##0", showLegend: true, legendPos: "t" });
+  tarjeta(s, 8.35, 1.45, 4.5, 5.4);
+  s.addText(`Total ${trim.label}`, { x: 8.6, y: 1.6, w: 4, h: 0.35, fontFace: FT, fontSize: 14, bold: true, color: HB.deep, margin: 0 });
+  s.addChart(pptx.ChartType.doughnut, [{ name: "Horas", labels: CARGA_GRUPOS.map(g => g.label), values: CARGA_GRUPOS.map(g => Math.round(tQ[g.key])) }],
+    { x: 8.5, y: 2.0, w: 4.2, h: 4.7, holeSize: 58, chartColors: coloresGrupo, showPercent: true, showValue: false, showLabel: false, dataLabelColor: HB.white, dataLabelFontSize: 10, dataLabelFontFace: FB, showLegend: true, legendPos: "b", legendFontFace: FB, legendFontSize: 10, legendColor: HB.deep });
+  // 6. Ocupación por módulo
+  if (modulos.length) {
+    s = nueva();
+    const ocup = [...modulos].sort((a, b) => a.tot.proy / a.tot.total - b.tot.proy / b.tot.total);
+    titulo(s, "Ocupación en proyecto por módulo", `% de las horas del trimestre dedicadas a proyecto · media del equipo ${pctTxt(pQ)}`);
+    tarjeta(s, 0.5, 1.45, 8.4, 5.4);
+    s.addChart(pptx.ChartType.bar, [{ name: "% Proyecto", labels: ocup.map(e => e.label), values: ocup.map(e => e.tot.proy / e.tot.total) }],
+      { x: 0.7, y: 1.55, w: 8.0, h: 5.2, ...ejes, barDir: "bar", barGapWidthPct: 45, chartColors: [cargaHex(CV.proy)], valAxisHidden: true, valGridLine: { style: "none" }, valAxisMaxVal: 1, valAxisMinVal: 0, showValue: true, dataLabelFormatCode: "0%", dataLabelPosition: "outEnd", dataLabelFontFace: FB, dataLabelFontSize: 10, dataLabelColor: HB.deep, showLegend: false, catAxisLabelFontSize: 10 });
+    const alta = [...ocup].reverse().slice(0, 3), baja = ocup.slice(0, 3);
+    [["Más tensionados", alta, "D03B3B", "▲"], ["Con más margen", baja, "006300", "▼"]].forEach(([t, lista, col, ico], i) => {
+      const y = 1.45 + i * 2.75;
+      tarjeta(s, 9.15, y, 3.7, 2.55);
+      s.addText(`${ico} ${t}`, { x: 9.4, y: y + 0.2, w: 3.3, h: 0.4, fontFace: FT, fontSize: 14, bold: true, color: col, margin: 0 });
+      s.addText(lista.map(e => ({ text: `${e.label}  ${pctTxt(e.tot.proy / e.tot.total)}`, options: { breakLine: true } })), { x: 9.4, y: y + 0.7, w: 3.3, h: 1.6, fontFace: FB, fontSize: 14, color: HB.deep, valign: "top", margin: 0, paraSpaceAfter: 6 });
+    });
+  }
+  // 7. Capacidad libre por módulo
+  if (modDisp.length) {
+    s = nueva();
+    const capac = [...modDisp].slice(0, 14).reverse();
+    const medMes = trim.meses.reduce((acc, m) => acc + (an.mediana[m] || 0), 0);
+    titulo(s, "¿Dónde hay capacidad disponible?", "Horas de disponibilidad del trimestre por módulo (incluye formación y onboarding)");
+    tarjeta(s, 0.5, 1.45, 8.4, 5.4);
+    s.addChart(pptx.ChartType.bar, [{ name: "Horas disponibles", labels: capac.map(e => e.label), values: capac.map(e => Math.round(e.tot.disp)) }],
+      { x: 0.7, y: 1.55, w: 8.0, h: 5.2, ...ejes, barDir: "bar", barGapWidthPct: 45, chartColors: [cargaHex(CV.disp)], valAxisHidden: true, valAxisMinVal: 0, valAxisMaxVal: Math.max(...capac.map(e => e.tot.disp)) * 1.15, valGridLine: { style: "none" }, showValue: true, dataLabelFormatCode: "#,##0 \"h\"", dataLabelPosition: "outEnd", dataLabelFontFace: FB, dataLabelFontSize: 10, dataLabelColor: HB.deep, showLegend: false, catAxisLabelFontSize: 10 });
+    tarjeta(s, 9.15, 1.45, 3.7, 5.4, HB.deep, HB.deep);
+    s.addText("Capacidad libre media", { x: 9.4, y: 1.7, w: 3.3, h: 0.4, fontFace: FB, fontSize: 13, color: HB.sky, margin: 0 });
+    s.addText(fteMedio.toLocaleString("es-ES", { maximumFractionDigits: 1 }), { x: 9.4, y: 2.1, w: 3.3, h: 1.0, fontFace: FT, fontSize: 54, bold: true, color: HB.white, margin: 0 });
+    s.addText("personas a jornada completa cada mes", { x: 9.4, y: 3.1, w: 3.3, h: 0.6, fontFace: FB, fontSize: 13, color: HB.sky, margin: 0 });
+    s.addShape(pptx.ShapeType.rect, { x: 9.4, y: 3.95, w: 0.8, h: 0.05, fill: { color: HB.turq }, line: { color: HB.turq, width: 0 } });
+    s.addText(modDisp.slice(0, 3).map(e => ({ text: `${e.label}: ≈ ${medMes ? (e.tot.disp / medMes * 3).toLocaleString("es-ES", { maximumFractionDigits: 1 }) : "—"} pers./mes`, options: { breakLine: true } })), { x: 9.4, y: 4.15, w: 3.3, h: 2.4, fontFace: FB, fontSize: 13, color: HB.white, valign: "top", margin: 0, paraSpaceAfter: 6 });
+  }
+  // 8. Mapa de calor módulo × mes
+  if (modulos.length) {
+    s = nueva();
+    titulo(s, "Disponibilidad por módulo y mes", "% de horas en disponibilidad · más oscuro = más capacidad sin asignar");
+    const filasM = [...modulos].sort((a, b) => b.tot.disp / b.tot.total - a.tot.disp / a.tot.total).slice(0, 15);
+    const maxV = Math.max(0.0001, ...filasM.flatMap(e => trim.meses.map(m => cargaPctDe(e.meses[m], "disp") || 0)));
+    const cab = (t, al = "center") => ({ text: t, options: { bold: true, color: HB.white, fill: { color: HB.deep }, align: al, fontFace: FT, fontSize: 11 } });
+    const filasT = [[cab("Módulo", "left"), ...trim.meses.map(m => cab(cargaMesLabel(m))), cab(trim.label), cab("Horas disp.")]];
+    for (const e of filasM) {
+      const celda = v => {
+        if (v == null) return { text: "—", options: { align: "center", color: "898781", fill: { color: HB.ice } } };
+        const paso = Math.min(CARGA_RAMPA.length - 1, Math.floor(v / maxV * CARGA_RAMPA.length));
+        return { text: pctTxt(v), options: { align: "center", fill: { color: cargaHex(CARGA_RAMPA[paso]) }, color: paso >= 3 ? HB.white : HB.deep } };
+      };
+      filasT.push([{ text: e.label, options: { bold: true, color: HB.deep, fill: { color: HB.white } } }, ...trim.meses.map(m => celda(cargaPctDe(e.meses[m], "disp"))), celda(cargaPctDe(e.tot, "disp")), { text: cargaFmtH(e.tot.disp), options: { align: "right", color: HB.slate, fill: { color: HB.white } } }]);
+    }
+    const anchoMes = 1.45;
+    s.addTable(filasT, { x: 0.5, y: 1.45, w: 12.33, colW: [12.33 - anchoMes * (trim.meses.length + 1) - 1.6, ...trim.meses.map(() => anchoMes), anchoMes, 1.6], fontFace: FB, fontSize: 11, rowH: Math.min(0.36, 5.3 / filasT.length), border: { type: "solid", pt: 2, color: HB.ice }, valign: "middle" });
+  }
+  // 9. Sectores
+  if (sectores.length) {
+    s = nueva();
+    titulo(s, "Visión por sector", "Ocupación, disponibilidad y composición de las horas de cada sector en el trimestre");
+    const lista = sectores.slice(0, 6), cols = lista.length <= 4 ? 2 : 3, w = cols === 2 ? 6.05 : 3.98, h = lista.length <= cols ? 5.1 : 2.5;
+    lista.forEach((e, i) => {
+      const x = 0.5 + (i % cols) * (w + 0.17), y = 1.45 + Math.floor(i / cols) * (h + 0.15), t = e.tot;
+      tarjeta(s, x, y, w, h);
+      s.addText(e.label, { x: x + 0.25, y: y + 0.18, w: w - 0.5, h: 0.4, fontFace: FT, fontSize: 14, bold: true, color: HB.deep, margin: 0 });
+      s.addText(`${e.personas.size} personas · ${cargaFmtH(t.total)} h`, { x: x + 0.25, y: y + 0.55, w: w - 0.5, h: 0.3, fontFace: FB, fontSize: 11, color: HB.slate, margin: 0 });
+      s.addText([{ text: pctTxt(t.proy / t.total), options: { fontFace: FT, fontSize: 34, bold: true, color: HB.primary } }, { text: "  ocupación", options: { fontFace: FB, fontSize: 12, color: HB.slate } }], { x: x + 0.25, y: y + 0.9, w: w - 0.5, h: 0.75, margin: 0 });
+      s.addText(`Disponibilidad ${pctTxt(t.disp / t.total)} · DDN ${pctTxt(t.ddn / t.total)} · Vac./bajas ${pctTxt(t.vac / t.total)}`, { x: x + 0.25, y: y + 1.65, w: w - 0.5, h: 0.3, fontFace: FB, fontSize: 11, color: HB.deep, margin: 0 });
+      let bx = x + 0.25;
+      const bw = w - 0.5, segs = CARGA_GRUPOS.filter(g => t[g.key] > 0);
+      segs.forEach((g, k) => {
+        const ancho = Math.max(0.02, t[g.key] / t.total * (bw - 0.03 * (segs.length - 1)));
+        s.addShape(pptx.ShapeType.rect, { x: bx, y: y + 2.08, w: ancho, h: 0.22, fill: { color: cargaHex(g.color) }, line: { color: cargaHex(g.color), width: 0 } });
+        bx += ancho + (k < segs.length - 1 ? 0.03 : 0);
+      });
+    });
+    s.addText(CARGA_GRUPOS.map(g => [{ text: "■ ", options: { color: cargaHex(g.color), fontSize: 12 } }, { text: g.label + "    ", options: { color: HB.slate, fontSize: 10 } }]).flat(), { x: 0.5, y: 6.72, w: 12.3, h: 0.3, fontFace: FB, margin: 0 });
+  }
+  // 10. Carga cruzada entre sectores
+  if (an.cruce && an.cruce.filas.length) {
+    s = nueva();
+    titulo(s, "Colaboración entre sectores", "¿Para qué sectores trabaja cada equipo? % de sus horas de proyecto · en negrita, su propio sector");
+    const cr = an.cruce, cols = cr.cols.slice(0, 7);
+    const cab = t => ({ text: t, options: { bold: true, color: HB.white, fill: { color: HB.deep }, align: "center", fontFace: FT, fontSize: 9 } });
+    const filasT = [[cab("Equipo \\ proyecto"), ...cols.map(cab), cab("En su sector")]];
+    for (const f of cr.filas.filter(f => f.total > 0 && f.sector !== "Sin mapear")) filasT.push([{ text: f.sector, options: { bold: true, color: HB.deep, fill: { color: HB.white }, fontSize: 10 } },
+      ...cols.map(c => {
+        const p = (f.celdas[c] || 0) / f.total, paso = f.celdas[c] ? Math.min(CARGA_RAMPA.length - 1, Math.floor(p * CARGA_RAMPA.length)) : -1;
+        return { text: f.celdas[c] ? pctTxt(p) : "—", options: { align: "center", bold: c === f.sector, fill: { color: paso < 0 ? HB.ice : cargaHex(CARGA_RAMPA[paso]) }, color: paso >= 3 ? HB.white : HB.deep } };
+      }),
+      { text: f.sector === "Sin mapear" ? "—" : pctTxt((f.celdas[f.sector] || 0) / f.total), options: { align: "center", bold: true, color: HB.deep, fill: { color: HB.mist } } }]);
+    s.addTable(filasT, { x: 0.5, y: 1.45, w: 8.9, fontFace: FB, fontSize: 10, rowH: Math.min(0.55, 5.2 / filasT.length), border: { type: "solid", pt: 2, color: HB.ice }, valign: "middle" });
+    tarjeta(s, 9.65, 1.45, 3.2, 5.4, HB.deep, HB.deep);
+    s.addText(pctTxt(cr.fuera / cr.total), { x: 9.9, y: 1.9, w: 2.8, h: 1.0, fontFace: FT, fontSize: 48, bold: true, color: HB.turq, margin: 0 });
+    s.addText("de las horas de proyecto se dedican a proyectos de otro sector", { x: 9.9, y: 2.95, w: 2.8, h: 1.1, fontFace: FB, fontSize: 14, color: HB.white, margin: 0 });
+    if (cr.sinClas) s.addText(`${pctTxt(cr.sinClas / cr.total)} corresponde a proyectos sin sector en el mapeo.`, { x: 9.9, y: 4.4, w: 2.8, h: 0.9, fontFace: FB, fontSize: 11, color: HB.sky, margin: 0 });
+  }
+  // 11. Proyectos con más dedicación
+  if (an.proyectos.lista.length) {
+    s = nueva();
+    const top = an.proyectos.lista.slice(0, 10);
+    titulo(s, "Proyectos con más dedicación", `Horas imputadas en el trimestre · ${an.proyectos.lista.length} proyectos con actividad`);
+    tarjeta(s, 0.5, 1.45, 8.9, 5.4);
+    s.addChart(pptx.ChartType.bar, [{ name: "Horas", labels: [...top].reverse().map(p => cargaCorta(p.pro, 42)), values: [...top].reverse().map(p => Math.round(p.h)) }],
+      { x: 0.65, y: 1.55, w: 8.6, h: 5.2, ...ejes, barDir: "bar", barGapWidthPct: 40, chartColors: [HB.primary], valAxisHidden: true, valAxisMinVal: 0, valAxisMaxVal: top[0].h * 1.15, valGridLine: { style: "none" }, showValue: true, dataLabelFormatCode: "#,##0 \"h\"", dataLabelPosition: "outEnd", dataLabelFontFace: FB, dataLabelFontSize: 10, dataLabelColor: HB.deep, showLegend: false, catAxisLabelFontSize: 9 });
+    tarjeta(s, 9.65, 1.45, 3.2, 2.6, HB.mist, HB.mist);
+    s.addText(pctTxt(an.proyectos.top5 / an.proyectos.total), { x: 9.9, y: 1.65, w: 2.8, h: 0.9, fontFace: FT, fontSize: 44, bold: true, color: HB.primary, margin: 0 });
+    s.addText("de las horas de proyecto se concentra en los 5 primeros", { x: 9.9, y: 2.6, w: 2.8, h: 1.0, fontFace: FB, fontSize: 13, color: HB.slate, margin: 0 });
+    tarjeta(s, 9.65, 4.25, 3.2, 2.6);
+    const mil = an.proyectos.lista.filter(p => p.h >= 1000).length;
+    s.addText([{ text: String(mil), options: { fontFace: FT, fontSize: 36, bold: true, color: HB.deep, breakLine: true } }, { text: `proyecto${mil === 1 ? "" : "s"} con más de 1.000 h en el trimestre`, options: { fontFace: FB, fontSize: 12, color: HB.slate, breakLine: true } }, { text: " ", options: { fontSize: 8, breakLine: true } }, { text: cargaFmtH(an.proyectos.total / an.proyectos.lista.length) + " h", options: { fontFace: FT, fontSize: 24, bold: true, color: HB.deep, breakLine: true } }, { text: "de media por proyecto", options: { fontFace: FB, fontSize: 12, color: HB.slate } }], { x: 9.9, y: 4.4, w: 2.8, h: 2.3, valign: "top", margin: 0 });
+  }
+  // 12. Distribución por sector de proyecto (y por tipo de proyecto si está en el mapeo)
+  if (hayMapeoProyectos && an.proyectos.total) {
+    const porSec = new Map(), porTipo = new Map();
+    for (const p of an.proyectos.lista) {
+      porSec.set(p.secPro, (porSec.get(p.secPro) || 0) + p.h);
+      if (p.tipo) porTipo.set(p.tipo, (porTipo.get(p.tipo) || 0) + p.h);
+    }
+    const plegar = (mapa, n) => {
+      const tot = [...mapa.values()].reduce((a, b) => a + b, 0) || 1;
+      const l = [...mapa.entries()].sort((a, b) => b[1] - a[1]);
+      const corte = Math.min(n - 1, l.filter(x => x[1] / tot >= 0.03).length);
+      return l.length > corte + 1 ? [...l.slice(0, corte), ["Otros", l.slice(corte).reduce((s2, x) => s2 + x[1], 0)]] : l;
+    };
+    const sec = plegar(porSec, 6), tipos = plegar(porTipo, 7);
+    s = nueva();
+    titulo(s, "¿Para quién trabajamos?", "Horas de proyecto del trimestre según el sector del proyecto" + (tipos.length ? " y el tipo de proyecto" : ""));
+    const paleta = ["2A78D6", "EB6834", "1BAF7A", "EDA100", "E87BA4", "008300", "6250D6"];
+    tarjeta(s, 0.5, 1.45, tipos.length ? 6.0 : 12.33, 5.4);
+    s.addChart(pptx.ChartType.doughnut, [{ name: "Horas", labels: sec.map(x => x[0]), values: sec.map(x => Math.round(x[1])) }],
+      { x: 0.7, y: 1.6, w: tipos.length ? 5.6 : 11.9, h: 5.1, holeSize: 55, chartColors: paleta, showPercent: true, showLabel: false, showValue: false, dataLabelColor: HB.white, dataLabelFontSize: 11, dataLabelFontFace: FB, showLegend: true, legendPos: "r", legendFontFace: FB, legendFontSize: 11, legendColor: HB.deep });
+    if (tipos.length) {
+      const tiposAsc = [...tipos].reverse();
+      tarjeta(s, 6.7, 1.45, 6.13, 5.4);
+      s.addChart(pptx.ChartType.bar, [{ name: "Horas", labels: tiposAsc.map(x => cargaCorta(x[0], 34)), values: tiposAsc.map(x => Math.round(x[1])) }],
+        { x: 6.85, y: 1.55, w: 5.85, h: 5.2, ...ejes, barDir: "bar", barGapWidthPct: 45, chartColors: [HB.primary], valAxisHidden: true, valAxisMinVal: 0, valAxisMaxVal: Math.max(...tiposAsc.map(x => x[1])) * 1.3, valGridLine: { style: "none" }, showValue: true, dataLabelFormatCode: "#,##0 \"h\"", dataLabelPosition: "outEnd", dataLabelFontFace: FB, dataLabelFontSize: 10, dataLabelColor: HB.deep, showLegend: false, catAxisLabelFontSize: 9 });
+    }
+  }
+  // 13. Puntos de atención (solo recuentos agregados) y próximos pasos
+  s = nueva();
+  titulo(s, "Puntos de atención y próximos pasos", `Situación al cierre de ${cargaMesLabel(trim.meses[trim.meses.length - 1])} (recuentos agregados)`);
+  const contar = tipo => an.alertas.filter(a => a.lista.some(l => l.tipo === tipo)).length;
+  const modTension = modulos.filter(e => e.meses[an.mesRef] && cargaPctDe(e.meses[an.mesRef], "disp") > 0.3).map(e => e.label);
+  const atencion = [
+    { n: an.alertas.filter(a => a.disp > 0.4).length, l: "personas con más del 40 % de disponibilidad", nivel: "critical" },
+    { n: an.alertas.filter(a => a.seguidos >= 2).length, l: "personas con 2 o más meses seguidos por encima del 30 %", nivel: "warning" },
+    { n: contar("sobrecarga"), l: "personas con posible sobrecarga (> 15 % sobre la mediana)", nivel: "serious" },
+    { n: modTension.length, l: "módulos con más del 30 % de disponibilidad" + (modTension.length ? `: ${modTension.slice(0, 4).join(", ")}` : ""), nivel: modTension.length ? "warning" : "good" }
+  ];
+  const estado = { critical: ["D03B3B", "▲"], serious: ["EC835A", "◆"], warning: ["FAB219", "●"], good: ["0CA30C", "✓"] };
+  atencion.forEach((a, i) => {
+    const y = 1.45 + i * 1.35, [col, ico] = estado[a.n ? a.nivel : "good"];
+    tarjeta(s, 0.5, y, 6.4, 1.2);
+    s.addShape(pptx.ShapeType.rect, { x: 0.5, y, w: 0.12, h: 1.2, fill: { color: col }, line: { color: col, width: 0 } });
+    s.addText([{ text: ico + " ", options: { color: col, fontSize: 18 } }, { text: String(a.n), options: { color: HB.deep, fontSize: 32, bold: true, fontFace: FT } }], { x: 0.8, y: y + 0.15, w: 1.6, h: 0.9, margin: 0, valign: "middle" });
+    s.addText(a.l, { x: 2.4, y: y + 0.1, w: 4.3, h: 1.0, fontFace: FB, fontSize: 13, color: HB.deep, valign: "middle", margin: 0 });
+  });
+  const pasos = [];
+  if (modDisp.length) pasos.push(`Orientar la preventa y las nuevas oportunidades hacia ${modDisp.slice(0, 2).map(e => e.label).join(" y ")}, donde hay más capacidad libre.`);
+  if (modOcup.length && modOcup[0].tot.proy / modOcup[0].tot.total > 0.8) pasos.push(`Reforzar o planificar backup en ${modOcup.slice(0, 2).map(e => e.label).join(" y ")}: ocupación superior al 80 %.`);
+  if (atencion[1].n) pasos.push("Definir un plan de asignación o upskilling para la disponibilidad sostenida.");
+  if (atencion[2].n) pasos.push("Revisar la carga de las posibles sobrecargas y redistribuir donde sea posible.");
+  if (an.cruce && an.cruce.total && an.cruce.fuera / an.cruce.total > 0.2) pasos.push("Formalizar la colaboración entre sectores: buena parte del proyecto se presta a otros equipos.");
+  if (an.cruce && an.cruce.sinClas > 0) pasos.push("Completar el mapeo de proyectos para clasificar todas las horas por sector.");
+  if (!pasos.length) pasos.push("Mantener el seguimiento mensual de ocupación y disponibilidad.");
+  tarjeta(s, 7.15, 1.45, 5.7, 5.25, HB.mist, HB.mist);
+  s.addText("Próximos pasos sugeridos", { x: 7.45, y: 1.65, w: 5.1, h: 0.45, fontFace: FT, fontSize: 16, bold: true, color: HB.deep, margin: 0 });
+  s.addText(pasos.slice(0, 5).map(p => ({ text: p, options: { bullet: { code: "25B8" }, breakLine: true } })), { x: 7.45, y: 2.2, w: 5.1, h: 4.3, fontFace: FB, fontSize: 13, color: HB.deep, valign: "top", margin: 0, paraSpaceAfter: 10 });
+  // 14. Cierre
+  s = pptx.addSlide();
+  s.background = { color: HB.deep };
+  s.addShape(pptx.ShapeType.ellipse, { x: -1.5, y: 3.8, w: 5.5, h: 5.5, fill: { color: HB.primary, transparency: 40 }, line: { color: HB.primary, width: 0 } });
+  s.addShape(pptx.ShapeType.ellipse, { x: 10.8, y: -1.2, w: 3.6, h: 3.6, fill: { color: HB.violet, transparency: 45 }, line: { color: HB.violet, width: 0 } });
+  s.addText("Gracias", { x: 0, y: 2.6, w: 13.333, h: 1.2, fontFace: FT, fontSize: 54, bold: true, color: HB.white, align: "center", margin: 0 });
+  s.addShape(pptx.ShapeType.rect, { x: 6.17, y: 3.85, w: 1.0, h: 0.07, fill: { color: HB.turq }, line: { color: HB.turq, width: 0 } });
+  s.addText(`Gestión de carga · ${trim.label}`, { x: 0, y: 4.05, w: 13.333, h: 0.5, fontFace: FB, fontSize: 16, color: HB.sky, align: "center", margin: 0 });
+  return pptx;
+};
+const CargaExportModal = ({ trimestres, onPDF, onExcel, onPPT, onClose }) => {
+  const porDefecto = [...trimestres].reverse().find(t => t.completo) || trimestres[trimestres.length - 1];
+  const [trim, setTrim] = useState(porDefecto ? porDefecto.clave : "");
+  const [trabajando, setTrabajando] = useState("");
+  const [error, setError] = useState("");
+  const lanzar = async (tipo, fn) => {
+    setError(""); setTrabajando(tipo);
+    try { await fn(); onClose(); } catch (e) {
+      console.error("Gestión de carga: error exportando " + tipo, e);
+      setError(e.message || String(e));
+      setTrabajando("");
+    }
+  };
+  const opcion = (icono, tituloOp, texto, tipo, fn, extra) => React.createElement("div", { style: { border: `1px solid ${C.border}`, borderRadius: "10px", padding: "14px 16px", marginBottom: "10px", display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap" } },
+    React.createElement("div", { style: { fontSize: "26px" } }, icono),
+    React.createElement("div", { style: { flex: "1 1 240px" } },
+      React.createElement("div", { style: { fontSize: "14px", fontWeight: "700", color: C.text } }, tituloOp),
+      React.createElement("div", { style: { fontSize: "12px", color: C.text2, marginTop: "2px", lineHeight: "1.45" } }, texto),
+      extra),
+    React.createElement("button", { onClick: () => lanzar(tipo, fn), disabled: !!trabajando, style: cargaBtn(true, { opacity: trabajando ? 0.5 : 1, minWidth: "110px" }) }, trabajando === tipo ? "Generando..." : "Descargar"));
+  return React.createElement(CargaModal, { title: "⬇️ Exportar KPIs", onClose: trabajando ? () => {} : onClose, width: "660px" },
+    opcion("📄", "PDF", "El panel de KPIs tal como lo ves, con los filtros actuales y todas las filas desplegadas. Incluye nombres de personas (uso interno).", "pdf", onPDF),
+    opcion("📊", "Excel", "Libro con resumen, evolución mensual, tablas por módulo, sector y persona, proyectos, alertas, carga cruzada y el detalle de imputaciones filtrado.", "excel", onExcel),
+    opcion("📽️", "PowerPoint corporativo", "Presentación hiberus de resultados del trimestre, con gráficos editables. Sin nombres de personas: solo módulos, sectores y proyectos. Aplica los filtros de sector y módulo; ignora los de persona y mes.", "ppt", () => onPPT(trimestres.find(t => t.clave === trim)),
+      trimestres.length ? React.createElement("div", { style: { marginTop: "8px", display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", color: C.text2 } }, "Trimestre:",
+        React.createElement("select", { value: trim, onChange: e => setTrim(e.target.value), style: { border: `1px solid ${C.border2}`, borderRadius: "6px", padding: "4px 8px", fontSize: "12px" } },
+          trimestres.map(t => React.createElement("option", { key: t.clave, value: t.clave }, `${t.label} (${t.rango})${t.completo ? "" : " · incompleto"}`)))) : null),
+    error && React.createElement("div", { style: { background: "#fee2e2", color: "#b91c1c", borderRadius: "8px", padding: "10px 12px", fontSize: "12px", marginTop: "6px" } }, error));
+};
+// ---------- Panel de KPIs ----------
+const CargaKpisView = ({ datos, datosBase, filtrosTexto, alcancePPT, hayMapeoProyectos }) => {
+  const [hDim, setHDim] = useState("modulo");
+  const [hMet, setHMet] = useState("disp_p");
+  const [rDim, setRDim] = useState("modulo");
+  const [rMet, setRMet] = useState("disp_h");
+  const [rPer, setRPer] = useState("ref");
+  const [rTodos, setRTodos] = useState(false);
+  const [aTodas, setATodas] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [modoPDF, setModoPDF] = useState(false);
+  const contenedorRef = useRef(null);
+  const an = useMemo(() => cargaAnalisis(datos, hayMapeoProyectos), [datos, hayMapeoProyectos]);
+  const { meses, mesRef, mesPrev, refLabel, prevLabel, tMes, tRef, tPrev, personas, mediana, dims, alertas, cruce, proyectos, insights, mesActual } = an;
+  const etiquetas = meses.map(m => cargaMesLabel(m) + (m >= mesActual ? "*" : ""));
+  const trimestres = useMemo(() => cargaTrimestres([...new Set(datosBase.map(d => d.mes))].sort()), [datosBase]);
+  const filasHeat = useMemo(() => {
+    const met = CARGA_METRICAS[hMet];
+    return dims[hDim].filter(e => e.tot.total >= 1).map(e => ({
+      label: e.label, horas: e.tot.total,
+      valores: meses.map(m => e.meses[m] ? met.val(e.meses[m]) : null),
+      orden: e.meses[mesRef] ? met.val(e.meses[mesRef]) : -1
+    })).sort((a, b) => (b.orden == null ? -1 : b.orden) - (a.orden == null ? -1 : a.orden));
+  }, [an, hDim, hMet]);
+  const ranking = useMemo(() => {
+    const met = CARGA_METRICAS[rMet];
+    return dims[rDim].filter(e => rDim === "persona" || e.label !== "Sin mapear").map(e => {
+      const t = rPer === "ref" ? e.meses[mesRef] : e.tot;
+      if (!t || (met.pct && t.total < 20)) return null; // en % se ignoran grupos con muy pocas horas
+      const v = met.val(t);
+      return v == null ? null : { label: e.label, valor: v, sub: rDim === "persona" ? "" : `${e.personas.size} pers.` };
+    }).filter(Boolean).sort((a, b) => b.valor - a.valor);
+  }, [an, rDim, rMet, rPer]);
+  if (!mesRef) return React.createElement("div", { style: { padding: "30px", textAlign: "center", color: C.muted, fontSize: "13px" } }, "No hay datos para los filtros seleccionados.");
+  const exportarPDF = async () => {
+    setModoPDF(true);
+    await new Promise(r => setTimeout(r, 400)); // deja que se pinte la versión con todas las filas
+    try {
+      await cargaExportarPDF(contenedorRef.current, "Gestión de carga · KPIs", `${filtrosTexto} · Mes de referencia ${refLabel} · Generado el ${new Date().toLocaleDateString("es-ES")}`, `Gestion_carga_KPIs_${cargaHoy()}.pdf`);
+    } finally { setModoPDF(false); }
+  };
+  const exportarExcel = async () => cargaExportarExcel(an, datos, filtrosTexto, `Gestion_carga_KPIs_${cargaHoy()}.xlsx`);
+  const exportarPPT = async trim => {
+    if (!trim) throw new Error("No hay trimestres con datos.");
+    await cargaCargarLib(CARGA_LIBS.pptx);
+    const pptx = cargaCrearPPT(datosBase, trim, alcancePPT, hayMapeoProyectos);
+    await pptx.writeFile({ fileName: `Gestion_carga_${trim.label.replace(" ", "_")}.pptx` });
+  };
+  const delta = (actual, previo, sentido, enPp = true) => {
+    if (actual == null || previo == null) return null;
+    const d = enPp ? (actual - previo) * 100 : (previo ? (actual / previo - 1) * 100 : 0);
+    if (Math.abs(d) < 0.05) return React.createElement("span", { style: { color: C.muted } }, `= vs ${prevLabel}`);
+    const bueno = sentido === 0 ? null : (d > 0) === (sentido > 0);
+    return React.createElement("span", { style: { color: bueno == null ? C.text2 : bueno ? CV.goodText : CV.crit, fontWeight: "600" } },
+      `${d > 0 ? "▲" : "▼"} ${Math.abs(Math.round(d * 10) / 10).toLocaleString("es-ES")}${enPp ? " pp" : " %"}`, React.createElement("span", { style: { color: C.muted, fontWeight: "400" } }, ` vs ${prevLabel}`));
+  };
+  const pct = cargaPctDe;
+  const tile = (label, valor, extra, dlt, punto) => React.createElement("div", { style: { background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "12px 16px", minWidth: 0 } },
+    React.createElement("div", { style: { fontSize: "11px", color: C.muted, fontWeight: "600", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" } }, punto && React.createElement(CargaPunto, { color: punto, size: 8 }), label),
+    React.createElement("div", { style: { fontSize: "22px", fontWeight: "700", color: C.text } }, valor),
+    extra && React.createElement("div", { style: { fontSize: "11px", color: C.text2, marginTop: "2px" } }, extra),
+    dlt && React.createElement("div", { style: { fontSize: "11px", marginTop: "4px" } }, dlt));
+  const nPersRef = personas.filter(p => p.meses[mesRef]).length;
+  const fte = mediana[mesRef] ? tRef.disp / mediana[mesRef] : 0;
+  const metH = CARGA_METRICAS[hMet], metR = CARGA_METRICAS[rMet];
+  const rItems = rTodos || modoPDF ? ranking : ranking.slice(0, 12);
+  const aItems = aTodas || modoPDF ? alertas : alertas.slice(0, 15);
+  const sem = cargaSemaforo(tRef.disp, tRef.total);
+  const tdS = { padding: "7px 10px", fontSize: "12px", borderBottom: `1px solid ${C.rowBorder}`, verticalAlign: "middle" };
+  const thS = { padding: "7px 10px", fontSize: "11px", fontWeight: "700", color: C.text2, borderBottom: `1px solid ${C.border}`, textAlign: "left", whiteSpace: "nowrap" };
+  const verMas = (activo, set, n) => !modoPDF && n > 0 && React.createElement("button", { onClick: () => set(!activo), style: { marginTop: "10px", background: "none", border: "none", color: C.accent, fontSize: "12px", fontWeight: "600", cursor: "pointer", padding: 0 } }, activo ? "Ver menos" : `Ver todos (${n})`);
+  // Al exportar a PDF el panel se maqueta a ancho de escritorio, sea cual sea la ventana
+  return React.createElement(React.Fragment, null, React.createElement("div", { ref: contenedorRef, style: { display: "flex", flexDirection: "column", gap: "14px", ...(modoPDF ? { width: "1240px" } : {}) } },
+    React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" } },
+      React.createElement("div", { style: { fontSize: "12px", color: C.text2, flex: 1 } },
+        `Mes de referencia: `, React.createElement("b", null, refLabel), mesPrev ? ` (comparado con ${prevLabel})` : "", ` · Periodo: ${etiquetas[0]} – ${etiquetas[etiquetas.length - 1]}`, meses.some(m => m >= mesActual) ? " · * mes en curso, datos parciales" : ""),
+      !modoPDF && React.createElement("button", { onClick: () => setShowExport(true), style: cargaBtn(true, { padding: "7px 14px", fontSize: "12px" }) }, "⬇️ Exportar")),
+    React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "10px" } },
+      tile(`Ocupación en proyecto · ${refLabel}`, cargaFmtPct(tRef.proy, tRef.total), `${cargaFmtH(tRef.proy)} h de proyecto`, delta(pct(tRef, "proy"), pct(tPrev, "proy"), 1), CV.proy),
+      tile(`Disponibilidad · ${refLabel}`, cargaFmtPct(tRef.disp, tRef.total), sem ? `Semáforo: ${sem.label}` : "", delta(pct(tRef, "disp"), pct(tPrev, "disp"), -1), CV.disp),
+      tile(`Capacidad libre · ${refLabel}`, cargaFmtH(tRef.disp) + " h", `≈ ${fte.toLocaleString("es-ES", { maximumFractionDigits: 1 })} personas a jornada completa`, delta(tRef.disp, tPrev ? tPrev.disp : null, -1, false)),
+      tile(`Desarrollo de Negocio · ${refLabel}`, cargaFmtPct(tRef.ddn, tRef.total), `${cargaFmtH(tRef.ddn)} h`, delta(pct(tRef, "ddn"), pct(tPrev, "ddn"), 0), CV.ddn),
+      tile(`Vacaciones / Bajas · ${refLabel}`, cargaFmtPct(tRef.vac, tRef.total), `${cargaFmtH(tRef.vac)} h`, delta(pct(tRef, "vac"), pct(tPrev, "vac"), 0), CV.vac),
+      tile(`Horas imputadas · ${refLabel}`, cargaFmtH(tRef.total), `${nPersRef} personas · mediana ${cargaFmtH(mediana[mesRef] || 0)} h/persona`, delta(tRef.total, tPrev ? tPrev.total : null, 0, false))),
+    React.createElement(CargaCard, { titulo: "Lectura rápida", sub: "Lo más relevante para decidir, calculado con los filtros actuales" },
+      React.createElement("div", { style: { display: "flex", flexDirection: "column", gap: "7px" } }, insights.map((it, i) => React.createElement("div", { key: i, style: { display: "flex", gap: "8px", alignItems: "baseline", fontSize: "13px", color: C.text, lineHeight: "1.45" } },
+        React.createElement("span", { style: { color: CARGA_SEVERIDAD[it.nivel].color, fontWeight: "700", fontSize: "11px", width: "12px", flexShrink: 0, textAlign: "center" } }, CARGA_SEVERIDAD[it.nivel].icono), it.texto)))),
+    React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: "14px" } },
+      React.createElement(CargaCard, { titulo: "Evolución mensual (% de las horas imputadas)", sub: "Ocupación, disponibilidad, DDN y vacaciones/bajas" },
+        React.createElement("div", { style: { marginBottom: "6px" } }, React.createElement(CargaLeyenda, { items: CARGA_GRUPOS.filter(g => g.key !== "otros") })),
+        React.createElement(CargaLineas, { meses, etiquetas, series: CARGA_GRUPOS.filter(g => g.key !== "otros").map(g => ({ key: g.key, label: g.label, color: g.color, values: meses.map(m => pct(tMes[m], g.key)) })) })),
+      React.createElement(CargaCard, { titulo: "Horas imputadas por mes", sub: "Composición de las horas de cada mes" },
+        React.createElement("div", { style: { marginBottom: "6px" } }, React.createElement(CargaLeyenda, { items: CARGA_GRUPOS })),
+        React.createElement(CargaColumnas, { etiquetas, totales: meses.map(m => tMes[m]) }))),
+    React.createElement(CargaCard, {
+      ancho: true, titulo: `Mapa de calor: ${metH.label} por ${CARGA_DIMS[hDim].toLowerCase()} y mes`, sub: `Ordenado por el valor de ${refLabel}. Más oscuro = mayor valor.`,
+      acciones: [React.createElement(CargaSeg, { key: "d", opciones: Object.entries(CARGA_DIMS), valor: hDim, onChange: setHDim }),
+        React.createElement(CargaSeg, { key: "m", opciones: ["disp_p", "proy_p", "ddn_p", "vac_p", "disp_h"].map(k => [k, CARGA_METRICAS[k].label]), valor: hMet, onChange: setHMet })]
+    }, React.createElement(CargaHeatmap, { filas: filasHeat, etiquetas, metrica: metH, maxAlto: modoPDF ? "none" : "420px" })),
+    React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))", gap: "14px" } },
+      React.createElement(CargaCard, {
+        titulo: `Ranking: ${metR.label} por ${CARGA_DIMS[rDim].toLowerCase()}`, sub: (rPer === "ref" ? `Mes ${refLabel}` : "Todo el periodo filtrado") + (metR.pct ? " · se omiten grupos con menos de 20 h" : ""),
+        acciones: [React.createElement(CargaSeg, { key: "d", opciones: Object.entries(CARGA_DIMS), valor: rDim, onChange: setRDim }),
+          React.createElement(CargaSeg, { key: "p", opciones: [["ref", refLabel], ["todo", "Periodo"]], valor: rPer, onChange: setRPer })]
+      },
+        React.createElement("select", { value: rMet, onChange: e => setRMet(e.target.value), style: { marginBottom: "12px", border: `1px solid ${C.border2}`, borderRadius: "6px", padding: "5px 8px", fontSize: "12px", color: C.text, background: C.card } }, Object.entries(CARGA_METRICAS).map(([k, v]) => React.createElement("option", { key: k, value: k }, v.label))),
+        ranking.length ? React.createElement(CargaRanking, { items: rItems, metrica: metR }) : React.createElement("div", { style: { fontSize: "12px", color: C.muted } }, "Sin datos."),
+        ranking.length > 12 && verMas(rTodos, setRTodos, ranking.length)),
+      React.createElement(CargaCard, { titulo: "Proyectos con más horas", sub: `Periodo filtrado · los 5 primeros concentran ${cargaFmtPct(proyectos.top5, proyectos.total)} de las horas de proyecto` },
+        proyectos.lista.length ? React.createElement("div", { style: { overflowX: "auto" } }, React.createElement("table", { style: { width: "100%", borderCollapse: "collapse" } },
+          React.createElement("thead", null, React.createElement("tr", null,
+            React.createElement("th", { style: thS }, "Proyecto"), React.createElement("th", { style: thS }, "Sector proyecto"),
+            React.createElement("th", { style: { ...thS, textAlign: "right" } }, "Pers."), React.createElement("th", { style: { ...thS, textAlign: "right" } }, "Horas"), React.createElement("th", { style: thS }, "Evolución"))),
+          React.createElement("tbody", null, proyectos.lista.slice(0, 12).map(p => {
+            const vals = meses.map(m => p.meses[m] || 0);
+            return React.createElement("tr", { key: p.cod + p.pro },
+              React.createElement("td", { style: { ...tdS, maxWidth: "260px" } },
+                React.createElement("div", { style: { overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: "600" }, title: p.pro }, p.pro),
+                React.createElement("div", { style: { fontSize: "11px", color: C.muted } }, [p.cod, p.cliente].filter(Boolean).join(" · "))),
+              React.createElement("td", { style: { ...tdS, fontSize: "11px", color: C.text2 } }, p.secPro),
+              React.createElement("td", { style: { ...tdS, textAlign: "right" } }, p.personas.size),
+              React.createElement("td", { style: { ...tdS, textAlign: "right", fontWeight: "600", fontVariantNumeric: "tabular-nums" } }, cargaFmtH(p.h)),
+              React.createElement("td", { style: tdS, title: meses.map((m, i) => `${etiquetas[i]}: ${cargaFmtH(vals[i])} h`).join("\n") }, React.createElement(CargaSpark, { valores: vals, max: Math.max(1, ...vals) })));
+          })))) : React.createElement("div", { style: { fontSize: "12px", color: C.muted } }, "Sin horas de proyecto."))),
+    React.createElement(CargaCard, { ancho: true, titulo: `Personas que requieren atención · ${refLabel}`, sub: `Disponibilidad > 30 % (▲ > 40 %), imputación > 15 % sobre la mediana del mes (${cargaFmtH(mediana[mesRef] || 0)} h), caídas de proyecto ≥ 25 pp, trabajo fuera de su sector y personas sin mapear` },
+      alertas.length ? React.createElement("div", { style: { overflowX: "auto" } }, React.createElement("table", { style: { width: "100%", borderCollapse: "collapse" } },
+        React.createElement("thead", null, React.createElement("tr", null,
+          ["Persona", "Sector", "Módulo", "Alertas"].map(h => React.createElement("th", { key: h, style: thS }, h)),
+          React.createElement("th", { style: { ...thS, textAlign: "right" } }, "Horas"), React.createElement("th", { style: { ...thS, textAlign: "right" } }, "% Disp."), React.createElement("th", { style: thS }, "% Proyecto por mes"))),
+        React.createElement("tbody", null, aItems.map(a => {
+          const vals = meses.map(m => a.meses[m] && a.meses[m].total ? a.meses[m].proy / a.meses[m].total : null);
+          return React.createElement("tr", { key: a.persona },
+            React.createElement("td", { style: { ...tdS, fontWeight: "600", whiteSpace: "nowrap" } }, a.persona),
+            React.createElement("td", { style: { ...tdS, fontSize: "11px", color: C.text2 } }, a.sector),
+            React.createElement("td", { style: { ...tdS, fontSize: "11px", color: C.text2 } }, a.modulo),
+            React.createElement("td", { style: tdS }, a.lista.map((l, i) => React.createElement(CargaBadge, { key: i, nivel: l.nivel, texto: l.texto }))),
+            React.createElement("td", { style: { ...tdS, textAlign: "right", fontVariantNumeric: "tabular-nums" } }, cargaFmtH(a.t.total)),
+            React.createElement("td", { style: { ...tdS, textAlign: "right", whiteSpace: "nowrap" } }, React.createElement(CargaSemaforoCelda, { disp: a.t.disp, total: a.t.total })),
+            React.createElement("td", { style: tdS, title: meses.map((m, i) => `${etiquetas[i]}: ${cargaFmtP(vals[i])}`).join("\n") }, React.createElement(CargaSpark, { valores: vals })));
+        })))) : React.createElement("div", { style: { fontSize: "12px", color: C.muted } }, "Nadie requiere atención con los filtros actuales."),
+      alertas.length > 15 && verMas(aTodas, setATodas, alertas.length)),
+    React.createElement(CargaCard, { ancho: true, titulo: "Carga cruzada entre sectores", sub: "Horas de proyecto del periodo: sector de la persona (filas) × sector del proyecto (columnas). % sobre el total de la fila." },
+      !cruce ? React.createElement("div", { style: { fontSize: "12px", color: C.text2 } }, "Importa el mapeo de proyectos (⬆️ Importar datos) para ver para qué sectores trabaja cada equipo.")
+        : React.createElement("div", { style: { overflowX: "auto" } }, React.createElement("table", { style: { borderCollapse: "separate", borderSpacing: "2px", width: "100%" } },
+          React.createElement("thead", null, React.createElement("tr", null,
+            React.createElement("th", { style: thS }, "Sector persona \\ proyecto"),
+            cruce.cols.map(c => React.createElement("th", { key: c, style: { ...thS, textAlign: "center", whiteSpace: "normal", fontSize: "10px" } }, c)),
+            React.createElement("th", { style: { ...thS, textAlign: "right" } }, "Horas"), React.createElement("th", { style: { ...thS, textAlign: "right" } }, "En su sector"))),
+          React.createElement("tbody", null, cruce.filas.map(f => React.createElement("tr", { key: f.sector },
+            React.createElement("td", { style: { fontSize: "12px", padding: "4px 8px", whiteSpace: "nowrap", fontWeight: "600" } }, f.sector),
+            cruce.cols.map(c => {
+              const h = f.celdas[c] || 0, p = f.total ? h / f.total : 0;
+              const s = h ? Math.min(CARGA_RAMPA.length - 1, Math.floor(p * CARGA_RAMPA.length)) : -1;
+              return React.createElement("td", { key: c, title: `${f.sector} → ${c}: ${cargaFmtH(h)} h`, style: { background: s < 0 ? C.item : CARGA_RAMPA[s], color: s >= 3 ? "white" : CV.ink, textAlign: "center", fontSize: "11px", padding: "5px 6px", borderRadius: "4px", fontWeight: c === f.sector ? "700" : "400", outline: c === f.sector ? `2px solid ${CV.ink}` : "none", outlineOffset: "-2px", fontVariantNumeric: "tabular-nums" } }, h ? cargaFmtP(p) : "—");
+            }),
+            React.createElement("td", { style: { fontSize: "11px", textAlign: "right", padding: "4px 8px", color: C.text2, fontVariantNumeric: "tabular-nums" } }, cargaFmtH(f.total)),
+            React.createElement("td", { style: { fontSize: "12px", textAlign: "right", padding: "4px 8px", fontWeight: "600" } }, f.sector === "Sin mapear" ? "—" : cargaFmtPct(f.celdas[f.sector] || 0, f.total))))))),
+      cruce && React.createElement("div", { style: { fontSize: "11px", color: C.muted, marginTop: "8px" } }, "Recuadro = el propio sector de la persona. \"Sin clasificar\" = proyectos que no están en el mapeo de proyectos.")),
+    React.createElement("div", { style: { fontSize: "11px", color: C.muted, lineHeight: "1.6" } },
+      "Ocupación en proyecto = horas de proyecto / horas imputadas. Capacidad libre = horas de disponibilidad (incluye formación, onboarding y gestión de equipos); las personas equivalentes se calculan con la mediana de horas imputadas por persona en el mes. ",
+      "Todos los datos respetan los filtros de arriba.")),
+    showExport && React.createElement(CargaExportModal, { trimestres, onPDF: exportarPDF, onExcel: exportarExcel, onPPT: exportarPPT, onClose: () => setShowExport(false) }));
+};
+// ---------- Importación y ajustes ----------
+// Flujo semanal: se suben el export de imputaciones (InformeDetallado) y el de proyectos. Cada fichero se reconoce
+// por sus columnas, da igual el orden o el nombre. Las imputaciones sustituyen SOLO el rango de fechas que trae
+// el fichero (lo de fuera se conserva) y los proyectos se actualizan por código.
+const cargaAnalizarFicheros = async (files, cfg, filasActuales, empleados) => {
+  let imp = null, pro = null, map = null;
+  const detectados = [];
+  for (const file of files) {
+    const hojas = cargaHojas(await cargaLeerFichero(file), file.name);
+    const i = cargaParseImputaciones(hojas), p = cargaParseProyectos(hojas), m = cargaParseMapeo(hojas);
+    const tipos = [i && "Imputaciones", p && "Proyectos", m && "Mapeo de personas"].filter(Boolean);
+    if (!tipos.length) throw new Error(`No reconozco "${file.name}": no tiene las columnas de imputaciones (Nombre, Apellido 1, Horas, Fecha, Nombre Proyecto), de proyectos (Código, Nombre, Hbu) ni de mapeo de personas.`);
+    if (i) { if (imp) throw new Error("Hay dos ficheros de imputaciones: sube uno cada vez."); imp = { ...i, fichero: file.name }; }
+    if (p) { if (pro) throw new Error("Hay dos ficheros de proyectos: sube uno cada vez."); pro = { ...p, fichero: file.name }; }
+    if (m && !map) map = { ...m, fichero: file.name };
+    detectados.push({ nombre: file.name, tipos });
+  }
+  if (imp && !imp.filas.length) throw new Error(`"${imp.fichero}" no trae ninguna imputación con fecha y horas.`);
+  const ahora = new Date().toISOString();
+  const fusion = pro ? cargaFusionarProyectos(cfg.proyectos || [], pro.proyectos, ahora) : null;
+  const listaPro = fusion ? fusion.lista : (cfg.proyectos || []);
+  let im = null;
+  if (imp) {
+    const { desde, hasta } = imp;
+    const mesesAfect = cargaMesesEntre(desde, hasta);
+    const antes = filasActuales.filter(f => f.dia && f.dia >= desde && f.dia <= hasta);
+    const antiguos = mesesAfect.filter(m => filasActuales.some(f => f.mes === m && !f.dia));
+    const buscar = cargaOrigenPersonas(cfg) === "empleados" ? cargaResolverPersonas(cfg, empleados) : cargaIndiceMapeo(map ? map.personas : cfg.mapeo);
+    const personas = [...new Map(imp.filas.map(f => [(f.nom + " " + f.ape).trim(), f])).entries()];
+    const conocidas = new Set(filasActuales.map(f => (f.nom + " " + f.ape).trim()));
+    const buscarPro = cargaIndiceProyectos(listaPro);
+    const ddnSet = new Set((cfg.ddnProyectos || []).map(cargaNorm));
+    const sc = new Map();
+    for (const f of imp.filas) if (cargaCategoria(f.pro, ddnSet) === "Proyecto" && !buscarPro(f.cod, f.pro)) {
+      const k = (f.cod ? f.cod + " · " : "") + f.pro;
+      sc.set(k, (sc.get(k) || 0) + f.h);
+    }
+    im = {
+      ...imp, mesesAfect, antiguos,
+      horasAntes: antes.reduce((s, f) => s + f.h, 0),
+      nPersonas: personas.length,
+      sinMapear: personas.filter(([, f]) => !buscar(f.nom, f.ape)).map(([p]) => p).sort(),
+      nuevas: filasActuales.length ? personas.filter(([p]) => !conocidas.has(p)).map(([p]) => p).sort() : [],
+      sinClasificar: [...sc.entries()].sort((a, b) => b[1] - a[1])
+    };
+  }
+  // Memoria de asignaciones: se compara con Gestión de empleados en cada importación (los cambios cuentan desde el mes actual)
+  let asig = null;
+  if (cargaOrigenPersonas(cfg) === "empleados") {
+    const personasTodas = [...filasActuales, ...(imp ? imp.filas : [])].map(f => ({ nom: f.nom, ape: f.ape }));
+    asig = cargaActualizarAsignaciones(cfg.asignaciones, personasTodas, empleados, cargaEquivObj(cfg.equivSectores), cargaMesActual(), ahora.slice(0, 10));
+  }
+  return { detectados, imp: im, pro, fusion, map, asig, ahora };
+};
+// Documentos a escribir: { meses: {mes: doc | null (borrar)}, cfg }
+const cargaEscrituras = (an, cfg, filasActuales, usuario) => {
+  const meses = {};
+  const nuevoCfg = { ...cfg };
+  if (an.imp) {
+    const { desde, hasta, mesesAfect, filas, fichero } = an.imp;
+    for (const mes of mesesAfect) {
+      // Se conserva lo que ya había fuera del rango del fichero (los meses en formato antiguo, sin día, se sustituyen enteros)
+      const conservar = filasActuales.filter(f => f.mes === mes && f.dia && (f.dia < desde || f.dia > hasta));
+      const todas = [...conservar, ...filas.filter(f => f.mes === mes)];
+      if (!todas.length) { meses[mes] = null; continue; }
+      const doc = { ...cargaCodificarMes(mes, todas), fichero, cargadoPor: usuario, fecha: an.ahora };
+      if (JSON.stringify(doc).length > 900000) throw new Error(`El mes ${cargaMesLabel(mes)} es demasiado grande para guardarlo en un único documento.`);
+      meses[mes] = doc;
+    }
+    const conDatos = new Set([...(cfg.meses || []), ...Object.keys(meses).filter(m => meses[m])]);
+    Object.keys(meses).filter(m => !meses[m]).forEach(m => conDatos.delete(m));
+    nuevoCfg.meses = [...conDatos].sort();
+  }
+  if (an.fusion) { nuevoCfg.proyectos = an.fusion.lista; nuevoCfg.proyectosActualizados = an.ahora; nuevoCfg.proyectosFichero = an.pro.fichero; }
+  if (an.map) nuevoCfg.mapeo = an.map.personas;
+  if (an.asig) nuevoCfg.asignaciones = an.asig.lista;
+  nuevoCfg.historial = [{
+    fecha: an.ahora, usuario,
+    ficheros: an.detectados.map(d => d.nombre),
+    meses: an.imp ? an.imp.mesesAfect : [],
+    desde: an.imp ? an.imp.desde : "", hasta: an.imp ? an.imp.hasta : "",
+    filas: an.imp ? an.imp.filas.length : 0,
+    horas: an.imp ? Math.round(an.imp.horas * 10) / 10 : 0,
+    proyectosAltas: an.fusion ? an.fusion.altas.length : 0,
+    proyectosCambios: an.fusion ? an.fusion.cambios.length : 0,
+    personasMapeo: an.map ? an.map.personas.length : 0,
+    personasCambios: an.asig ? an.asig.cambios.length : 0,
+    personasBajas: an.asig ? an.asig.bajas.length : 0
+  }, ...(cfg.historial || [])].slice(0, 60);
+  if (JSON.stringify(nuevoCfg).length > 900000) throw new Error("La configuración (mapeos) es demasiado grande para un único documento.");
+  return { meses, cfg: nuevoCfg };
+};
+// Qué hay cargado: por mes, primer y último día con datos, días, horas y personas
+const cargaCobertura = filas => {
+  const porMes = new Map();
+  for (const f of filas) {
+    let c = porMes.get(f.mes);
+    if (!c) { c = { mes: f.mes, desde: "", hasta: "", dias: new Set(), horas: 0, personas: new Set(), antiguo: false }; porMes.set(f.mes, c); }
+    c.horas += f.h;
+    c.personas.add(f.nom + "|" + f.ape);
+    if (!f.dia) { c.antiguo = true; continue; }
+    c.dias.add(f.dia);
+    if (!c.desde || f.dia < c.desde) c.desde = f.dia;
+    if (!c.hasta || f.dia > c.hasta) c.hasta = f.dia;
+  }
+  return [...porMes.values()].sort((a, b) => a.mes.localeCompare(b.mes));
+};
+const CargaImportModal = ({ cfg, filasActuales, empleados, onClose, onSaved }) => {
+  const [analisis, setAnalisis] = useState(null);
+  const [error, setError] = useState("");
+  const [trabajando, setTrabajando] = useState("");
+  const [arrastrando, setArrastrando] = useState(false);
+  const [verCambios, setVerCambios] = useState(false);
+  const inputRef = useRef(null);
+  const analizar = async files => {
+    if (!files || !files.length) return;
+    setError(""); setAnalisis(null); setTrabajando("analizando");
+    try { setAnalisis(await cargaAnalizarFicheros([...files], cfg, filasActuales, empleados)); } catch (e) {
+      console.error("Gestión de carga: error analizando ficheros", e);
+      setError(e.message || String(e));
+    }
+    setTrabajando("");
+  };
+  const guardar = async () => {
+    setError(""); setTrabajando("guardando");
+    try {
+      const { meses, cfg: nuevoCfg } = cargaEscrituras(analisis, cfg, filasActuales, cargaUsuario());
+      const db = firebase.firestore();
+      const batch = db.batch();
+      for (const [mes, doc] of Object.entries(meses)) {
+        const ref = db.collection("appData").doc(cargaMesDoc(mes));
+        if (doc) batch.set(ref, doc); else batch.delete(ref);
+      }
+      batch.set(db.collection("appData").doc(CARGA_CFG_DOC), nuevoCfg);
+      await batch.commit();
+      onSaved();
+    } catch (e) {
+      console.error("Gestión de carga: error guardando en Firestore", e);
+      setError((e.code === "permission-denied" ? "Firestore ha denegado la escritura (revisa las reglas de seguridad para appData/carga_*). " : "") + (e.message || String(e)));
+      setTrabajando("");
+    }
+  };
+  const linea = (k, v, color) => React.createElement("div", { style: { display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "12px", padding: "4px 0", borderBottom: `1px solid ${C.rowBorder}` } },
+    React.createElement("span", { style: { color: C.text2 } }, k), React.createElement("span", { style: { fontWeight: "600", color: color || C.text, textAlign: "right" } }, v));
+  const bloque = (titulo, ...hijos) => React.createElement("div", { style: { background: C.item, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "10px 14px", marginBottom: "12px" } },
+    React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", color: C.text, marginBottom: "4px" } }, titulo), ...hijos);
+  const nota = (texto, color = C.text2) => React.createElement("div", { style: { fontSize: "11px", color, marginTop: "6px", lineHeight: "1.5" } }, texto);
+  const ambar = "#b45309", verde = "#16a34a";
+  const a = analisis, im = a && a.imp, fu = a && a.fusion;
+  const resumen = a && React.createElement("div", null,
+    bloque("Ficheros reconocidos", ...a.detectados.map(d => linea(d.nombre, d.tipos.join(" + ")))),
+    im && bloque("Imputaciones",
+      linea("Periodo del fichero", `${cargaFmtFecha(im.desde)} – ${cargaFmtFecha(im.hasta)}`),
+      linea("Imputaciones leídas", `${im.leidas.toLocaleString("es-ES")} (${cargaFmtH(im.horas)} h, ${im.nPersonas} personas)` + (im.descartadas ? ` · ${im.descartadas} sin fecha u horas` : "")),
+      linea("Se sustituye", `lo cargado entre esas fechas: ${cargaFmtH(im.horasAntes)} h → ${cargaFmtH(im.horas)} h`, im.horasAntes ? ambar : verde),
+      linea("Meses afectados", im.mesesAfect.map(cargaMesLabel).join(", ")),
+      im.antiguos.length > 0 && nota(`⚠ ${im.antiguos.map(cargaMesLabel).join(", ")} tenía${im.antiguos.length > 1 ? "n" : ""} datos sin fecha diaria (importación antigua): se sustituye${im.antiguos.length > 1 ? "n" : ""} entero${im.antiguos.length > 1 ? "s" : ""} por lo que trae este fichero.`, ambar),
+      im.nuevas.length > 0 && nota(`Personas que aparecen por primera vez (${im.nuevas.length}): ${im.nuevas.join(", ")}.`),
+      im.sinMapear.length > 0 && nota((cargaOrigenPersonas(cfg) === "empleados" ? `No están en Gestión de empleados (${im.sinMapear.length}), saldrán como "Sin mapear" hasta que se den de alta allí: ` : `Sin sector/módulo en el mapeo de personas (${im.sinMapear.length}), saldrán como "Sin mapear": `) + im.sinMapear.join(", ") + ".", ambar),
+      im.sinClasificar.length > 0 && nota(`Proyectos sin sector en el mapeo de proyectos (${im.sinClasificar.length}, ${cargaFmtH(im.sinClasificar.reduce((s, x) => s + x[1], 0))} h): ${im.sinClasificar.slice(0, 8).map(x => x[0]).join("; ")}${im.sinClasificar.length > 8 ? "…" : ""}`, ambar)),
+    fu && bloque("Proyectos",
+      linea("Proyectos en el fichero", a.pro.proyectos.length),
+      linea("Nuevos", fu.altas.length, fu.altas.length ? ambar : C.text),
+      linea("Con cambios", fu.cambios.length, fu.cambios.length ? ambar : C.text),
+      fu.completados.length > 0 && linea("Completados con datos nuevos (cliente, estado, tipo…)", fu.completados.length),
+      linea("Ya no vienen en el fichero (se conservan)", fu.ausentes.length),
+      fu.cambios.some(c => c.campos.some(x => x.campo === "Sector (Hbu)")) && nota("⚠ Hay proyectos que cambian de sector: el cambio se aplica también a sus horas de meses anteriores.", ambar),
+      (fu.altas.length > 0 || fu.cambios.length > 0) && React.createElement("button", { onClick: () => setVerCambios(!verCambios), style: { marginTop: "6px", background: "none", border: "none", color: C.accent, fontSize: "12px", fontWeight: "600", cursor: "pointer", padding: 0 } }, verCambios ? "Ocultar detalle" : "Ver detalle de altas y cambios"),
+      verCambios && React.createElement("div", { style: { maxHeight: "200px", overflowY: "auto", marginTop: "6px", fontSize: "11px", color: C.text2, lineHeight: "1.5" } },
+        fu.altas.map(p => React.createElement("div", { key: "a" + p.cod + p.nom }, `➕ ${p.cod ? p.cod + " · " : ""}${p.nom} (${p.sector || "sin sector"})`)),
+        fu.cambios.map(c => React.createElement("div", { key: "c" + c.cod + c.nom }, `✎ ${c.cod ? c.cod + " · " : ""}${c.nom}: ` + c.campos.map(x => `${x.campo} "${x.antes}" → "${x.despues}"`).join("; "))))),
+    a.map && bloque("Mapeo de personas", linea("Personas", `${a.map.personas.length} (de "${a.map.fichero}") — sustituye al guardado`)),
+    a.asig && (a.asig.nuevas.length + a.asig.cambios.length + a.asig.bajas.length + a.asig.vueltas.length > 0) && bloque("Personas (Gestión de empleados)",
+      a.asig.nuevas.length > 0 && linea("Se guardan por primera vez (aplica a todo su histórico)", a.asig.nuevas.length),
+      a.asig.cambios.length > 0 && linea(`Cambian de sector o módulo (desde ${cargaMesLabel(cargaMesActual())}; los meses anteriores no se tocan)`, a.asig.cambios.length, ambar),
+      a.asig.bajas.length > 0 && linea("Ya no están en Gestión de empleados (se conserva su histórico)", a.asig.bajas.length, ambar),
+      a.asig.vueltas.length > 0 && linea("Vuelven a estar en Gestión de empleados", a.asig.vueltas.length),
+      a.asig.cambios.length > 0 && nota(a.asig.cambios.map(c => `${c.persona}: ${c.antes} → ${c.despues}`).join(" · ")),
+      a.asig.bajas.length > 0 && nota(`Bajas: ${a.asig.bajas.join(", ")}.`)));
+  return React.createElement(CargaModal, { title: "⬆️ Importar datos de la semana", onClose: trabajando ? () => {} : onClose, width: "700px" },
+    React.createElement("div", {
+      onDragOver: e => { e.preventDefault(); setArrastrando(true); },
+      onDragLeave: () => setArrastrando(false),
+      onDrop: e => { e.preventDefault(); setArrastrando(false); analizar(e.dataTransfer.files); },
+      onClick: () => inputRef.current && inputRef.current.click(),
+      style: { border: `2px dashed ${arrastrando ? C.accent : C.border2}`, background: arrastrando ? "#e0edff" : C.item, borderRadius: "10px", padding: "22px 16px", textAlign: "center", cursor: "pointer", marginBottom: "14px" }
+    },
+      React.createElement("div", { style: { fontSize: "26px", marginBottom: "4px" } }, "📥"),
+      React.createElement("div", { style: { fontSize: "13px", fontWeight: "700", color: C.text } }, trabajando === "analizando" ? "Leyendo ficheros..." : "Arrastra aquí los ficheros de la semana o pulsa para elegirlos"),
+      React.createElement("div", { style: { fontSize: "11px", color: C.muted, marginTop: "4px", lineHeight: "1.5" } },
+        "Export de imputaciones (InformeDetallado…xlsx) y/o export de proyectos (…_proyectos.csv). Puedes subir los dos a la vez; se reconocen solos. ",
+        "Del export de imputaciones solo se guardan nombre, apellidos, fecha, proyecto y horas: el DNI y las observaciones se descartan en tu navegador."),
+      React.createElement("input", { ref: inputRef, type: "file", multiple: true, accept: ".xlsx,.xls,.csv", style: { display: "none" }, onChange: e => { analizar(e.target.files); e.target.value = ""; } })),
+    error && React.createElement("div", { style: { background: "#fee2e2", color: "#b91c1c", borderRadius: "8px", padding: "10px 12px", fontSize: "12px", marginBottom: "12px" } }, error),
+    resumen,
+    React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "8px" } },
+      React.createElement("button", { onClick: onClose, disabled: !!trabajando, style: cargaBtn(false) }, "Cancelar"),
+      React.createElement("button", { onClick: guardar, disabled: !!trabajando || !a, style: cargaBtn(true, { opacity: trabajando || !a ? 0.5 : 1 }) }, trabajando === "guardando" ? "Guardando..." : "Guardar en la app")));
+};
+// Comprobación persona a persona del enlace con Gestión de empleados (también se puede bajar a Excel)
+const CARGA_ENLACE_ORDEN = { "No encontrada": 0, "Aproximado": 1, "Baja (histórico)": 2, "Exacto": 3, "Excluida": 4 };
+const cargaFilasEnlace = (filas, empleados, equiv, excluidos, asignaciones) => {
+  const vivo = cargaIndiceEmpleados(empleados, equiv);
+  const memoria = new Map((asignaciones || []).map(a => [a.clave, a]));
+  const porPersona = new Map();
+  for (const f of filas) {
+    const k = (f.nom + " " + f.ape).trim();
+    const p = porPersona.get(k) || { persona: k, nom: f.nom, ape: f.ape, horas: 0 };
+    p.horas += f.h;
+    porPersona.set(k, p);
+  }
+  return [...porPersona.values()].map(p => {
+    const m = vivo(p.nom, p.ape);
+    const clave = cargaClavePersona(p.nom, p.ape);
+    const a = memoria.get(clave);
+    const ultimo = a && a.periodos && a.periodos.length ? a.periodos[a.periodos.length - 1] : null;
+    const enlace = cargaEsExcluido(p.persona, excluidos) ? "Excluida" : m ? (m.aprox ? "Aproximado" : "Exacto") : ultimo ? "Baja (histórico)" : "No encontrada";
+    const usado = ultimo || (m ? { sectorOrigen: m.sectorOrigen, modulo: m.modulo, modulo2: m.modulo2 } : null);
+    const vivoPer = m ? { sectorOrigen: m.sectorOrigen || "", modulo: m.modulo || "", modulo2: m.modulo2 || "" } : null;
+    return {
+      persona: p.persona, clave, enlace, horas: p.horas,
+      empleado: m ? m.empleado : ultimo ? ultimo.empleado : "",
+      sectorOrigen: usado ? usado.sectorOrigen || "" : "",
+      sector: usado ? cargaSectorEquivalente(usado.sectorOrigen, equiv) : "",
+      modulos: usado ? [usado.modulo, usado.modulo2].filter(Boolean).join(", ") : "",
+      historial: a && a.periodos.length > 1 ? a.periodos.map(cargaPeriodoTexto).join(" → ") : "",
+      baja: a && a.baja ? a.baja : "",
+      pendiente: ultimo && vivoPer && !cargaMismaAsignacion(ultimo, vivoPer) ? `Gestión de empleados dice ahora: ${cargaAsigTexto(vivoPer)}` : "",
+      sinMemoria: !ultimo && !!m,
+      vivo: vivoPer && { ...vivoPer, empleado: m.empleado }
+    };
+  }).sort((a, b) => CARGA_ENLACE_ORDEN[a.enlace] - CARGA_ENLACE_ORDEN[b.enlace] || b.horas - a.horas);
+};
+const CargaEnlaceModal = ({ filas, empleados, equiv, excluidos, asignaciones, onGuardarAsignaciones, onClose }) => {
+  const [filtro, setFiltro] = useState("todos");
+  const [texto, setTexto] = useState("");
+  const [guardando, setGuardando] = useState("");
+  const [error, setError] = useState("");
+  const todas = useMemo(() => cargaFilasEnlace(filas, empleados, equiv, excluidos, asignaciones), [filas, empleados, equiv, excluidos, asignaciones]);
+  const cuenta = k => todas.filter(r => r.enlace === k).length;
+  const conCambios = todas.filter(r => r.historial || r.pendiente).length;
+  const visibles = todas.filter(r => (filtro === "todos" || r.enlace === filtro || (filtro === "cambios" && (r.historial || r.pendiente))) && (!texto || cargaNorm(r.persona + " " + r.empleado).includes(cargaNorm(texto))));
+  // Recalcular: la asignación actual de Gestión de empleados pasa a aplicar a TODO el histórico de la persona (para corregir un error de alta)
+  const recalcular = async r => {
+    if (!r.vivo || !window.confirm(`¿Aplicar a todo el histórico de ${r.persona} lo que dice ahora Gestión de empleados (${r.vivo.sectorOrigen || "sin sector"} / ${[r.vivo.modulo, r.vivo.modulo2].filter(Boolean).join(", ") || "sin módulo"})? Úsalo solo para corregir un dato mal dado de alta: los meses pasados de esta persona cambiarán de sector/módulo.`)) return;
+    setError(""); setGuardando(r.clave);
+    try {
+      const otras = (asignaciones || []).filter(a => a.clave !== r.clave);
+      await onGuardarAsignaciones([...otras, { clave: r.clave, persona: r.persona, periodos: [{ desde: CARGA_DESDE_SIEMPRE, ...r.vivo }] }]);
+    } catch (e) {
+      console.error("Gestión de carga: error recalculando asignación", e);
+      setError(e.message || String(e));
+      setGuardando("");
+    }
+  };
+  const descargar = () => {
+    const ws = cargaHojaExcel([["Persona (imputaciones)", "Enlace", "Empleado (Gestión de empleados)", "Sector en Gestión de empleados", "Sector usado en Gestión de carga", "Módulos", "Histórico de asignaciones", "Pendiente", "Horas imputadas"],
+      ...todas.map(r => [r.persona, r.enlace + (r.baja ? ` (${cargaFmtFecha(r.baja)})` : ""), r.empleado, r.sectorOrigen, r.sector, r.modulos, r.historial, r.pendiente || (r.sinMemoria ? "Se guardará en la próxima importación" : ""), Math.round(r.horas * 10) / 10])], { horas: [8], anchos: [32, 22, 32, 26, 30, 22, 60, 50, 14] });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Enlace empleados");
+    XLSX.writeFile(wb, `Comprobar_enlace_empleados_${cargaHoy()}.xlsx`);
+  };
+  const color = { "Exacto": CV.good, "Aproximado": CV.warn, "No encontrada": CV.crit, "Excluida": CV.muted, "Baja (histórico)": CV.proy };
+  const fondo = { "Aproximado": "#fffbeb", "No encontrada": "#fef2f2", "Baja (histórico)": "#eff6ff" };
+  const thS = { textAlign: "left", padding: "6px 8px", fontSize: "11px", color: C.text2, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap", position: "sticky", top: 0, background: C.card, zIndex: 1 };
+  const tdS = { padding: "5px 8px", fontSize: "12px", borderBottom: `1px solid ${C.rowBorder}`, verticalAlign: "top" };
+  return React.createElement(CargaModal, { title: "🔎 Comprobar enlace con Gestión de empleados", onClose: guardando ? () => {} : onClose, width: "1180px" },
+    React.createElement("div", { style: { fontSize: "12px", color: C.text2, marginBottom: "10px", lineHeight: "1.5" } },
+      "Cada persona de las imputaciones con el empleado que se le ha asignado. Revisa sobre todo las ", React.createElement("b", null, "aproximadas"),
+      " y las ", React.createElement("b", null, "no encontradas"), ". Las ", React.createElement("b", null, "bajas"),
+      " ya no están en Gestión de empleados pero conservan su sector y módulo en el histórico. Los cambios de sector o módulo se aplican desde la importación en que se detectan; los meses anteriores no cambian."),
+    React.createElement("div", { style: { display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", marginBottom: "10px" } },
+      React.createElement(CargaSeg, { opciones: [["todos", `Todas (${todas.length})`], ["No encontrada", `No encontradas (${cuenta("No encontrada")})`], ["Aproximado", `Aproximadas (${cuenta("Aproximado")})`], ["Baja (histórico)", `Bajas (${cuenta("Baja (histórico)")})`], ["cambios", `Con cambios (${conCambios})`], ["Exacto", `Exactas (${cuenta("Exacto")})`], ["Excluida", `Excluidas (${cuenta("Excluida")})`]], valor: filtro, onChange: setFiltro }),
+      React.createElement("input", { placeholder: "Buscar persona...", value: texto, onChange: e => setTexto(e.target.value), style: { border: `1px solid ${C.border2}`, borderRadius: "6px", padding: "5px 8px", fontSize: "12px", minWidth: "160px" } }),
+      React.createElement("div", { style: { flex: 1 } }),
+      React.createElement("button", { onClick: descargar, style: cargaBtn(false, { padding: "6px 12px", fontSize: "12px" }) }, "⬇️ Descargar Excel")),
+    error && React.createElement("div", { style: { background: "#fee2e2", color: "#b91c1c", borderRadius: "8px", padding: "8px 12px", fontSize: "12px", marginBottom: "8px" } }, error),
+    React.createElement("div", { style: { maxHeight: "55vh", overflow: "auto", border: `1px solid ${C.border}`, borderRadius: "8px" } },
+      React.createElement("table", { style: { width: "100%", borderCollapse: "collapse" } },
+        React.createElement("thead", null, React.createElement("tr", null, ["Enlace", "Persona (imputaciones)", "Empleado (Gestión de empleados)", "Sector en Gestión de empleados", "Sector usado", "Módulos", "Horas", ""].map((h, i) => React.createElement("th", { key: i, style: { ...thS, textAlign: i === 6 ? "right" : "left" } }, h)))),
+        React.createElement("tbody", null, visibles.map(r => React.createElement("tr", { key: r.persona, style: { background: fondo[r.enlace] || "transparent" } },
+          React.createElement("td", { style: { ...tdS, whiteSpace: "nowrap" } },
+            React.createElement("span", { style: { display: "inline-flex", alignItems: "center", gap: "6px" } }, React.createElement(CargaPunto, { color: color[r.enlace], size: 8, radius: 4 }), r.enlace),
+            r.baja && React.createElement("div", { style: { fontSize: "10px", color: C.muted, marginLeft: "14px" } }, `desde ${cargaFmtFecha(r.baja)}`)),
+          React.createElement("td", { style: { ...tdS, fontWeight: "600" } }, r.persona,
+            r.historial && React.createElement("div", { style: { fontSize: "10px", color: C.text2, fontWeight: "400", marginTop: "2px" } }, "🕓 " + r.historial),
+            r.pendiente && React.createElement("div", { style: { fontSize: "10px", color: "#b45309", fontWeight: "400", marginTop: "2px" } }, `⚠ ${r.pendiente}. Se aplicará desde la próxima importación.`),
+            r.sinMemoria && React.createElement("div", { style: { fontSize: "10px", color: C.muted, fontWeight: "400", marginTop: "2px" } }, "Se guardará en la memoria en la próxima importación.")),
+          React.createElement("td", { style: tdS }, r.empleado || "—"),
+          React.createElement("td", { style: { ...tdS, color: C.text2 } }, r.sectorOrigen || "—"),
+          React.createElement("td", { style: { ...tdS, color: C.text2 } }, r.sector || "—"),
+          React.createElement("td", { style: { ...tdS, color: C.text2 } }, r.modulos || "—"),
+          React.createElement("td", { style: { ...tdS, textAlign: "right", fontVariantNumeric: "tabular-nums" } }, cargaFmtH(r.horas)),
+          React.createElement("td", { style: { ...tdS, whiteSpace: "nowrap" } }, r.vivo && (r.historial || r.pendiente) && React.createElement("button", {
+            onClick: () => recalcular(r), disabled: !!guardando, title: "Aplicar a todo su histórico lo que dice ahora Gestión de empleados (para corregir un error de alta)",
+            style: { background: C.item, border: `1px solid ${C.border2}`, borderRadius: "6px", padding: "3px 8px", fontSize: "11px", cursor: "pointer" }
+          }, guardando === r.clave ? "..." : "↺ Recalcular histórico"))))))),
+    React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", marginTop: "12px" } }, React.createElement("button", { onClick: onClose, disabled: !!guardando, style: cargaBtn(true) }, "Cerrar")));
+};
+const CargaAjustesModal = ({ cfg, filas, mesesMeta, empleados, onClose, onSaved }) => {
+  const [ddn, setDdn] = useState((cfg.ddnProyectos || []).join("\n"));
+  const [excl, setExcl] = useState((cfg.excluidos || []).join("\n"));
+  const [origen, setOrigen] = useState(cargaOrigenPersonas(cfg));
+  const [equiv, setEquiv] = useState(cargaEquivObj(cfg.equivSectores));
+  const [verAprox, setVerAprox] = useState(false);
+  const [verEnlace, setVerEnlace] = useState(false);
+  const [error, setError] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const cobertura = useMemo(() => cargaCobertura(filas), [filas]);
+  const lista = s => [...new Set(s.split(/\r?\n/).map(x => x.trim()).filter(Boolean))];
+  // Enlace con Gestión de empleados: equivalencias de sector y quién de las imputaciones se encuentra allí
+  const sectoresEmp = useMemo(() => [...new Set((empleados || []).map(e => e.sector).filter(Boolean))].sort((a, b) => a.localeCompare(b, "es")), [empleados]);
+  const opcionesHbu = useMemo(() => [...new Set([...CARGA_SECTORES_HBU.map(x => x[1]), ...(cfg.proyectos || []).map(p => p.sector).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "es")), [cfg.proyectos]);
+  const enlace = useMemo(() => {
+    if (origen !== "empleados") return null;
+    const rows = cargaFilasEnlace(filas, empleados, equiv, lista(excl), cfg.asignaciones).filter(r => r.enlace !== "Excluida");
+    const de = k => rows.filter(r => r.enlace === k);
+    return {
+      total: rows.length, enlazadas: rows.length - de("No encontrada").length,
+      aprox: de("Aproximado").map(r => [r.persona, r.empleado]), faltan: de("No encontrada").map(r => r.persona).sort((a, b) => a.localeCompare(b, "es")),
+      bajas: de("Baja (histórico)").length, pendientes: rows.filter(r => r.pendiente || r.sinMemoria).length
+    };
+  }, [origen, empleados, equiv, filas, excl, cfg.asignaciones]);
+  const guardarAsignaciones = async listaAsig => {
+    await firebase.firestore().collection("appData").doc(CARGA_CFG_DOC).set({ asignaciones: listaAsig }, { merge: true });
+    onSaved();
+  };
+  // Aplica ya (sin esperar a la próxima importación) lo que haya cambiado en Gestión de empleados; los cambios cuentan desde el mes actual
+  const actualizarAhora = async () => {
+    const r = cargaActualizarAsignaciones(cfg.asignaciones, filas.map(f => ({ nom: f.nom, ape: f.ape })), empleados, equiv, cargaMesActual(), new Date().toISOString().slice(0, 10));
+    if (!r.nuevas.length && !r.cambios.length && !r.bajas.length && !r.vueltas.length) { window.alert("La memoria ya está al día con Gestión de empleados."); return; }
+    if (!window.confirm(`Actualizar la memoria de asignaciones con Gestión de empleados:\n· ${r.nuevas.length} personas nuevas (aplica a todo su histórico)\n· ${r.cambios.length} cambios de sector/módulo (desde ${cargaMesLabel(cargaMesActual())})\n· ${r.bajas.length} bajas (se conserva su histórico)\n· ${r.vueltas.length} que vuelven\n¿Continuar?`)) return;
+    setError(""); setGuardando(true);
+    try { await guardarAsignaciones(r.lista); } catch (e) {
+      console.error("Gestión de carga: error actualizando asignaciones", e);
+      setError(e.message || String(e));
+      setGuardando(false);
+    }
+  };
+  const guardar = async () => {
+    setError(""); setGuardando(true);
+    try {
+      await firebase.firestore().collection("appData").doc(CARGA_CFG_DOC).set({
+        ddnProyectos: lista(ddn), excluidos: lista(excl), origenPersonas: origen,
+        equivSectores: Object.entries(equiv).filter(([, a]) => a).map(([de, a]) => ({ de, a }))
+      }, { merge: true });
+      onSaved();
+    } catch (e) {
+      console.error("Gestión de carga: error guardando ajustes", e);
+      setError(e.message || String(e));
+      setGuardando(false);
+    }
+  };
+  const borrarMes = async mes => {
+    if (!window.confirm(`¿Borrar todas las imputaciones de ${cargaMesLabel(mes)}? Podrás volver a cargarlas importando un export que cubra ese mes.`)) return;
+    setError(""); setGuardando(true);
+    try {
+      const db = firebase.firestore();
+      const batch = db.batch();
+      batch.delete(db.collection("appData").doc(cargaMesDoc(mes)));
+      batch.set(db.collection("appData").doc(CARGA_CFG_DOC), { meses: (cfg.meses || []).filter(m => m !== mes) }, { merge: true });
+      await batch.commit();
+      onSaved();
+    } catch (e) {
+      console.error("Gestión de carga: error borrando mes", e);
+      setError(e.message || String(e));
+      setGuardando(false);
+    }
+  };
+  // Solo en modo pruebas: borra todos los documentos de prueba para volver a empezar
+  const vaciarPruebas = async () => {
+    if (!CARGA_PRUEBAS || !window.confirm("¿Vaciar TODOS los datos de prueba (imputaciones, mapeos, ajustes e historial de pruebas)? Los datos reales no se tocan.")) return;
+    setError(""); setGuardando(true);
+    try {
+      const db = firebase.firestore();
+      const batch = db.batch();
+      (cfg.meses || []).forEach(m => batch.delete(db.collection("appData").doc(cargaMesDoc(m))));
+      batch.delete(db.collection("appData").doc(CARGA_CFG_DOC));
+      await batch.commit();
+      onSaved();
+    } catch (e) {
+      console.error("Gestión de carga: error vaciando datos de prueba", e);
+      setError(e.message || String(e));
+      setGuardando(false);
+    }
+  };
+  const area = (label, ayuda, valor, setValor) => React.createElement("div", { style: { marginBottom: "14px" } },
+    React.createElement("div", { style: { fontSize: "13px", fontWeight: "600", color: C.text, marginBottom: "2px" } }, label),
+    React.createElement("div", { style: { fontSize: "11px", color: C.muted, marginBottom: "6px" } }, ayuda),
+    React.createElement("textarea", { value: valor, onChange: e => setValor(e.target.value), rows: 5, style: { width: "100%", boxSizing: "border-box", border: `1px solid ${C.border2}`, borderRadius: "8px", padding: "8px 10px", fontSize: "12px", fontFamily: "inherit", resize: "vertical" } }));
+  const thS = { textAlign: "left", padding: "5px 8px", fontSize: "11px", color: C.text2, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap" };
+  const tdS = { padding: "5px 8px", fontSize: "11px", borderBottom: `1px solid ${C.rowBorder}`, whiteSpace: "nowrap" };
+  return React.createElement(CargaModal, { title: "⚙️ Ajustes de Gestión de carga", onClose, width: "760px" },
+    React.createElement("div", { style: { marginBottom: "16px" } },
+      React.createElement("div", { style: { fontSize: "13px", fontWeight: "600", color: C.text, marginBottom: "6px" } }, "Datos cargados"),
+      cobertura.length ? React.createElement("div", { style: { overflowX: "auto" } }, React.createElement("table", { style: { width: "100%", borderCollapse: "collapse" } },
+        React.createElement("thead", null, React.createElement("tr", null, ["Mes", "Del", "Al", "Días", "Horas", "Personas", "Última carga", ""].map((h, i) => React.createElement("th", { key: i, style: thS }, h)))),
+        React.createElement("tbody", null, cobertura.map(c => {
+          const meta = mesesMeta[c.mes] || {};
+          return React.createElement("tr", { key: c.mes },
+            React.createElement("td", { style: { ...tdS, fontWeight: "600" } }, cargaMesLabel(c.mes)),
+            React.createElement("td", { style: tdS }, c.antiguo ? "sin fecha diaria" : cargaFmtFecha(c.desde)),
+            React.createElement("td", { style: tdS }, c.antiguo ? "—" : cargaFmtFecha(c.hasta)),
+            React.createElement("td", { style: tdS }, c.antiguo ? "—" : c.dias.size),
+            React.createElement("td", { style: tdS }, cargaFmtH(c.horas)),
+            React.createElement("td", { style: tdS }, c.personas.size),
+            React.createElement("td", { style: { ...tdS, color: C.text2 } }, meta.fecha ? `${new Date(meta.fecha).toLocaleDateString("es-ES")} · ${meta.fichero || ""}` : "—"),
+            React.createElement("td", { style: tdS }, React.createElement("button", { onClick: () => borrarMes(c.mes), disabled: guardando, title: "Borrar las imputaciones de este mes", style: { background: "none", border: "none", cursor: "pointer", fontSize: "13px" } }, "🗑")));
+        })))) : React.createElement("div", { style: { fontSize: "12px", color: C.muted } }, "Todavía no hay imputaciones cargadas."),
+      React.createElement("div", { style: { fontSize: "11px", color: C.muted, marginTop: "6px" } },
+        `Mapeo guardado: ${(cfg.mapeo || []).length} personas · ${(cfg.proyectos || []).length} proyectos` + (cfg.proyectosActualizados ? ` (actualizados el ${new Date(cfg.proyectosActualizados).toLocaleDateString("es-ES")})` : ""))),
+    React.createElement("div", { style: { marginBottom: "16px", border: `1px solid ${C.border}`, borderRadius: "10px", padding: "12px 14px" } },
+      React.createElement("div", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "8px" } },
+        React.createElement("div", { style: { fontSize: "13px", fontWeight: "600", color: C.text } }, "Sector y módulo de las personas"),
+        React.createElement(CargaSeg, { opciones: [["empleados", "👥 Gestión de empleados"], ["fichero", "📄 Fichero importado"]], valor: origen, onChange: setOrigen })),
+      origen === "fichero"
+        ? React.createElement("div", { style: { fontSize: "11px", color: C.text2 } }, `Se usa el mapeo de personas importado (${(cfg.mapeo || []).length} personas). Para actualizarlo, sube un fichero de mapeo en Importar datos.`)
+        : React.createElement("div", null,
+          React.createElement("div", { style: { fontSize: "11px", color: C.text2, marginBottom: "8px", lineHeight: "1.5" } },
+            `Se toman de Gestión de empleados (${(empleados || []).length} empleados): el sector y el primer módulo de cada uno. Las altas, bajas y cambios se hacen allí; Gestión de carga guarda una memoria con fechas para que el histórico no cambie. `,
+            enlace && React.createElement("b", null, `${enlace.enlazadas} de ${enlace.total} personas de las imputaciones enlazadas`),
+            enlace && enlace.bajas > 0 && ` · ${enlace.bajas} de baja en Gestión de empleados (se conserva su histórico)`,
+            enlace && enlace.pendientes > 0 && React.createElement("span", { style: { color: "#b45309" } }, ` · ${enlace.pendientes} con cambios pendientes de guardar (se aplican en la próxima importación o con "Actualizar ahora")`), "."),
+          sectoresEmp.length > 0 && React.createElement("div", { style: { marginBottom: "8px" } },
+            React.createElement("div", { style: { fontSize: "11px", fontWeight: "600", color: C.text2, marginBottom: "4px" } }, "Equivalencia de sectores (Gestión de empleados → sector de los proyectos)"),
+            sectoresEmp.map(s => React.createElement("div", { key: s, style: { display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", padding: "3px 0" } },
+              React.createElement("span", { style: { minWidth: "200px", color: C.text } }, s), "→",
+              React.createElement("select", { value: equiv[s] || "", onChange: e => setEquiv({ ...equiv, [s]: e.target.value }), style: { border: `1px solid ${C.border2}`, borderRadius: "6px", padding: "3px 6px", fontSize: "12px" } },
+                React.createElement("option", { value: "" }, `Automático: ${cargaSectorEquivalente(s, {})}`),
+                opcionesHbu.map(o => React.createElement("option", { key: o, value: o }, o)))))),
+          enlace && enlace.aprox.length > 0 && React.createElement("div", { style: { fontSize: "11px", color: C.text2, marginBottom: "6px" } },
+            React.createElement("button", { onClick: () => setVerAprox(!verAprox), style: { background: "none", border: "none", color: C.accent, fontSize: "11px", fontWeight: "600", cursor: "pointer", padding: 0 } }, `${verAprox ? "Ocultar" : "Revisar"} ${enlace.aprox.length} enlazadas por aproximación (sin segundo apellido o nombre)`),
+            verAprox && React.createElement("div", { style: { maxHeight: "140px", overflowY: "auto", marginTop: "4px", lineHeight: "1.5" } }, enlace.aprox.map(([p, e]) => React.createElement("div", { key: p }, `${p}  →  ${e}`)))),
+          enlace && enlace.faltan.length > 0 && React.createElement("div", { style: { fontSize: "11px", color: "#b45309", lineHeight: "1.5" } },
+            `No están en Gestión de empleados (${enlace.faltan.length}): ${enlace.faltan.join(", ")}. Dalas de alta allí (o añádelas a Personas excluidas) y saldrán con su sector y módulo.`),
+          filas.length > 0 && React.createElement("div", { style: { display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "10px" } },
+            React.createElement("button", { onClick: () => setVerEnlace(true), style: cargaBtn(false, { padding: "6px 12px", fontSize: "12px" }) }, "🔎 Comprobar enlace persona a persona"),
+            React.createElement("button", { onClick: actualizarAhora, disabled: guardando, title: "Guarda ya en la memoria las altas, bajas y cambios de Gestión de empleados (normalmente se hace sola en cada importación)", style: cargaBtn(false, { padding: "6px 12px", fontSize: "12px" }) }, "🔄 Actualizar ahora con Gestión de empleados")),
+          verEnlace && React.createElement(CargaEnlaceModal, { filas, empleados, equiv, excluidos: lista(excl), asignaciones: cfg.asignaciones, onGuardarAsignaciones: guardarAsignaciones, onClose: () => setVerEnlace(false) }))),
+    area("Proyectos que cuentan como Desarrollo de Negocio", "Uno por línea, con el nombre exacto del proyecto (mayúsculas y tildes dan igual). Además, ya cuentan siempre los que contienen \"Desarrollo de Negocio\" o \"LEGAL - SAPHIA\".", ddn, setDdn),
+    area("Personas excluidas", "Una por línea (p. ej. \"Nombre Apellido\"). Sus horas no se muestran ni cuentan en los totales.", excl, setExcl),
+    (cfg.historial || []).length > 0 && React.createElement("div", { style: { marginBottom: "14px" } },
+      React.createElement("div", { style: { fontSize: "13px", fontWeight: "600", color: C.text, marginBottom: "6px" } }, "Últimas importaciones"),
+      (cfg.historial || []).slice(0, 10).map((hst, i) => React.createElement("div", { key: i, style: { fontSize: "11px", color: C.text2, padding: "3px 0", borderBottom: `1px solid ${C.rowBorder}` } },
+        `${new Date(hst.fecha).toLocaleString("es-ES")} · ${hst.usuario} · ${(hst.ficheros || []).join(", ")}` +
+        (hst.desde ? ` · imputaciones ${cargaFmtFecha(hst.desde)}–${cargaFmtFecha(hst.hasta)} (${cargaFmtH(hst.horas || 0)} h)` : (hst.meses && hst.meses.length ? ` · ${hst.meses.map(cargaMesLabel).join(", ")}` : "")) +
+        (hst.proyectosAltas || hst.proyectosCambios ? ` · proyectos: ${hst.proyectosAltas || 0} nuevos, ${hst.proyectosCambios || 0} con cambios` : "")))),
+    error && React.createElement("div", { style: { background: "#fee2e2", color: "#b91c1c", borderRadius: "8px", padding: "10px 12px", fontSize: "12px", marginBottom: "12px" } }, error),
+    React.createElement("div", { style: { display: "flex", justifyContent: "flex-end", gap: "8px" } },
+      CARGA_PRUEBAS && React.createElement("button", { onClick: vaciarPruebas, disabled: guardando, style: cargaBtn(false, { background: "#fff7ed", border: "1px solid #f97316", color: "#c2410c", marginRight: "auto" }) }, "🧪 Vaciar datos de prueba"),
+      React.createElement("button", { onClick: onClose, disabled: guardando, style: cargaBtn(false) }, "Cancelar"),
+      React.createElement("button", { onClick: guardar, disabled: guardando, style: cargaBtn(true, { opacity: guardando ? 0.5 : 1 }) }, guardando ? "Guardando..." : "Guardar")));
+};
+// ---------- Vista principal ----------
+const GestionCargaView = ({ onBack, onLogout, empleados = [] }) => {
+  const [estado, setEstado] = useState("cargando");
+  const [errorCarga, setErrorCarga] = useState("");
+  const [cfg, setCfg] = useState({ mapeo: [], proyectos: [], ddnProyectos: [], excluidos: [], meses: [], historial: [] });
+  const [filas, setFilas] = useState([]);
+  const [mesesMeta, setMesesMeta] = useState({});
+  const [reloadTick, setReloadTick] = useState(0);
+  const [vista, setVista] = useState("detalle");
+  const [fPersona, setFPersona] = useState([]);
+  const [fModulo, setFModulo] = useState([]);
+  const [fSector, setFSector] = useState([]);
+  const [fMes, setFMes] = useState([]);
+  const [agrupar, setAgrupar] = useState("persona");
+  const [abierta, setAbierta] = useState(null);
+  const [showImport, setShowImport] = useState(false);
+  const [showAjustes, setShowAjustes] = useState(false);
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      setEstado("cargando");
+      try {
+        const db = firebase.firestore();
+        const cfgSnap = await db.collection("appData").doc(CARGA_CFG_DOC).get();
+        const c = cfgSnap.exists ? cfgSnap.data() : {};
+        const meses = c.meses || [];
+        const snaps = await Promise.all(meses.map(m => db.collection("appData").doc(cargaMesDoc(m)).get()));
+        if (!vivo) return;
+        setCfg({ mapeo: [], proyectos: [], ddnProyectos: [], excluidos: [], historial: [], ...c, meses });
+        setFilas(snaps.flatMap((s, i) => s.exists ? cargaDecodificarMes(meses[i], s.data()) : []));
+        setMesesMeta(Object.fromEntries(snaps.map((s, i) => s.exists ? [meses[i], { fichero: s.data().fichero, fecha: s.data().fecha, cargadoPor: s.data().cargadoPor }] : null).filter(Boolean)));
+        setEstado("ok");
+      } catch (e) {
+        console.error("Gestión de carga: error leyendo Firestore", e);
+        if (vivo) { setErrorCarga((e.code ? e.code + ": " : "") + (e.message || String(e))); setEstado("error"); }
+      }
+    })();
+    return () => { vivo = false; };
+  }, [reloadTick]);
+  const datos = useMemo(() => cargaEnriquecer(filas, cfg, empleados), [filas, cfg, empleados]);
+  const uniq = arr => [...new Set(arr)].sort((a, b) => a.localeCompare(b, "es"));
+  const optSector = useMemo(() => uniq(datos.map(d => d.sector)), [datos]);
+  const optModulo = useMemo(() => uniq(datos.filter(d => !fSector.length || fSector.includes(d.sector)).map(d => d.modulo)), [datos, fSector]);
+  const optPersona = useMemo(() => uniq(datos.filter(d => (!fSector.length || fSector.includes(d.sector)) && (!fModulo.length || fModulo.includes(d.modulo))).map(d => d.persona)), [datos, fSector, fModulo]);
+  const mesesOrden = useMemo(() => [...new Set(datos.map(d => d.mes))].sort(), [datos]);
+  const optMes = mesesOrden.map(cargaMesLabel);
+  const filtrados = useMemo(() => datos.filter(d =>
+    (!fPersona.length || fPersona.includes(d.persona)) &&
+    (!fModulo.length || fModulo.includes(d.modulo)) &&
+    (!fSector.length || fSector.includes(d.sector)) &&
+    (!fMes.length || fMes.includes(cargaMesLabel(d.mes)))), [datos, fPersona, fModulo, fSector, fMes]);
+  // Para la presentación del trimestre: solo filtros de sector y módulo (nunca por persona ni por mes)
+  const datosBase = useMemo(() => datos.filter(d => (!fModulo.length || fModulo.includes(d.modulo)) && (!fSector.length || fSector.includes(d.sector))), [datos, fModulo, fSector]);
+  const totales = useMemo(() => cargaSumar(filtrados), [filtrados]);
+  const grupos = useMemo(() => {
+    const m = new Map();
+    for (const d of filtrados) {
+      const clave = d[agrupar] + "|" + d.mes;
+      if (!m.has(clave)) m.set(clave, { nombre: d[agrupar], mes: d.mes, sector: d.sector, modulo: d.modulo, rows: [] });
+      m.get(clave).rows.push(d);
+    }
+    return [...m.values()].map(g => ({ ...g, t: cargaSumar(g.rows) }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es") || a.mes.localeCompare(b.mes));
+  }, [filtrados, agrupar]);
+  const nPersonas = useMemo(() => new Set(filtrados.map(d => d.persona)).size, [filtrados]);
+  const hayFiltros = fPersona.length || fModulo.length || fSector.length || fMes.length;
+  const limpiar = () => { setFPersona([]); setFModulo([]); setFSector([]); setFMes([]); };
+  const recargar = () => { setShowImport(false); setShowAjustes(false); setReloadTick(t => t + 1); };
+  const th = (txt, align = "right") => React.createElement("th", { style: { textAlign: align, padding: "8px 10px", fontSize: "11px", fontWeight: "700", color: C.text2, borderBottom: `1px solid ${C.border}`, whiteSpace: "nowrap", position: "sticky", top: 0, background: C.item, zIndex: 1 } }, txt);
+  const td = (contenido, extra = {}) => React.createElement("td", { style: { textAlign: "right", padding: "7px 10px", fontSize: "12px", borderBottom: `1px solid ${C.rowBorder}`, whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums", ...extra } }, contenido);
+  const kpi = (label, valor, sub, punto) => React.createElement("div", {
+    style: { background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "12px 16px", flex: "1 1 140px", minWidth: "140px" }
+  }, React.createElement("div", { style: { fontSize: "11px", color: C.muted, fontWeight: "600", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" } }, punto && React.createElement(CargaPunto, { color: punto, size: 8 }), label),
+    React.createElement("div", { style: { fontSize: "20px", fontWeight: "700", color: C.text } }, valor),
+    sub && React.createElement("div", { style: { fontSize: "11px", color: C.text2, marginTop: "2px" } }, sub));
+  const btnCab = (activo) => ({ background: activo ? "#e0edff" : C.item, border: `1px solid ${activo ? C.accent : C.border2}`, color: activo ? C.accent : C.text, borderRadius: "6px", padding: "6px 14px", fontSize: "12px", fontWeight: "600", cursor: "pointer" });
+  const cabecera = React.createElement("div", {
+    style: { background: C.card, borderBottom: `1px solid ${C.border}`, padding: "12px 24px", display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }
+  }, React.createElement("button", { onClick: onBack, style: { background: C.item, border: `1px solid ${C.border2}`, color: C.text, borderRadius: "8px", padding: "8px 14px", cursor: "pointer", fontSize: "13px" } }, "← Atrás"),
+    React.createElement("div", { style: { fontSize: "14px", fontWeight: "700" } }, "📊 Gestión de carga"),
+    React.createElement("div", { style: { flex: 1 } }),
+    estado === "ok" && filas.length > 0 && React.createElement("button", { onClick: () => setVista("detalle"), style: btnCab(vista === "detalle") }, "📋 Detalle"),
+    estado === "ok" && filas.length > 0 && React.createElement("button", { onClick: () => setVista("kpis"), style: btnCab(vista === "kpis") }, "📈 KPIs"),
+    estado === "ok" && React.createElement("button", { onClick: () => setShowImport(true), style: { background: C.accent, border: "none", color: "white", borderRadius: "6px", padding: "6px 14px", fontSize: "12px", fontWeight: "600", cursor: "pointer" } }, "⬆️ Importar datos"),
+    estado === "ok" && React.createElement("button", { onClick: () => setShowAjustes(true), style: btnCab(false) }, "⚙️ Ajustes"),
+    React.createElement("button", { onClick: onLogout, style: { background: "#fee2e2", border: "none", color: "#dc2626", borderRadius: "6px", padding: "6px 14px", fontSize: "12px", fontWeight: "600", cursor: "pointer" } }, "Cerrar sesión"));
+  // Estado de los datos para quien mantiene la app: hasta qué día hay imputaciones y cuándo se actualizó todo
+  const dias = filas.map(f => f.dia).filter(Boolean).sort();
+  const ultima = (cfg.historial || [])[0];
+  const estadoDatos = estado === "ok" && filas.length > 0 && React.createElement("div", { style: { background: C.card, borderBottom: `1px solid ${C.border}`, padding: "6px 24px", fontSize: "11px", color: C.text2, display: "flex", gap: "14px", flexWrap: "wrap" } },
+    dias.length > 0 && React.createElement("span", null, "📅 Imputaciones del ", React.createElement("b", null, cargaFmtFecha(dias[0])), " al ", React.createElement("b", null, cargaFmtFecha(dias[dias.length - 1]))),
+    cfg.proyectosActualizados && React.createElement("span", null, `🗂 Proyectos actualizados el ${new Date(cfg.proyectosActualizados).toLocaleDateString("es-ES")} (${(cfg.proyectos || []).length})`),
+    ultima && React.createElement("span", null, `⬆️ Última importación: ${new Date(ultima.fecha).toLocaleString("es-ES", { dateStyle: "short", timeStyle: "short" })} · ${ultima.usuario}`));
+  let cuerpo;
+  if (estado === "cargando") cuerpo = React.createElement("div", { style: { padding: "40px", textAlign: "center", color: C.muted, fontSize: "13px" } }, "Cargando datos de carga...");
+  else if (estado === "error") cuerpo = React.createElement("div", { style: { padding: "30px 20px", textAlign: "center", maxWidth: "460px", margin: "40px auto", background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px" } },
+    React.createElement("div", { style: { fontWeight: "700", fontSize: "14px", marginBottom: "8px" } }, "No se han podido leer los datos de carga"),
+    React.createElement("div", { style: { fontSize: "12px", color: C.text2, marginBottom: "16px", wordBreak: "break-word" } }, errorCarga),
+    React.createElement("button", { onClick: () => setReloadTick(t => t + 1), style: cargaBtn(true) }, "🔄 Reintentar"));
+  else if (!filas.length) cuerpo = React.createElement("div", { style: { padding: "30px 20px", textAlign: "center", maxWidth: "520px", margin: "40px auto", background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px" } },
+    React.createElement("div", { style: { fontSize: "32px", marginBottom: "10px" } }, "📊"),
+    React.createElement("div", { style: { fontWeight: "700", fontSize: "14px", marginBottom: "8px" } }, "Todavía no hay datos de carga"),
+    React.createElement("div", { style: { fontSize: "12px", color: C.text2, marginBottom: "16px" } }, "Importa el export de imputaciones (InformeDetallado) o el Excel \"Antiguo Cuadro de mando\" para empezar."),
+    React.createElement("button", { onClick: () => setShowImport(true), style: cargaBtn(true) }, "⬆️ Importar datos"));
+  else {
+    const filtros = React.createElement("div", { style: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "10px", alignItems: "end", marginBottom: "14px" } },
+      React.createElement(MultiSelectDropdown, { label: "Sector", options: optSector, selected: fSector, onChange: setFSector }),
+      React.createElement(MultiSelectDropdown, { label: "Módulo", options: optModulo, selected: fModulo, onChange: setFModulo }),
+      React.createElement(MultiSelectDropdown, { label: "Persona", options: optPersona, selected: fPersona, onChange: setFPersona }),
+      React.createElement(MultiSelectDropdown, { label: "Mes", options: optMes, selected: fMes, onChange: setFMes }),
+      hayFiltros ? React.createElement("button", { onClick: limpiar, style: cargaBtn(false, { padding: "8px 12px", fontSize: "12px" }) }, "✕ Limpiar filtros") : React.createElement("div", null));
+    const detalle = React.createElement(React.Fragment, null,
+      React.createElement("div", { style: { display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "16px" } },
+        kpi("Horas totales", cargaFmtH(totales.total), `${nPersonas} persona${nPersonas === 1 ? "" : "s"}`),
+        kpi("Disponibilidad", cargaFmtPct(totales.disp, totales.total), cargaFmtH(totales.disp) + " h", CV.disp),
+        kpi("Proyecto", cargaFmtPct(totales.proy, totales.total), cargaFmtH(totales.proy) + " h", CV.proy),
+        kpi("Desarrollo de Negocio", cargaFmtPct(totales.ddn, totales.total), cargaFmtH(totales.ddn) + " h", CV.ddn),
+        kpi("Vacaciones / Bajas", cargaFmtPct(totales.vac, totales.total), cargaFmtH(totales.vac) + " h", CV.vac)),
+      React.createElement("div", { style: { background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", overflow: "hidden" } },
+        React.createElement("div", { style: { display: "flex", alignItems: "center", gap: "10px", padding: "10px 14px", borderBottom: `1px solid ${C.border}`, flexWrap: "wrap" } },
+          React.createElement("span", { style: { fontSize: "12px", fontWeight: "600", color: C.text2 } }, "Agrupar por"),
+          React.createElement(CargaSeg, { opciones: Object.entries(CARGA_DIMS), valor: agrupar, onChange: k => { setAgrupar(k); setAbierta(null); } }),
+          React.createElement("div", { style: { flex: 1 } }),
+          React.createElement(CargaLeyenda, { items: CARGA_GRUPOS })),
+        React.createElement("div", { style: { overflowX: "auto", maxHeight: "60vh", overflowY: "auto" } },
+          React.createElement("table", { style: { width: "100%", borderCollapse: "collapse" } },
+            React.createElement("thead", null, React.createElement("tr", null,
+              th(CARGA_DIMS[agrupar], "left"),
+              agrupar === "persona" && th("Sector", "left"), agrupar === "persona" && th("Módulo", "left"),
+              th("Mes", "left"), th("Horas"), th("% Disp."), th("% Proyecto"), th("% DDN"), th("% Vac./Bajas"), th("Distribución", "left"))),
+            React.createElement("tbody", null, grupos.map((g, i) => {
+              const clave = g.nombre + "|" + g.mes;
+              const primera = i === 0 || grupos[i - 1].nombre !== g.nombre;
+              const abiertaAqui = agrupar === "persona" && abierta === clave;
+              const filasFila = [React.createElement("tr", {
+                key: clave,
+                onClick: agrupar === "persona" ? () => setAbierta(abiertaAqui ? null : clave) : undefined,
+                style: { cursor: agrupar === "persona" ? "pointer" : "default", background: abiertaAqui ? C.expandBg : "transparent" }
+              },
+                td(primera ? g.nombre : "", { textAlign: "left", fontWeight: "600", color: C.text, borderTop: primera && i > 0 ? `1px solid ${C.border}` : undefined }),
+                agrupar === "persona" && td(primera ? g.sector : "", { textAlign: "left", color: C.text2 }),
+                agrupar === "persona" && td(primera ? g.modulo : "", { textAlign: "left", color: C.text2 }),
+                td(cargaMesLabel(g.mes), { textAlign: "left" }),
+                td(cargaFmtH(g.t.total), { fontWeight: "600" }),
+                td(React.createElement(CargaSemaforoCelda, { disp: g.t.disp, total: g.t.total }), { fontWeight: "600" }),
+                td(cargaFmtPct(g.t.proy, g.t.total)),
+                td(cargaFmtPct(g.t.ddn, g.t.total)),
+                td(cargaFmtPct(g.t.vac, g.t.total)),
+                td(React.createElement(CargaBarra, { t: g.t }), { textAlign: "left", width: "180px" }))];
+              if (abiertaAqui) {
+                const porProyecto = new Map();
+                for (const r of g.rows) {
+                  const k = r.cod + "|" + (r.pro || "(sin proyecto)");
+                  const p = porProyecto.get(k) || { pro: r.pro || "(sin proyecto)", cod: r.cod, cat: r.cat, secPro: r.secPro, h: 0 };
+                  p.h += r.h;
+                  porProyecto.set(k, p);
+                }
+                [...porProyecto.values()].sort((a, b) => b.h - a.h).forEach(p => filasFila.push(React.createElement("tr", { key: clave + "|" + p.cod + "|" + p.pro, style: { background: C.expandBg } },
+                  React.createElement("td", { colSpan: 4, style: { padding: "5px 10px 5px 28px", fontSize: "11px", color: C.text2, borderBottom: `1px solid ${C.rowBorder}` } },
+                    p.pro, React.createElement("span", { style: { marginLeft: "8px", color: C.muted } }, "· " + [p.cod, p.cat, p.cat === "Proyecto" ? p.secPro : ""].filter(Boolean).join(" · "))),
+                  td(cargaFmtH(p.h), { fontSize: "11px", color: C.text2 }),
+                  React.createElement("td", { colSpan: 5, style: { borderBottom: `1px solid ${C.rowBorder}` } }))));
+              }
+              return filasFila;
+            }))))),
+      React.createElement("div", { style: { fontSize: "11px", color: C.muted, marginTop: "12px", lineHeight: "1.6" } },
+        "Disponibilidad = Disponibilidad + Formación SAP + Formación no SAP + Onboarding + Gestión de Equipos. ",
+        "Vacaciones / Bajas = Vacaciones + Bajas y ausencias. Otros (Becarios, Genérica, Management & Operation) cuenta en las horas totales pero no en ningún %. ",
+        "Semáforo de disponibilidad: verde ≤ 30 %, ámbar 30-40 %, rojo > 40 %.",
+        agrupar === "persona" ? " Pulsa una fila para ver el desglose por proyecto." : ""));
+    const describir = (sel, todos) => sel.length ? sel.join(", ") : todos;
+    const filtrosTexto = [describir(fSector, "Todos los sectores"), describir(fModulo, "todos los módulos"), fPersona.length ? `${fPersona.length} persona${fPersona.length === 1 ? "" : "s"}` : "todas las personas", describir(fMes, "todos los meses")].join(" · ");
+    cuerpo = React.createElement(React.Fragment, null, filtros,
+      vista === "kpis" ? React.createElement(CargaKpisView, {
+        datos: filtrados, datosBase, filtrosTexto, hayMapeoProyectos: (cfg.proyectos || []).length > 0,
+        alcancePPT: [describir(fSector, "Todos los sectores"), describir(fModulo, "todos los módulos")].join(" · ")
+      }) : detalle);
+  }
+  return React.createElement("div", {
+    style: { minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "system-ui,-apple-system,sans-serif" }
+  }, CARGA_PRUEBAS && React.createElement("div", { style: { background: "#f97316", color: "white", padding: "7px 24px", fontSize: "12px", fontWeight: "700", display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" } },
+    "🧪 MODO PRUEBAS",
+    React.createElement("span", { style: { fontWeight: "400" } }, "Los datos se guardan aparte (appData/pruebas_carga_*) y no afectan a los reales. Para trabajar con los reales, abre la app sin ?pruebas=1.")),
+    cabecera, estadoDatos,
+    React.createElement("div", { style: { maxWidth: "1280px", margin: "0 auto", padding: "20px 16px" } }, cuerpo),
+    showImport && React.createElement(CargaImportModal, { cfg, filasActuales: filas, empleados, onClose: () => setShowImport(false), onSaved: recargar }),
+    showAjustes && React.createElement(CargaAjustesModal, { cfg, filas, mesesMeta, empleados, onClose: () => setShowAjustes(false), onSaved: recargar }));
+};
 const HomeScreen = ({
   onEnterEval,
   onEnterEvalOp,
   onEnterEmployees,
   onEnterResultados,
   onEnterHistorico,
+  onEnterCarga,
   onLogout
 }) => {
   const [hovered, setHovered] = useState(null);
@@ -3634,20 +5812,21 @@ const HomeScreen = ({
       filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
     }
   }, "\uD83D\uDC65"))), /*#__PURE__*/React.createElement("div", {
-    onMouseEnter: () => setHovered("test"),
+    onClick: onEnterCarga,
+    onMouseEnter: () => setHovered("carga"),
     onMouseLeave: () => setHovered(null),
     style: {
       background: "white",
-      border: `1px solid ${hovered === "test" ? "#2563eb" : "#d0d7de"}`,
+      border: `1px solid ${hovered === "carga" ? "#2563eb" : "#d0d7de"}`,
       borderRadius: "16px",
       padding: "16px",
       width: "180px",
       height: "180px",
-      cursor: "default",
+      cursor: "pointer",
       display: "flex",
       flexDirection: "column",
       justifyContent: "space-between",
-      boxShadow: hovered === "test" ? "0 4px 14px rgba(37,99,235,0.18)" : "0 1px 4px rgba(0,0,0,0.07)",
+      boxShadow: hovered === "carga" ? "0 4px 14px rgba(37,99,235,0.18)" : "0 1px 4px rgba(0,0,0,0.07)",
       transition: "all 0.15s",
       userSelect: "none"
     }
@@ -3658,7 +5837,7 @@ const HomeScreen = ({
       color: "#1a2332",
       lineHeight: "1.35"
     }
-  }, "TEST"), /*#__PURE__*/React.createElement("div", {
+  }, "Gesti\xf3n de carga"), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       justifyContent: "flex-end"
@@ -3668,7 +5847,7 @@ const HomeScreen = ({
       fontSize: "38px",
       filter: "sepia(1) hue-rotate(180deg) saturate(4) brightness(0.85)"
     }
-  }, "\uD83E\uDDEA")))))));
+  }, "\uD83D\uDCCA")))))));
 };
 const SimpleItemList = ({
   items,
@@ -6587,6 +8766,9 @@ function App() {
   const removeEmployee = id => {
     persistEmployees(employees.filter(e => e.id !== id));
   };
+  const removeEmployees = ids => {
+    persistEmployees(employees.filter(e => !ids.includes(e.id)));
+  };
   const updateEmployee = (id, data) => {
     persistEmployees(employees.map(e => e.id === id ? {
       ...data,
@@ -6766,6 +8948,12 @@ function App() {
     onEnterEmployees: () => setAppScreen("employees"),
     onEnterResultados: () => setAppScreen("resultados"),
     onEnterHistorico: () => setAppScreen("historico"),
+    onEnterCarga: () => setAppScreen("carga"),
+    onLogout: () => window.doLogout()
+  });
+  if (appScreen === "carga") return /*#__PURE__*/React.createElement(GestionCargaView, {
+    empleados: employees,
+    onBack: () => setAppScreen("home"),
     onLogout: () => window.doLogout()
   });
   if (appScreen === "resultados") return /*#__PURE__*/React.createElement(ResultadosEvaluacionView, {
@@ -6792,6 +8980,7 @@ function App() {
     removeEmployee: removeEmployee,
     updateEmployee: updateEmployee,
     onBulkAdd: onBulkAdd,
+    onBulkRemove: removeEmployees,
     sapModules: sapModules,
     sectors: sectors,
     skills: skills,
