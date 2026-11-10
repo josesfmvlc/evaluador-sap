@@ -13382,14 +13382,95 @@ function App() {
 <script>
   const _auth = firebase.auth();
 
-  const INACTIVITY_TIMEOUT = 15 * 60 * 1000;
-  let lastActivity = Date.now();
-  let authCheckInterval = null;
+  // ===== Cierre de sesión por inactividad (2026-11-10) =====
+  // La última actividad es COMÚN a todas las pestañas del navegador (localStorage): una pestaña olvidada
+  // ya no cierra la sesión de la que se está usando. Aviso 1 min antes con «Seguir conectado».
+  const INACTIVITY_TIMEOUT = 15 * 60 * 1000;  // cierre a los 15 min sin actividad
+  const INACTIVITY_WARNING = 60 * 1000;       // aviso 1 min antes
+  const ACTIVITY_KEY = 'evaluador-sap:lastActivity';
+  const ACTIVITY_WRITE_EVERY = 5000;          // escribir en localStorage como mucho cada 5 s
+  let lastActivity = Date.now();              // última actividad en ESTA pestaña
+  let lastWritten = 0;
+  let warningEl = null;
+  let closingSession = false;
+  let hadUser = false;
 
-  function resetInactivity() { lastActivity = Date.now(); }
-  document.addEventListener('mousemove', resetInactivity);
-  document.addEventListener('keydown', resetInactivity);
-  document.addEventListener('click', resetInactivity);
+  function readSharedActivity() {
+    try { const v = parseInt(localStorage.getItem(ACTIVITY_KEY), 10); return isFinite(v) ? v : 0; } catch (e) { return 0; }
+  }
+  // Última actividad en cualquier pestaña
+  function getLastActivity() { return Math.max(lastActivity, readSharedActivity()); }
+
+  function markActivity(force) {
+    const now = Date.now();
+    if (!force) {
+      if (warningEl) return;  // con el aviso en pantalla solo cuenta «Seguir conectado»
+      // Sesión ya caducada (p. ej. al volver de suspensión): se cierra, no se reactiva
+      // (primero se mira la pestaña, que es gratis; solo si está caducada se lee localStorage)
+      if (_auth.currentUser && now - lastActivity >= INACTIVITY_TIMEOUT && now - getLastActivity() >= INACTIVITY_TIMEOUT) { closeByInactivity(); return; }
+    }
+    lastActivity = now;
+    if (force || now - lastWritten >= ACTIVITY_WRITE_EVERY) {
+      lastWritten = now;
+      try { localStorage.setItem(ACTIVITY_KEY, String(now)); } catch (e) {}
+    }
+  }
+  // También la usa Staffing (iframe) a través de window.resetInactivity
+  function resetInactivity() { markActivity(false); }
+
+  ['mousemove', 'mousedown', 'pointerdown', 'keydown', 'click', 'wheel', 'scroll', 'touchstart'].forEach(function(ev) {
+    document.addEventListener(ev, resetInactivity, { capture: true, passive: true });
+  });
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') { checkInactivity(); resetInactivity(); }
+  });
+  window.addEventListener('focus', function() { checkInactivity(); resetInactivity(); });
+
+  function closeByInactivity() {
+    if (closingSession) return;
+    closingSession = true;
+    hideInactivityWarning();
+    Promise.resolve(_auth.signOut()).catch(function() {}).then(function() { closingSession = false; });
+  }
+
+  function showInactivityWarning(secs) {
+    if (!warningEl) {
+      warningEl = document.createElement('div');
+      warningEl.id = 'inactivity-warning';
+      warningEl.setAttribute('role', 'alertdialog');
+      warningEl.setAttribute('aria-modal', 'true');
+      warningEl.setAttribute('aria-labelledby', 'inactivity-title');
+      warningEl.style.cssText = 'position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,0.45);display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,-apple-system,sans-serif;';
+      warningEl.innerHTML =
+        '<div style="background:white;border-radius:16px;padding:28px 32px;width:380px;max-width:90vw;box-shadow:0 8px 40px rgba(0,0,0,0.2);text-align:center;">' +
+          '<div style="font-size:30px;margin-bottom:8px;">⏳</div>' +
+          '<div id="inactivity-title" style="font-size:17px;font-weight:800;color:#1a2332;margin-bottom:8px;">¿Sigues ahí?</div>' +
+          '<div aria-live="polite" style="font-size:13px;color:#4a5568;margin-bottom:20px;">Por inactividad, tu sesión se cerrará en <b id="inactivity-secs"></b> s.</div>' +
+          '<button id="inactivity-continue" type="button" style="background:#2563eb;color:white;border:none;border-radius:9px;padding:11px 22px;font-size:14px;font-weight:700;cursor:pointer;">Seguir conectado</button>' +
+        '</div>';
+      document.body.appendChild(warningEl);
+      const btn = document.getElementById('inactivity-continue');
+      btn.addEventListener('click', function() { markActivity(true); hideInactivityWarning(); });
+      try { btn.focus(); } catch (e) {}
+    }
+    document.getElementById('inactivity-secs').textContent = String(secs);
+  }
+  function hideInactivityWarning() {
+    if (warningEl) { warningEl.remove(); warningEl = null; }
+  }
+
+  // Un único reloj para toda la vida de la página (no se acumula al volver a entrar)
+  function checkInactivity() {
+    if (!_auth.currentUser) { hideInactivityWarning(); return; }
+    const idle = Date.now() - getLastActivity();
+    if (idle >= INACTIVITY_TIMEOUT) { closeByInactivity(); return; }
+    if (idle >= INACTIVITY_TIMEOUT - INACTIVITY_WARNING) {
+      showInactivityWarning(Math.max(1, Math.ceil((INACTIVITY_TIMEOUT - idle) / 1000)));
+    } else {
+      hideInactivityWarning();  // p. ej. si se ha seguido trabajando en otra pestaña
+    }
+  }
+  setInterval(checkInactivity, 1000);
 
   function doLogin() {
     const email = document.getElementById('login-email').value.trim();
@@ -13404,16 +13485,20 @@ function App() {
 
   _auth.onAuthStateChanged(user => {
     if (user) {
+      hadUser = true;
+      markActivity(true);  // al entrar, el contador empieza de cero (en todas las pestañas)
+      document.getElementById('login-error').textContent = '';
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('root').style.display = 'block';
       root.render(React.createElement(App, null));
-      authCheckInterval = setInterval(() => {
-        if (Date.now() - lastActivity > INACTIVITY_TIMEOUT) { _auth.signOut(); }
-      }, 60000);
     } else {
+      hideInactivityWarning();
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('root').style.display = 'none';
-      if (authCheckInterval) { clearInterval(authCheckInterval); authCheckInterval = null; }
+      if (hadUser && Date.now() - getLastActivity() >= INACTIVITY_TIMEOUT) {
+        document.getElementById('login-error').textContent = 'Sesión cerrada por inactividad.';
+      }
+      hadUser = false;
     }
   });
 
