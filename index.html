@@ -288,7 +288,34 @@ const resizePhoto = (file, maxDim = 160, quality = 0.85) => new Promise((resolve
   reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
   reader.readAsDataURL(file);
 });
-const DEFAULT_SAP_MODULES = ["SAP QM", "SAP MM", "SAP CO", "SAP FI", "SAP PP", "SAP EWM"];
+const DEFAULT_SAP_MODULES = ["QM", "MM", "CO", "FI", "PP", "EWM"];
+// Módulos SAP: un único nombre por módulo, siempre SIN el prefijo «SAP» ("SAP PP" → "PP").
+// Se aplica al cargar (migra lo guardado), al añadir desde Ajustes o desde la ficha y al importar Excel.
+// Duplicados (también por mayúsculas: "Basis"/"BASIS") se fusionan conservando el primero.
+const normModulo = m => {
+  const t = String(m || "").replace(/\s+/g, " ").trim();
+  const sin = t.replace(/^SAP[\s\-_:]+/i, "").trim();
+  return sin || t;
+};
+const normModulos = list => {
+  const vistos = new Set();
+  return (list || []).map(normModulo).filter(m => {
+    const k = m.toLowerCase();
+    if (!m || vistos.has(k)) return false;
+    vistos.add(k);
+    return true;
+  });
+};
+const normEmpleadoModulos = e => {
+  const modules = normModulos(e.modules?.length ? e.modules : e.modulos?.length ? e.modulos : e.module ? [e.module] : []);
+  const out = {
+    ...e,
+    modules,
+    module: modules[0] || ""
+  };
+  if (Array.isArray(e.modulos)) out.modulos = normModulos(e.modulos);
+  return out;
+};
 const DEFAULT_SECTORS = ["Industria de procesos", "Manufacturing", "Servicios y Hoteles", "Estructura"];
 const DEFAULT_SKILLS = ["Preventa", "Jefatura de proyecto", "Arquitectura", "Formación"];
 const DEFAULT_LOCATIONS = ["Valencia", "Barcelona", "Madrid"];
@@ -429,7 +456,7 @@ function descargarPlantillaEmpleados() {
   ws["!cols"] = cab.map((h, i) => ({
     wch: i === 0 ? 34 : 18
   }));
-  const ayuda = [["Columna", "Qué poner", "Ejemplo"], ["Nombre", "Obligatorio, en la primera columna. Si ya existe un empleado con ese nombre se actualiza; si no, se añade.", "Apellido1 Apellido2, Nombre"], ["Sector", "Texto libre.", "Industria"], ["Skill 1, 2, 3...", "Un skill por columna. Puedes añadir más columnas cuyo título empiece por «Skill».", "Funcional"], ["Ubicación", "Texto libre.", "Valencia"], ["Antigüedad", "Fecha de incorporación a la empresa: DD/MM/AAAA, AAAA-MM-DD, fecha de Excel o solo el año.", "15/03/2018"], ["Experiencia SAP", "Fecha desde la que tiene experiencia SAP, mismo formato que Antigüedad.", "01/09/2015"], ["Módulo 1, 2, 3...", "Un módulo por columna. Puedes añadir más columnas cuyo título empiece por «Módulo».", "SAP QM"], [], ["Notas", "Se lee solo la primera hoja (Plantilla). Los títulos de columna pueden ir en cualquier orden, excepto Nombre, que debe ser la primera. Las celdas vacías se admiten."]];
+  const ayuda = [["Columna", "Qué poner", "Ejemplo"], ["Nombre", "Obligatorio, en la primera columna. Si ya existe un empleado con ese nombre se actualiza; si no, se añade.", "Apellido1 Apellido2, Nombre"], ["Sector", "Texto libre.", "Industria"], ["Skill 1, 2, 3...", "Un skill por columna. Puedes añadir más columnas cuyo título empiece por «Skill».", "Funcional"], ["Ubicación", "Texto libre.", "Valencia"], ["Antigüedad", "Fecha de incorporación a la empresa: DD/MM/AAAA, AAAA-MM-DD, fecha de Excel o solo el año.", "15/03/2018"], ["Experiencia SAP", "Fecha desde la que tiene experiencia SAP, mismo formato que Antigüedad.", "01/09/2015"], ["Módulo 1, 2, 3...", "Un módulo por columna, sin «SAP» delante (si lo lleva, se quita al importar). Puedes añadir más columnas cuyo título empiece por «Módulo».", "QM"], [], ["Notas", "Se lee solo la primera hoja (Plantilla). Los títulos de columna pueden ir en cualquier orden, excepto Nombre, que debe ser la primera. Las celdas vacías se admiten."]];
   const wa = XLSX.utils.aoa_to_sheet(ayuda);
   wa["!cols"] = [{
     wch: 20
@@ -480,7 +507,7 @@ function parseEmployeesExcel(ab) {
     if (!r[0]) continue;
     const nombre = String(r[0] || "").trim();
     if (!nombre) continue;
-    const modules = moduleIdxs.map(mi => String(r[mi] || "").trim()).filter(Boolean);
+    const modules = normModulos(moduleIdxs.map(mi => String(r[mi] || "").trim()));
     const skills = skillIdxs.map(si => String(r[si] || "").trim()).filter(Boolean);
     const emp = {
       id: "emp-" + Date.now() + Math.random(),
@@ -1044,6 +1071,21 @@ const EmployeeListWithFilters = ({
     fontWeight: "600",
     cursor: "pointer"
   });
+  // Rejilla de columnas fijas: Nombre | Sector | Módulos | Skill | F. Incorporación | Exp. SAP | Acciones.
+  // Las etiquetas bajan de línea dentro de su celda; ninguna columna se desplaza.
+  const empGrid = {
+    display: "grid",
+    gridTemplateColumns: "minmax(170px, 1.3fr) minmax(120px, 0.9fr) minmax(110px, 0.7fr) minmax(220px, 1.6fr) 120px 80px 84px",
+    columnGap: "12px",
+    alignItems: "center",
+    minWidth: "1000px"
+  };
+  const empTags = {
+    display: "flex",
+    flexWrap: "wrap",
+    rowGap: "4px",
+    minWidth: 0
+  };
   const checkSel = (checked, onChange) => React.createElement("input", {
     type: "checkbox",
     checked,
@@ -1231,13 +1273,12 @@ const EmployeeListWithFilters = ({
     style: {
       border: `1px solid ${C.border}`,
       borderRadius: "8px",
-      overflow: "hidden"
+      overflowX: "auto",
+      overflowY: "hidden"
     }
   }, React.createElement("div", {
     style: {
-      display: "flex",
-      alignItems: "center",
-      gap: "12px",
+      ...empGrid,
       padding: "8px 14px",
       background: C.expandBg,
       borderBottom: `1px solid ${C.border}`,
@@ -1247,44 +1288,19 @@ const EmployeeListWithFilters = ({
       textTransform: "uppercase",
       letterSpacing: "0.05em"
     }
-  }, React.createElement("div", {
+  }, React.createElement("div", null, selMode && checkSel(todosSel, () => setSel(todosSel ? [] : filtered.map(x => x.id))), "Nombre"), React.createElement("div", null, "Sector"), React.createElement("div", null, "Módulos"), React.createElement("div", null, "Skill"), React.createElement("div", {
     style: {
-      flex: 1,
-      minWidth: "180px"
-    }
-  }, selMode && checkSel(todosSel, () => setSel(todosSel ? [] : filtered.map(x => x.id))), "Nombre"), React.createElement("div", {
-    style: {
-      display: "flex",
-      alignItems: "center",
-      gap: "14px",
-      flexShrink: 0
-    }
-  }, React.createElement("div", {
-    style: {
-      minWidth: "150px",
-      textAlign: "right"
-    }
-  }, "Módulos"), React.createElement("div", {
-    style: {
-      minWidth: "110px",
-      textAlign: "right"
-    }
-  }, "Skill"), React.createElement("div", {
-    style: {
-      minWidth: "120px",
       textAlign: "right"
     }
   }, "F. Incorporación"), React.createElement("div", {
     style: {
-      minWidth: "110px",
       textAlign: "right"
     }
   }, "Exp. SAP"), React.createElement("div", {
     style: {
-      width: "96px",
       textAlign: "center"
     }
-  }, "Acciones"))), filtered.length === 0 ? React.createElement("div", {
+  }, "Acciones")), filtered.length === 0 ? React.createElement("div", {
     style: {
       padding: "16px",
       textAlign: "center",
@@ -1294,17 +1310,15 @@ const EmployeeListWithFilters = ({
   }, "No hay empleados que coincidan con los filtros") : filtered.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((e, idx) => React.createElement("div", {
     key: e.id,
     style: {
-      display: "flex",
-      alignItems: "center",
-      gap: "12px",
+      ...empGrid,
       padding: "10px 14px",
+      fontSize: "11px",
       background: idx % 2 ? C.item : C.card,
       borderBottom: idx < filtered.length - 1 ? `1px solid ${C.rowBorder}` : "none"
     }
   }, React.createElement("div", {
     style: {
-      flex: 1,
-      minWidth: "180px"
+      minWidth: 0
     }
   }, selMode && checkSel(sel.includes(e.id), () => toggleSel(e.id)), React.createElement("span", {
     style: {
@@ -1314,43 +1328,34 @@ const EmployeeListWithFilters = ({
     }
   }, e.nombre)), React.createElement("div", {
     style: {
-      display: "flex",
-      alignItems: "center",
-      gap: "14px",
-      flexShrink: 0,
-      fontSize: "11px"
+      minWidth: 0,
+      fontSize: "12px",
+      color: e.sector ? C.text2 : C.muted
     }
-  }, React.createElement("div", {
-    style: {
-      minWidth: "150px",
-      textAlign: "right"
-    }
+  }, e.sector || "—"), React.createElement("div", {
+    style: empTags
   }, (e.modules && e.modules.length ? e.modules : e.module ? [e.module] : []).map((m, j) => React.createElement(Tag, {
     key: j,
     text: m
   }))), React.createElement("div", {
-    style: {
-      minWidth: "110px",
-      textAlign: "right"
-    }
+    style: empTags
   }, (e.skills && e.skills.length ? e.skills : e.skill ? [e.skill] : []).map((s, j) => React.createElement(Tag, {
     key: j,
     text: s
   }))), React.createElement("div", {
     style: {
-      minWidth: "120px",
       color: C.text2,
-      textAlign: "right"
+      textAlign: "right",
+      whiteSpace: "nowrap"
     }
   }, "📅 ", e.antiguedad ? fmtDate(e.antiguedad) : "—"), React.createElement("div", {
     style: {
-      minWidth: "110px",
       color: C.text2,
-      textAlign: "right"
+      textAlign: "right",
+      whiteSpace: "nowrap"
     }
   }, "🧭 ", e.expSap ? e.expSap.slice(0, 4) : "—"), React.createElement("div", {
     style: {
-      width: "96px",
       display: "flex",
       gap: "4px",
       justifyContent: "center"
@@ -1381,7 +1386,7 @@ const EmployeeListWithFilters = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "🗑"))))))));
+  }, "🗑")))))));
 };
 const ItemListSection = ({
   title,
@@ -1582,7 +1587,7 @@ const EditEmployeeModal = ({
     expSap: "",
     sector: "",
     ...emp,
-    modules: emp.modules && emp.modules.length ? emp.modules : emp.module ? [emp.module] : [],
+    modules: normModulos(emp.modules && emp.modules.length ? emp.modules : emp.module ? [emp.module] : []).map(m => sapModules.find(x => x.toLowerCase() === m.toLowerCase()) || m),
     skills: emp.skills && emp.skills.length ? emp.skills : emp.skill ? [emp.skill] : []
   });
   const [newMod, setNewMod] = useState("");
@@ -1593,13 +1598,15 @@ const EditEmployeeModal = ({
   }));
   const toggleMod = m => set("modules", form.modules.includes(m) ? form.modules.filter(x => x !== m) : [...form.modules, m]);
   const toggleSkill = s => set("skills", form.skills.includes(s) ? form.skills.filter(x => x !== s) : [...form.skills, s]);
-  const allMods = [...new Set([...sapModules, ...form.modules])];
+  const allMods = normModulos([...sapModules, ...form.modules]);
   const allSkillOpts = [...new Set([...skills, ...form.skills])];
   const addNewMod = () => {
-    const name = newMod.trim();
-    if (!name) return;
-    if (!sapModules.includes(name)) onAddSapModule && onAddSapModule(name);
-    if (!form.modules.includes(name)) set("modules", [...form.modules, name]);
+    const n = normModulo(newMod);
+    if (!n) return;
+    const existente = sapModules.find(x => x.toLowerCase() === n.toLowerCase());
+    const name = existente || n;
+    if (!existente) onAddSapModule && onAddSapModule(name);
+    if (!form.modules.some(x => x.toLowerCase() === name.toLowerCase())) set("modules", [...form.modules, name]);
     setNewMod("");
   };
   const addNewSkill = () => {
@@ -12386,7 +12393,7 @@ function App() {
   const [employees, setEmployees] = useState([{
     id: "emp-1",
     nombre: "Empleado 1",
-    module: "SAP QM",
+    module: "QM",
     sector: "",
     skill: "",
     location: "",
@@ -12441,7 +12448,7 @@ function App() {
           }
           if (empList) setEmployees(empList.map(e => ({
             ...e,
-            modules: e.modules?.length ? e.modules : e.modulos?.length ? e.modulos : e.module ? [e.module] : [],
+            ...normEmpleadoModulos(e),
             skills: e.skills?.length ? e.skills : e.skill ? [e.skill] : []
           })));
           empOk = true;
@@ -12490,7 +12497,19 @@ function App() {
             // (tanto si no lo tenían como si venía de la vieja fórmula proporcional de Operativo)
             notaFinal: toScale10(h.globalScore != null ? h.globalScore : 1)
           })));
-          if (cfg.sapModules) setSapModules(cfg.sapModules);
+          if (cfg.sapModules) {
+            const listaMods = normModulos(cfg.sapModules);
+            setSapModules(listaMods);
+            const canon = m => listaMods.find(x => x.toLowerCase() === m.toLowerCase()) || m;
+            setEmployees(prev => prev.map(e => {
+              const modules = normModulos((e.modules || []).map(canon));
+              return {
+                ...e,
+                modules,
+                module: modules[0] || ""
+              };
+            }));
+          }
           if (cfg.sectors) setSectors(cfg.sectors);
           if (cfg.skills) setSkills(cfg.skills);
           if (cfg.locations) setLocations(cfg.locations);
@@ -12533,7 +12552,7 @@ function App() {
       remoteApplyRef.current = true;
       setEmployees(list.map(e => ({
         ...e,
-        modules: e.modules?.length ? e.modules : e.modulos?.length ? e.modulos : e.module ? [e.module] : [],
+        ...normEmpleadoModulos(e),
         skills: e.skills?.length ? e.skills : e.skill ? [e.skill] : []
       })));
     }, err => console.error("onSnapshot empleados error:", err));
@@ -12551,7 +12570,7 @@ function App() {
         ...h,
         notaFinal: toScale10(h.globalScore != null ? h.globalScore : 1)
       })));
-      if (cfg.sapModules) setSapModules(cfg.sapModules);
+      if (cfg.sapModules) setSapModules(normModulos(cfg.sapModules));
       if (cfg.sectors) setSectors(cfg.sectors);
       if (cfg.skills) setSkills(cfg.skills);
       if (cfg.locations) setLocations(cfg.locations);
@@ -12677,7 +12696,9 @@ function App() {
     };
   };
   const addSapModule = name => {
-    setSapModules([...sapModules, name]);
+    const n = normModulo(name);
+    if (!n || sapModules.some(x => x.toLowerCase() === n.toLowerCase())) return;
+    setSapModules([...sapModules, n]);
   };
   const removeSapModule = name => {
     setSapModules(sapModules.filter(s => s !== name));
