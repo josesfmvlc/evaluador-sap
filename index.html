@@ -3605,6 +3605,34 @@ const CARGA_GRUPOS = [{
   color: CV.otros
 }];
 const CARGA_CAT_GRUPO = Object.fromEntries(CARGA_GRUPOS.flatMap(g => g.cats.map(c => [c, g.key])));
+// Conceptos que forman la Disponibilidad, para desglosarla. Tonos del naranja de disponibilidad; siempre con texto.
+const CARGA_DISP_CONCEPTOS = [{
+  key: "dc_disp",
+  cat: "Disponibilidad",
+  label: "Disponibilidad (sin asignar)",
+  color: "#eb6834"
+}, {
+  key: "dc_fsap",
+  cat: "Formación SAP",
+  label: "Formación SAP",
+  color: "#a8401a"
+}, {
+  key: "dc_fnosap",
+  cat: "Formación no SAP",
+  label: "Formación no SAP",
+  color: "#f4a37c"
+}, {
+  key: "dc_onb",
+  cat: "Onboarding",
+  label: "Onboarding",
+  color: "#6b2a10"
+}, {
+  key: "dc_geq",
+  cat: "Gestión de Equipos",
+  label: "Gestión de Equipos",
+  color: "#f9cdb4"
+}];
+const CARGA_DISP_KEY = Object.fromEntries(CARGA_DISP_CONCEPTOS.map(c => [c.cat, c.key]));
 const CARGA_MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const cargaMesActual = () => new Date().toISOString().slice(0, 7);
 const cargaMesLabel = m => CARGA_MESES[parseInt(m.slice(5, 7), 10) - 1] + "-" + m.slice(2, 4);
@@ -3657,12 +3685,18 @@ const cargaCero = () => ({
   ddn: 0,
   vac: 0,
   otros: 0,
-  form: 0
+  form: 0,
+  dc_disp: 0,
+  dc_fsap: 0,
+  dc_fnosap: 0,
+  dc_onb: 0,
+  dc_geq: 0
 });
 const cargaAcumular = (t, r) => {
   t.total += r.h;
   t[r.grupo] += r.h;
   if (r.cat === "Formación SAP" || r.cat === "Formación no SAP") t.form += r.h;
+  if (r.grupo === "disp" && CARGA_DISP_KEY[r.cat]) t[CARGA_DISP_KEY[r.cat]] += r.h;
   return t;
 };
 const cargaSumar = rows => rows.reduce(cargaAcumular, cargaCero());
@@ -4520,6 +4554,149 @@ const CargaBarra = ({
     borderRadius: "2px"
   }
 }));
+// Reparto de la disponibilidad de un acumulado: barra 100 % + tabla (horas, % sobre horas totales, % de la disponibilidad).
+// Con «prev» añade la variación en puntos sobre las horas totales frente al periodo anterior.
+const CargaDesgloseDisp = ({
+  t,
+  prev,
+  prevLabel
+}) => {
+  if (!t || !(t.disp > 0)) return React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: C.muted
+    }
+  }, "Sin horas de disponibilidad.");
+  const filas = CARGA_DISP_CONCEPTOS.filter(c => t[c.key] > 0 || prev && prev[c.key] > 0);
+  const hayPrev = !!(prev && prev.total);
+  const thS = {
+    padding: "5px 8px",
+    fontSize: "11px",
+    fontWeight: "700",
+    color: C.text2,
+    borderBottom: `1px solid ${C.border}`,
+    textAlign: "right",
+    whiteSpace: "nowrap"
+  };
+  const tdS = {
+    padding: "5px 8px",
+    fontSize: "12px",
+    borderBottom: `1px solid ${C.rowBorder}`,
+    textAlign: "right",
+    whiteSpace: "nowrap",
+    fontVariantNumeric: "tabular-nums"
+  };
+  const dlt = k => {
+    if (!hayPrev) return null;
+    const d = ((t[k] || 0) / t.total - (prev[k] || 0) / prev.total) * 100;
+    if (Math.abs(d) < 0.05) return React.createElement("span", {
+      style: {
+        color: C.muted
+      }
+    }, "=");
+    return React.createElement("span", {
+      style: {
+        color: C.text2,
+        fontWeight: "600"
+      }
+    }, `${d > 0 ? "▲" : "▼"} ${Math.abs(Math.round(d * 10) / 10).toLocaleString("es-ES")} pp`);
+  };
+  return React.createElement("div", null, React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "2px",
+      height: "14px",
+      marginBottom: "10px"
+    }
+  }, filas.filter(c => t[c.key] > 0).map(c => React.createElement("div", {
+    key: c.key,
+    title: `${c.label}: ${cargaFmtH(t[c.key])} h (${cargaFmtPct(t[c.key], t.disp)} de la disponibilidad)`,
+    style: {
+      flex: t[c.key] + " 0 0",
+      background: c.color,
+      borderRadius: "2px",
+      minWidth: "3px"
+    }
+  }))), React.createElement("div", {
+    style: {
+      overflowX: "auto"
+    }
+  }, React.createElement("table", {
+    style: {
+      width: "100%",
+      borderCollapse: "collapse"
+    }
+  }, React.createElement("thead", null, React.createElement("tr", null, React.createElement("th", {
+    style: {
+      ...thS,
+      textAlign: "left"
+    }
+  }, "Concepto"), React.createElement("th", {
+    style: thS
+  }, "Horas"), React.createElement("th", {
+    style: thS
+  }, "% s/ horas totales"), React.createElement("th", {
+    style: thS
+  }, "% de la disponibilidad"), hayPrev && React.createElement("th", {
+    style: thS
+  }, `vs ${prevLabel || "anterior"}`))), React.createElement("tbody", null, filas.map(c => React.createElement("tr", {
+    key: c.key
+  }, React.createElement("td", {
+    style: {
+      ...tdS,
+      textAlign: "left"
+    }
+  }, React.createElement("span", {
+    style: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "6px"
+    }
+  }, React.createElement(CargaPunto, {
+    color: c.color
+  }), c.label)), React.createElement("td", {
+    style: tdS
+  }, cargaFmtH(t[c.key] || 0)), React.createElement("td", {
+    style: tdS
+  }, cargaFmtPct(t[c.key] || 0, t.total)), React.createElement("td", {
+    style: {
+      ...tdS,
+      fontWeight: "600"
+    }
+  }, cargaFmtPct(t[c.key] || 0, t.disp)), hayPrev && React.createElement("td", {
+    style: tdS
+  }, dlt(c.key)))), React.createElement("tr", null, React.createElement("td", {
+    style: {
+      ...tdS,
+      textAlign: "left",
+      fontWeight: "700",
+      borderBottom: "none"
+    }
+  }, "Total disponibilidad"), React.createElement("td", {
+    style: {
+      ...tdS,
+      fontWeight: "700",
+      borderBottom: "none"
+    }
+  }, cargaFmtH(t.disp)), React.createElement("td", {
+    style: {
+      ...tdS,
+      fontWeight: "700",
+      borderBottom: "none"
+    }
+  }, cargaFmtPct(t.disp, t.total)), React.createElement("td", {
+    style: {
+      ...tdS,
+      fontWeight: "700",
+      borderBottom: "none"
+    }
+  }, "100%"), hayPrev && React.createElement("td", {
+    style: {
+      ...tdS,
+      borderBottom: "none"
+    }
+  }, dlt("disp")))))));
+};
 const CargaModal = ({
   title,
   onClose,
@@ -4833,7 +5010,9 @@ const cargaPathTop = (x, y, w, h, r) => {
 const CargaColumnas = ({
   etiquetas,
   totales,
-  alto = 230
+  alto = 230,
+  grupos = CARGA_GRUPOS,
+  totalKey = "total"
 }) => {
   const tip = useCargaTip();
   const W = 660,
@@ -4846,7 +5025,7 @@ const CargaColumnas = ({
     };
   const iw = W - m.l - m.r,
     ih = H - m.t - m.b;
-  const top = cargaNiceMax(Math.max(1, ...totales.map(t => t.total)));
+  const top = cargaNiceMax(Math.max(1, ...totales.map(t => t[totalKey])));
   const banda = iw / Math.max(1, totales.length);
   const bw = Math.min(64, banda * 0.6);
   const y = v => m.t + ih - v / top * ih;
@@ -4885,7 +5064,7 @@ const CargaColumnas = ({
   }, cargaFmtH(t)))), totales.map((t, i) => {
     const x0 = m.l + i * banda + (banda - bw) / 2;
     let acum = 0;
-    const segs = CARGA_GRUPOS.filter(g => t[g.key] > 0);
+    const segs = grupos.filter(g => t[g.key] > 0);
     return React.createElement("g", {
       key: i
     }, segs.map((g, k) => {
@@ -4903,7 +5082,7 @@ const CargaColumnas = ({
             fontWeight: "700",
             marginBottom: "3px"
           }
-        }, etiquetas[i]), cargaTipFila(g.color, g.label, `${cargaFmtH(t[g.key])} h · ${cargaFmtPct(t[g.key], t.total)}`), cargaTipFila(null, "Total", cargaFmtH(t.total) + " h", "tot")])
+        }, etiquetas[i]), cargaTipFila(g.color, g.label, `${cargaFmtH(t[g.key])} h · ${cargaFmtPct(t[g.key], t[totalKey])}`), totalKey !== "total" && cargaTipFila(null, "% s/ horas totales", cargaFmtPct(t[g.key], t.total), "pt"), cargaTipFila(null, totalKey === "total" ? "Total" : "Total disponibilidad", cargaFmtH(t[totalKey]) + " h", "tot")])
       };
       return k === segs.length - 1 ? React.createElement("path", {
         ...props,
@@ -4917,12 +5096,12 @@ const CargaColumnas = ({
       });
     }), React.createElement("text", {
       x: x0 + bw / 2,
-      y: y(t.total) - 6,
+      y: y(t[totalKey]) - 6,
       textAnchor: "middle",
       fontSize: 11,
       fill: CV.ink2,
       fontWeight: 600
-    }, cargaFmtH(t.total)), React.createElement("text", {
+    }, cargaFmtH(t[totalKey])), React.createElement("text", {
       x: x0 + bw / 2,
       y: H - 8,
       textAnchor: "middle",
@@ -7418,6 +7597,33 @@ const CargaKpisView = ({
   })), React.createElement(CargaColumnas, {
     etiquetas,
     totales: meses.map(m => tMes[m])
+  }))), React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(420px, 1fr))",
+      gap: "14px"
+    }
+  }, React.createElement(CargaCard, {
+    titulo: `Reparto de la disponibilidad · ${refLabel}`,
+    sub: `A qué conceptos se deben las ${cargaFmtH(tRef.disp)} h de disponibilidad (${cargaFmtPct(tRef.disp, tRef.total)} de las horas)` + (mesPrev ? ` · variación en puntos sobre las horas totales vs ${prevLabel}` : "")
+  }, React.createElement(CargaDesgloseDisp, {
+    t: tRef,
+    prev: mesPrev ? tPrev : null,
+    prevLabel
+  })), React.createElement(CargaCard, {
+    titulo: "Disponibilidad por concepto y mes",
+    sub: "Horas de disponibilidad de cada mes, por concepto"
+  }, React.createElement("div", {
+    style: {
+      marginBottom: "6px"
+    }
+  }, React.createElement(CargaLeyenda, {
+    items: CARGA_DISP_CONCEPTOS
+  })), React.createElement(CargaColumnas, {
+    etiquetas,
+    totales: meses.map(m => tMes[m]),
+    grupos: CARGA_DISP_CONCEPTOS,
+    totalKey: "disp"
   }))), React.createElement(CargaCard, {
     ancho: true,
     titulo: `Mapa de calor: ${metH.label} por ${CARGA_DIMS[hDim].toLowerCase()} y mes`,
@@ -8918,6 +9124,8 @@ const GestionCargaView = ({
   const [fMes, setFMes] = useState([]);
   const [agrupar, setAgrupar] = useState("persona");
   const [abierta, setAbierta] = useState(null);
+  const [dispAbierta, setDispAbierta] = useState(null); // fila con el reparto de la disponibilidad desplegado
+  const [verDisp, setVerDisp] = useState(false); // reparto global (tarjeta Disponibilidad)
   const [showImport, setShowImport] = useState(false);
   const [showAjustes, setShowAjustes] = useState(false);
   useEffect(() => {
@@ -9027,14 +9235,17 @@ const GestionCargaView = ({
       ...extra
     }
   }, contenido);
-  const kpi = (label, valor, sub, punto) => React.createElement("div", {
+  const kpi = (label, valor, sub, punto, onClick, activo) => React.createElement("div", {
+    onClick,
+    title: onClick ? "Pulsa para ver el reparto por concepto" : undefined,
     style: {
-      background: C.card,
-      border: `1px solid ${C.border}`,
+      background: activo ? "#fff7f2" : C.card,
+      border: `1px solid ${activo ? CV.disp : C.border}`,
       borderRadius: "12px",
       padding: "12px 16px",
       flex: "1 1 140px",
-      minWidth: "140px"
+      minWidth: "140px",
+      cursor: onClick ? "pointer" : undefined
     }
   }, React.createElement("div", {
     style: {
@@ -9249,7 +9460,28 @@ const GestionCargaView = ({
         flexWrap: "wrap",
         marginBottom: "16px"
       }
-    }, kpi("Horas totales", cargaFmtH(totales.total), `${nPersonas} persona${nPersonas === 1 ? "" : "s"}`), kpi("Disponibilidad", cargaFmtPct(totales.disp, totales.total), cargaFmtH(totales.disp) + " h", CV.disp), kpi("Proyecto", cargaFmtPct(totales.proy, totales.total), cargaFmtH(totales.proy) + " h", CV.proy), kpi("Desarrollo de Negocio", cargaFmtPct(totales.ddn, totales.total), cargaFmtH(totales.ddn) + " h", CV.ddn), kpi("Vacaciones / Bajas", cargaFmtPct(totales.vac, totales.total), cargaFmtH(totales.vac) + " h", CV.vac)), React.createElement("div", {
+    }, kpi("Horas totales", cargaFmtH(totales.total), `${nPersonas} persona${nPersonas === 1 ? "" : "s"}`), kpi("Disponibilidad", cargaFmtPct(totales.disp, totales.total), cargaFmtH(totales.disp) + " h" + (totales.disp > 0 ? verDisp ? " · ▴ ocultar reparto" : " · ▾ ver reparto" : ""), CV.disp, totales.disp > 0 ? () => setVerDisp(!verDisp) : undefined, verDisp), kpi("Proyecto", cargaFmtPct(totales.proy, totales.total), cargaFmtH(totales.proy) + " h", CV.proy), kpi("Desarrollo de Negocio", cargaFmtPct(totales.ddn, totales.total), cargaFmtH(totales.ddn) + " h", CV.ddn), kpi("Vacaciones / Bajas", cargaFmtPct(totales.vac, totales.total), cargaFmtH(totales.vac) + " h", CV.vac)), verDisp && totales.disp > 0 && React.createElement("div", {
+      style: {
+        background: C.card,
+        border: `1px solid ${CV.disp}`,
+        borderRadius: "12px",
+        padding: "12px 16px",
+        marginBottom: "16px"
+      }
+    }, React.createElement("div", {
+      style: {
+        fontSize: "13px",
+        fontWeight: "700",
+        color: C.text,
+        marginBottom: "8px"
+      }
+    }, "Reparto de la disponibilidad · periodo y filtros actuales"), React.createElement("div", {
+      style: {
+        maxWidth: "640px"
+      }
+    }, React.createElement(CargaDesgloseDisp, {
+      t: totales
+    }))), React.createElement("div", {
       style: {
         background: C.card,
         border: `1px solid ${C.border}`,
@@ -9277,6 +9509,7 @@ const GestionCargaView = ({
       onChange: k => {
         setAgrupar(k);
         setAbierta(null);
+        setDispAbierta(null);
       }
     }), React.createElement("div", {
       style: {
@@ -9299,6 +9532,7 @@ const GestionCargaView = ({
       const clave = g.nombre + "|" + g.mes;
       const primera = i === 0 || grupos[i - 1].nombre !== g.nombre;
       const abiertaAqui = agrupar === "persona" && abierta === clave;
+      const dispAqui = dispAbierta === clave && g.t.disp > 0;
       const filasFila = [React.createElement("tr", {
         key: clave,
         onClick: agrupar === "persona" ? () => setAbierta(abiertaAqui ? null : clave) : undefined,
@@ -9321,7 +9555,29 @@ const GestionCargaView = ({
         textAlign: "left"
       }), td(cargaFmtH(g.t.total), {
         fontWeight: "600"
-      }), td(React.createElement(CargaSemaforoCelda, {
+      }), td(g.t.disp > 0 ? React.createElement("span", {
+        onClick: e => {
+          e.stopPropagation();
+          setDispAbierta(dispAqui ? null : clave);
+        },
+        title: "Pulsa para ver a qué conceptos se debe la disponibilidad",
+        style: {
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px",
+          borderBottom: `1px dashed ${CV.disp}`,
+          paddingBottom: "1px"
+        }
+      }, React.createElement(CargaSemaforoCelda, {
+        disp: g.t.disp,
+        total: g.t.total
+      }), React.createElement("span", {
+        style: {
+          fontSize: "9px",
+          color: CV.disp
+        }
+      }, dispAqui ? "▴" : "▾")) : React.createElement(CargaSemaforoCelda, {
         disp: g.t.disp,
         total: g.t.total
       }), {
@@ -9332,6 +9588,31 @@ const GestionCargaView = ({
         textAlign: "left",
         width: "180px"
       }))];
+      if (dispAqui) filasFila.push(React.createElement("tr", {
+        key: clave + "|disp",
+        style: {
+          background: "#fff7f2"
+        }
+      }, React.createElement("td", {
+        colSpan: agrupar === "persona" ? 10 : 8,
+        style: {
+          padding: "10px 14px 12px 28px",
+          borderBottom: `1px solid ${C.rowBorder}`
+        }
+      }, React.createElement("div", {
+        style: {
+          fontSize: "11px",
+          fontWeight: "700",
+          color: C.text2,
+          marginBottom: "6px"
+        }
+      }, `Reparto de la disponibilidad · ${g.nombre} · ${cargaMesLabel(g.mes)}`), React.createElement("div", {
+        style: {
+          maxWidth: "640px"
+        }
+      }, React.createElement(CargaDesgloseDisp, {
+        t: g.t
+      })))));
       if (abiertaAqui) {
         const porProyecto = new Map();
         for (const r of g.rows) {
@@ -9382,7 +9663,7 @@ const GestionCargaView = ({
         marginTop: "12px",
         lineHeight: "1.6"
       }
-    }, "Disponibilidad = Disponibilidad + Formación SAP + Formación no SAP + Onboarding + Gestión de Equipos. ", "Vacaciones / Bajas = Vacaciones + Bajas y ausencias. Otros (Becarios, Genérica, Management & Operation) cuenta en las horas totales pero no en ningún %. ", "Semáforo de disponibilidad: verde ≤ 30 %, ámbar 30-40 %, rojo > 40 %.", agrupar === "persona" ? " Pulsa una fila para ver el desglose por proyecto." : ""));
+    }, "Disponibilidad = Disponibilidad + Formación SAP + Formación no SAP + Onboarding + Gestión de Equipos. ", "Vacaciones / Bajas = Vacaciones + Bajas y ausencias. Otros (Becarios, Genérica, Management & Operation) cuenta en las horas totales pero no en ningún %. ", "Semáforo de disponibilidad: verde ≤ 30 %, ámbar 30-40 %, rojo > 40 %. ", "Pulsa la tarjeta Disponibilidad o el % Disp. de una fila para ver a qué conceptos se debe.", agrupar === "persona" ? " Pulsa una fila para ver el desglose por proyecto." : ""));
     const describir = (sel, todos) => sel.length ? sel.join(", ") : todos;
     const filtrosTexto = [describir(fSector, "Todos los sectores"), describir(fModulo, "todos los módulos"), fPersona.length ? `${fPersona.length} persona${fPersona.length === 1 ? "" : "s"}` : "todas las personas", describir(fMes, "todos los meses")].join(" · ");
     cuerpo = React.createElement(React.Fragment, null, filtros, vista === "kpis" ? React.createElement(CargaKpisView, {
