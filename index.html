@@ -3658,6 +3658,11 @@ const cargaSemaforo = (disp, total) => {
     label: "> 40 %"
   };
 };
+// Proyectos reclasificados: por código (o nombre exacto si no hay código) cuentan como «Proyecto» aunque su nombre diga Formación SAP, etc.
+const CARGA_RECL_DEFECTO = ["2026-41495"]; // Fundación ADDECO - Formación SAP (hasta que se guarde la lista en Ajustes)
+const cargaReclLista = cfg => Array.isArray(cfg && cfg.proyectosReclasificados) ? cfg.proyectosReclasificados : CARGA_RECL_DEFECTO;
+const cargaReclSet = cfg => new Set(cargaReclLista(cfg).map(cargaNorm).filter(Boolean));
+const cargaEsRecl = (reclSet, cod, pro) => reclSet.size > 0 && (!!cod && reclSet.has(cargaNorm(cod)) || reclSet.has(cargaNorm(pro)));
 // Categoría a partir del nombre del proyecto. Mismo orden que la fórmula IFS de "Datos en Bruto" del Excel antiguo;
 // la lista de proyectos que cuentan como Desarrollo de Negocio se edita en Ajustes (no se escribe aquí).
 const cargaCategoria = (proyecto, ddnSet) => {
@@ -4418,6 +4423,7 @@ const cargaEnriquecer = (filas, cfg, empleados) => {
   const buscar = cargaResolverPersonas(cfg, empleados);
   const buscarPro = cargaIndiceProyectos(cfg.proyectos);
   const ddnSet = new Set((cfg.ddnProyectos || []).map(cargaNorm));
+  const reclSet = cargaReclSet(cfg);
   const porPersona = new Map(),
     porProyecto = new Map();
   const out = [];
@@ -4439,9 +4445,11 @@ const cargaEnriquecer = (filas, cfg, empleados) => {
     let pinfo = porProyecto.get(kp);
     if (!pinfo) {
       const p = buscarPro(f.cod, f.pro);
-      const cat = cargaCategoria(f.pro, ddnSet);
+      const recl = cargaEsRecl(reclSet, f.cod, f.pro);
+      const cat = recl ? "Proyecto" : cargaCategoria(f.pro, ddnSet);
       pinfo = {
         cat,
+        recl,
         grupo: CARGA_CAT_GRUPO[cat],
         cod: f.cod || p && p.cod || "",
         secPro: p && p.sector || "Sin clasificar",
@@ -8009,8 +8017,9 @@ const cargaAnalizarFicheros = async (files, cfg, filasActuales, empleados) => {
     const conocidas = new Set(filasActuales.map(f => (f.nom + " " + f.ape).trim()));
     const buscarPro = cargaIndiceProyectos(listaPro);
     const ddnSet = new Set((cfg.ddnProyectos || []).map(cargaNorm));
+    const reclSet = cargaReclSet(cfg);
     const sc = new Map();
-    for (const f of imp.filas) if (cargaCategoria(f.pro, ddnSet) === "Proyecto" && !buscarPro(f.cod, f.pro)) {
+    for (const f of imp.filas) if ((cargaEsRecl(reclSet, f.cod, f.pro) || cargaCategoria(f.pro, ddnSet) === "Proyecto") && !buscarPro(f.cod, f.pro)) {
       const k = (f.cod ? f.cod + " · " : "") + f.pro;
       sc.set(k, (sc.get(k) || 0) + f.h);
     }
@@ -8662,6 +8671,7 @@ const CargaAjustesModal = ({
   onSaved
 }) => {
   const [ddn, setDdn] = useState((cfg.ddnProyectos || []).join("\n"));
+  const [recl, setRecl] = useState(cargaReclLista(cfg).join("\n"));
   const [excl, setExcl] = useState((cfg.excluidos || []).join("\n"));
   const [origen, setOrigen] = useState(cargaOrigenPersonas(cfg));
   const [equiv, setEquiv] = useState(cargaEquivObj(cfg.equivSectores));
@@ -8722,6 +8732,7 @@ const CargaAjustesModal = ({
     try {
       await firebase.firestore().collection("appData").doc(CARGA_CFG_DOC).set({
         ddnProyectos: lista(ddn),
+        proyectosReclasificados: lista(recl),
         excluidos: lista(excl),
         origenPersonas: origen,
         equivSectores: Object.entries(equiv).filter(([, a]) => a).map(([de, a]) => ({
@@ -9043,7 +9054,7 @@ const CargaAjustesModal = ({
     asignaciones: cfg.asignaciones,
     onGuardarAsignaciones: guardarAsignaciones,
     onClose: () => setVerEnlace(false)
-  }))), area("Proyectos que cuentan como Desarrollo de Negocio", "Uno por línea, con el nombre exacto del proyecto (mayúsculas y tildes dan igual). Además, ya cuentan siempre los que contienen \"Desarrollo de Negocio\" o \"LEGAL - SAPHIA\".", ddn, setDdn), area("Personas excluidas", "Una por línea (p. ej. \"Nombre Apellido\"). Sus horas no se muestran ni cuentan en los totales.", excl, setExcl), (cfg.historial || []).length > 0 && React.createElement("div", {
+  }))), area("Proyectos que cuentan como Desarrollo de Negocio", "Uno por línea, con el nombre exacto del proyecto (mayúsculas y tildes dan igual). Además, ya cuentan siempre los que contienen \"Desarrollo de Negocio\" o \"LEGAL - SAPHIA\".", ddn, setDdn), area("Proyectos reclasificados", "Uno por línea, con el código del proyecto (si no tiene código, el nombre exacto). Pasan a contar como Proyecto, como cualquier otro, aunque su nombre diga Formación SAP, Disponibilidad u Onboarding; se aplica a todas las personas y meses. Para deshacerlo, quita la línea y guarda.", recl, setRecl), area("Personas excluidas", "Una por línea (p. ej. \"Nombre Apellido\"). Sus horas no se muestran ni cuentan en los totales.", excl, setExcl), (cfg.historial || []).length > 0 && React.createElement("div", {
     style: {
       marginBottom: "14px"
     }
@@ -9621,6 +9632,7 @@ const GestionCargaView = ({
             pro: r.pro || "(sin proyecto)",
             cod: r.cod,
             cat: r.cat,
+            recl: r.recl,
             secPro: r.secPro,
             h: 0
           };
@@ -9645,7 +9657,7 @@ const GestionCargaView = ({
             marginLeft: "8px",
             color: C.muted
           }
-        }, "· " + [p.cod, p.cat, p.cat === "Proyecto" ? p.secPro : ""].filter(Boolean).join(" · "))), td(cargaFmtH(p.h), {
+        }, "· " + [p.cod, p.cat, p.cat === "Proyecto" ? p.secPro : "", p.recl ? "↻ reclasificado" : ""].filter(Boolean).join(" · "))), td(cargaFmtH(p.h), {
           fontSize: "11px",
           color: C.text2
         }), React.createElement("td", {
@@ -9663,7 +9675,7 @@ const GestionCargaView = ({
         marginTop: "12px",
         lineHeight: "1.6"
       }
-    }, "Disponibilidad = Disponibilidad + Formación SAP + Formación no SAP + Onboarding + Gestión de Equipos. ", "Vacaciones / Bajas = Vacaciones + Bajas y ausencias. Otros (Becarios, Genérica, Management & Operation) cuenta en las horas totales pero no en ningún %. ", "Semáforo de disponibilidad: verde ≤ 30 %, ámbar 30-40 %, rojo > 40 %. ", "Pulsa la tarjeta Disponibilidad o el % Disp. de una fila para ver a qué conceptos se debe.", agrupar === "persona" ? " Pulsa una fila para ver el desglose por proyecto." : ""));
+    }, "Disponibilidad = Disponibilidad + Formación SAP + Formación no SAP + Onboarding + Gestión de Equipos. ", "Vacaciones / Bajas = Vacaciones + Bajas y ausencias. Otros (Becarios, Genérica, Management & Operation) cuenta en las horas totales pero no en ningún %. ", "Semáforo de disponibilidad: verde ≤ 30 %, ámbar 30-40 %, rojo > 40 %. ", "Pulsa la tarjeta Disponibilidad o el % Disp. de una fila para ver a qué conceptos se debe. ", "Los proyectos reclasificados (⚙️ Ajustes) cuentan como Proyecto.", agrupar === "persona" ? " Pulsa una fila para ver el desglose por proyecto." : ""));
     const describir = (sel, todos) => sel.length ? sel.join(", ") : todos;
     const filtrosTexto = [describir(fSector, "Todos los sectores"), describir(fModulo, "todos los módulos"), fPersona.length ? `${fPersona.length} persona${fPersona.length === 1 ? "" : "s"}` : "todas las personas", describir(fMes, "todos los meses")].join(" · ");
     cuerpo = React.createElement(React.Fragment, null, filtros, vista === "kpis" ? React.createElement(CargaKpisView, {
