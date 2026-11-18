@@ -414,8 +414,10 @@ const excelDateToISO = v => {
   }
   return "";
 };
-function exportarEmpleadosExcel(employees) {
-  if (!employees.length) {
+function exportarEmpleadosExcel(todos) {
+  const employees = todos.filter(e => !e.archivado);
+  const archivados = todos.filter(e => e.archivado);
+  if (!employees.length && !archivados.length) {
     alert("No hay empleados que exportar.");
     return;
   }
@@ -448,6 +450,31 @@ function exportarEmpleadosExcel(employees) {
   }));
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Empleados");
+  // Los archivados van en otra hoja (Importar Excel solo lee la primera), con fecha y motivo de baja
+  if (archivados.length) {
+    const lA = archivados.slice().sort((a, b) => a.nombre.localeCompare(b.nombre));
+    const nModA = Math.max(3, ...lA.map(e => modsDe(e).length));
+    const nSkillA = Math.max(3, ...lA.map(e => skillsDe(e).length));
+    const cabA = ["Nombre", "Sector", ...Array.from({
+      length: nSkillA
+    }, (_, i) => "Skill " + (i + 1)), "Ubicación", "Antigüedad", "Experiencia SAP", ...Array.from({
+      length: nModA
+    }, (_, i) => "Módulo " + (i + 1)), "Fecha de baja", "Motivo de la baja"];
+    const filasA = lA.map(e => {
+      const sk = skillsDe(e),
+        md = modsDe(e);
+      return [e.nombre || "", e.sector || "", ...Array.from({
+        length: nSkillA
+      }, (_, i) => sk[i] || ""), e.location || "", fecha(e.antiguedad), fecha(e.expSap), ...Array.from({
+        length: nModA
+      }, (_, i) => md[i] || ""), fecha(e.fechaBaja), e.motivoBaja || ""];
+    });
+    const wsA = XLSX.utils.aoa_to_sheet([cabA, ...filasA]);
+    wsA["!cols"] = cabA.map((h, i) => ({
+      wch: i === 0 ? 34 : 18
+    }));
+    XLSX.utils.book_append_sheet(wb, wsA, "Archivados");
+  }
   XLSX.writeFile(wb, "empleados_" + new Date().toISOString().slice(0, 10) + ".xlsx");
 }
 function descargarPlantillaEmpleados() {
@@ -1001,8 +1028,11 @@ const EmployeeListWithFilters = ({
   updateEmployee,
   onBulkAdd,
   onBulkRemove,
-  onCreateNew
+  onCreateNew,
+  onArchiveRequest,
+  onUnarchive
 }) => {
+  const [tab, setTab] = useState("activos");
   const [filters, setFilters] = useState({
     nombre: "",
     module: [],
@@ -1026,7 +1056,7 @@ const EmployeeListWithFilters = ({
       try {
         const emps = parseEmployeesExcel(ev.target.result);
         const res = onBulkAdd(emps);
-        setImportMsg(`✅ ${res.added} añadidos, ${res.updated} actualizados`);
+        setImportMsg(`✅ ${res.added} añadidos, ${res.updated} actualizados` + (res.omitidos ? ` · ⚠️ ${res.omitidos} coinciden con empleados archivados y no se han tocado (reactívalos si vuelven)` : ""));
         setTimeout(() => setImportMsg(""), 4000);
       } catch (err) {
         setImportMsg("❌ Error: " + err.message);
@@ -1036,11 +1066,14 @@ const EmployeeListWithFilters = ({
     r.readAsArrayBuffer(f);
     e.target.value = "";
   };
-  const allModules = [...new Set(employees.flatMap(e => e.modules && e.modules.length ? e.modules : e.module ? [e.module] : []))].filter(Boolean).sort();
-  const allSkills = [...new Set(employees.flatMap(e => e.skills && e.skills.length ? e.skills : e.skill ? [e.skill] : []))].filter(Boolean).sort();
-  const allAntig = [...new Set(employees.map(e => e.antiguedad ? e.antiguedad.slice(0, 4) : "").filter(Boolean))].sort();
-  const allExp = [...new Set(employees.map(e => e.expSap ? e.expSap.slice(0, 4) : "").filter(Boolean))].sort();
-  const filtered = employees.filter(e => {
+  const activos = employees.filter(e => !e.archivado);
+  const archivadosL = employees.filter(e => e.archivado);
+  const base = tab === "archivados" ? archivadosL : activos;
+  const allModules = [...new Set(base.flatMap(e => e.modules && e.modules.length ? e.modules : e.module ? [e.module] : []))].filter(Boolean).sort();
+  const allSkills = [...new Set(base.flatMap(e => e.skills && e.skills.length ? e.skills : e.skill ? [e.skill] : []))].filter(Boolean).sort();
+  const allAntig = [...new Set(base.map(e => e.antiguedad ? e.antiguedad.slice(0, 4) : "").filter(Boolean))].sort();
+  const allExp = [...new Set(base.map(e => e.expSap ? e.expSap.slice(0, 4) : "").filter(Boolean))].sort();
+  const filtered = base.filter(e => {
     const modList = e.modules && e.modules.length ? e.modules : e.module ? [e.module] : [];
     const skillList = e.skills && e.skills.length ? e.skills : e.skill ? [e.skill] : [];
     return (!filters.nombre || e.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) && (!filters.module.length || modList.some(m => filters.module.includes(m))) && (!filters.skill.length || skillList.some(s => filters.skill.includes(s))) && (!filters.antiguedad.length || filters.antiguedad.includes(e.antiguedad ? e.antiguedad.slice(0, 4) : "")) && (!filters.expSap.length || filters.expSap.includes(e.expSap ? e.expSap.slice(0, 4) : ""));
@@ -1055,7 +1088,7 @@ const EmployeeListWithFilters = ({
   const borrarSel = () => {
     if (!selVisibles.length) return;
     const n = selVisibles.length;
-    if (!window.confirm(`¿Eliminar ${n} empleado${n === 1 ? "" : "s"}? Esta acción no se puede deshacer.`)) return;
+    if (!window.confirm(`¿Eliminar ${tab === "archivados" ? "definitivamente " : ""}${n} empleado${n === 1 ? "" : "s"}? Esta acción no se puede deshacer.${tab === "archivados" ? "" : " Si ha salido de la empresa, mejor archívalo."}`)) return;
     onBulkRemove(selVisibles.map(e => e.id));
     setImportMsg(`✅ ${n} eliminado${n === 1 ? "" : "s"}`);
     setTimeout(() => setImportMsg(""), 4000);
@@ -1071,14 +1104,14 @@ const EmployeeListWithFilters = ({
     fontWeight: "600",
     cursor: "pointer"
   });
-  // Rejilla de columnas fijas: Nombre | Sector | Módulos | Skill | F. Incorporación | Exp. SAP | Acciones.
+  // Rejilla de columnas fijas: Nombre | Sector | Módulos | Skill | F. Incorporación | Exp. SAP | Acciones (3 botones).
   // Las etiquetas bajan de línea dentro de su celda; ninguna columna se desplaza.
   const empGrid = {
     display: "grid",
-    gridTemplateColumns: "minmax(170px, 1.3fr) minmax(120px, 0.9fr) minmax(110px, 0.7fr) minmax(220px, 1.6fr) 120px 80px 84px",
+    gridTemplateColumns: "minmax(170px, 1.3fr) minmax(120px, 0.9fr) minmax(110px, 0.7fr) minmax(220px, 1.6fr) 120px 80px 112px",
     columnGap: "12px",
     alignItems: "center",
-    minWidth: "1000px"
+    minWidth: "1030px"
   };
   const empTags = {
     display: "flex",
@@ -1086,6 +1119,30 @@ const EmployeeListWithFilters = ({
     rowGap: "4px",
     minWidth: 0
   };
+  const btnS = (bg, color) => ({
+    background: bg,
+    color,
+    border: "none",
+    borderRadius: "6px",
+    padding: "5px 8px",
+    fontSize: "10px",
+    fontWeight: "600",
+    cursor: "pointer"
+  });
+  // Botones de la pestaña Archivados: 📅 editar fecha/motivo de baja y ↩️ reactivar
+  const archBtns = e => [React.createElement("button", {
+    key: "f",
+    onClick: () => onArchiveRequest([e.id], true),
+    title: "Editar fecha y motivo de baja",
+    style: btnS("#e0edff", "#1d4ed8")
+  }, "📅"), React.createElement("button", {
+    key: "r",
+    onClick: () => {
+      if (window.confirm(`¿Reactivar a ${e.nombre}? Volverá a contar como empleado activo en evaluaciones, Resultados y Gestión de carga.`)) onUnarchive(e.id);
+    },
+    title: "Reactivar",
+    style: btnS("#dcfce7", "#15803d")
+  }, "↩️")];
   const checkSel = (checked, onChange) => React.createElement("input", {
     type: "checkbox",
     checked,
@@ -1119,7 +1176,7 @@ const EmployeeListWithFilters = ({
       alignItems: "center",
       gap: "8px"
     }
-  }, "👥 Empleados (", filtered.length, "/", employees.length, ")"), React.createElement("div", {
+  }, tab === "archivados" ? "🗄️ Archivados (" : "👥 Empleados (", filtered.length, "/", base.length, ")"), React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
@@ -1130,7 +1187,7 @@ const EmployeeListWithFilters = ({
       fontSize: "11px",
       color: importMsg.startsWith("✅") ? C.green : "#dc2626"
     }
-  }, importMsg), React.createElement("button", {
+  }, importMsg), tab !== "archivados" && React.createElement("button", {
     onClick: e => {
       e.stopPropagation();
       onCreateNew();
@@ -1166,7 +1223,7 @@ const EmployeeListWithFilters = ({
       e.stopPropagation();
       exportarEmpleadosExcel(employees);
     },
-    title: "Descarga todos los empleados en el formato de Importar Excel",
+    title: "Descarga los empleados activos en el formato de Importar Excel (los archivados, en una hoja aparte)",
     style: {
       background: C.card,
       color: C.accent,
@@ -1185,7 +1242,7 @@ const EmployeeListWithFilters = ({
     style: {
       display: "none"
     }
-  }), React.createElement("button", {
+  }), tab !== "archivados" && React.createElement("button", {
     onClick: e => {
       e.stopPropagation();
       bulkRef.current?.click();
@@ -1205,9 +1262,9 @@ const EmployeeListWithFilters = ({
       e.stopPropagation();
       setSelMode(true);
     },
-    title: "Seleccionar varios empleados para eliminarlos a la vez",
+    title: tab === "archivados" ? "Seleccionar varios empleados para eliminarlos definitivamente a la vez" : "Seleccionar varios empleados para archivarlos o eliminarlos a la vez",
     style: masivoBtn(C.card, "#dc2626", "1px solid #dc2626")
-  }, "☑️ Borrado masivo"), selMode && React.createElement("button", {
+  }, "☑️ Selección múltiple"), selMode && React.createElement("button", {
     onClick: e => {
       e.stopPropagation();
       setSel(todosSel ? [] : filtered.map(x => x.id));
@@ -1224,13 +1281,52 @@ const EmployeeListWithFilters = ({
       opacity: selVisibles.length ? 1 : 0.5,
       cursor: selVisibles.length ? "pointer" : "not-allowed"
     }
-  }, `🗑 Borrar (${selVisibles.length})`), selMode && React.createElement("button", {
+  }, `🗑 Borrar (${selVisibles.length})`), selMode && tab === "activos" && React.createElement("button", {
+    onClick: e => {
+      e.stopPropagation();
+      if (!selVisibles.length) return;
+      onArchiveRequest(selVisibles.map(x => x.id), false);
+      salirSel();
+    },
+    disabled: !selVisibles.length,
+    title: "Archivar a los seleccionados (han salido de la empresa)",
+    style: {
+      ...masivoBtn("#b45309", "white", "none"),
+      opacity: selVisibles.length ? 1 : 0.5,
+      cursor: selVisibles.length ? "pointer" : "not-allowed"
+    }
+  }, `🗄️ Archivar (${selVisibles.length})`), selMode && React.createElement("button", {
     onClick: e => {
       e.stopPropagation();
       salirSel();
     },
     style: masivoBtn(C.card, C.text2, `1px solid ${C.border2}`)
   }, "Cancelar"))), React.createElement(React.Fragment, null, React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "6px",
+      marginBottom: "14px",
+      borderBottom: `1px solid ${C.border}`
+    }
+  }, [["activos", `Activos (${activos.length})`], ["archivados", `🗄️ Archivados (${archivadosL.length})`]].map(([k, t]) => React.createElement("button", {
+    key: k,
+    onClick: () => {
+      setTab(k);
+      setSel([]);
+      setSelMode(false);
+    },
+    style: {
+      background: "transparent",
+      border: "none",
+      borderBottom: tab === k ? `2px solid ${C.accent}` : "2px solid transparent",
+      color: tab === k ? C.accent : C.text2,
+      fontWeight: tab === k ? "700" : "600",
+      fontSize: "12px",
+      padding: "8px 14px",
+      cursor: "pointer",
+      marginBottom: "-1px"
+    }
+  }, t))), React.createElement("div", {
     style: {
       marginBottom: "16px",
       display: "grid",
@@ -1307,7 +1403,7 @@ const EmployeeListWithFilters = ({
       color: C.muted,
       fontSize: "12px"
     }
-  }, "No hay empleados que coincidan con los filtros") : filtered.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((e, idx) => React.createElement("div", {
+  }, tab === "archivados" && !archivadosL.length ? "Todavía no hay empleados archivados" : "No hay empleados que coincidan con los filtros") : filtered.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((e, idx) => React.createElement("div", {
     key: e.id,
     style: {
       ...empGrid,
@@ -1326,7 +1422,13 @@ const EmployeeListWithFilters = ({
       fontWeight: "600",
       color: C.text
     }
-  }, e.nombre)), React.createElement("div", {
+  }, e.nombre), e.archivado && React.createElement("div", {
+    style: {
+      fontSize: "10px",
+      color: "#b45309",
+      marginTop: "2px"
+    }
+  }, "Baja: " + (e.fechaBaja ? fmtDate(e.fechaBaja) : "sin fecha") + (e.motivoBaja ? " · " + e.motivoBaja : ""))), React.createElement("div", {
     style: {
       minWidth: 0,
       fontSize: "12px",
@@ -1360,7 +1462,7 @@ const EmployeeListWithFilters = ({
       gap: "4px",
       justifyContent: "center"
     }
-  }, React.createElement("button", {
+  }, tab === "archivados" && archBtns(e), tab !== "archivados" && React.createElement("button", {
     onClick: () => setEditingEmp(e),
     title: "Editar",
     style: {
@@ -1373,9 +1475,16 @@ const EmployeeListWithFilters = ({
       fontWeight: "600",
       cursor: "pointer"
     }
-  }, "✏️"), React.createElement("button", {
-    onClick: () => removeEmployee(e.id),
-    title: "Eliminar",
+  }, "✏️"), tab !== "archivados" && React.createElement("button", {
+    onClick: () => onArchiveRequest([e.id], false),
+    title: "Archivar (ha salido de la empresa)",
+    style: btnS("#fef3c7", "#b45309")
+  }, "🗄️"), React.createElement("button", {
+    onClick: () => {
+      if (tab === "archivados" && !window.confirm(`¿Eliminar definitivamente a ${e.nombre}? Se borra su ficha y no se puede deshacer (sus evaluaciones del histórico se conservan).`)) return;
+      removeEmployee(e.id);
+    },
+    title: tab === "archivados" ? "Eliminar definitivamente" : "Eliminar",
     style: {
       background: "#fee2e2",
       color: "#dc2626",
@@ -2415,12 +2524,17 @@ const EvaluationView = ({
     (acc[item.ambito] = acc[item.ambito] || []).push(item);
     return acc;
   }, {});
+  // Un evaluador ya guardado que se ha archivado no sale en la lista de activos: se mantiene (marcado) para no perder su nombre al editar
+  const _prevEvs = [[initialData && initialData.evaluador1Id, initialData && initialData.evaluador1Nombre], [initialData && initialData.evaluador2Id, initialData && initialData.evaluador2Nombre]].filter(([id]) => id && !employees.some(e => e.id === id));
   const evalOptions = employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
     value: e.id,
     label: e.nombre
-  }));
-  const eval1Name = employees.find(e => e.id === eval1Id)?.nombre || "Evaluador 1";
-  const eval2Name = employees.find(e => e.id === eval2Id)?.nombre || "Evaluador 2";
+  })).concat(_prevEvs.map(([id, n]) => ({
+    value: id,
+    label: (n || "Evaluador") + " (archivado)"
+  })));
+  const eval1Name = employees.find(e => e.id === eval1Id)?.nombre || initialData && initialData.evaluador1Id === eval1Id && initialData.evaluador1Nombre || "Evaluador 1";
+  const eval2Name = employees.find(e => e.id === eval2Id)?.nombre || initialData && initialData.evaluador2Id === eval2Id && initialData.evaluador2Nombre || "Evaluador 2";
   const perItemVal = item => {
     const sc = scores[item.id] || {
       e1: 4,
@@ -2809,12 +2923,17 @@ const EvaluationViewOperativo = ({
       [ev]: parseInt(val)
     }
   }));
+  // Un evaluador ya guardado que se ha archivado no sale en la lista de activos: se mantiene (marcado) para no perder su nombre al editar
+  const _prevEvs = [[initialData && initialData.evaluador1Id, initialData && initialData.evaluador1Nombre], [initialData && initialData.evaluador2Id, initialData && initialData.evaluador2Nombre]].filter(([id]) => id && !employees.some(e => e.id === id));
   const evalOptions = employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
     value: e.id,
     label: e.nombre
-  }));
-  const eval1Name = employees.find(e => e.id === eval1Id)?.nombre || "Evaluador 1";
-  const eval2Name = employees.find(e => e.id === eval2Id)?.nombre || "Evaluador 2";
+  })).concat(_prevEvs.map(([id, n]) => ({
+    value: id,
+    label: (n || "Evaluador") + " (archivado)"
+  })));
+  const eval1Name = employees.find(e => e.id === eval1Id)?.nombre || initialData && initialData.evaluador1Id === eval1Id && initialData.evaluador1Nombre || "Evaluador 1";
+  const eval2Name = employees.find(e => e.id === eval2Id)?.nombre || initialData && initialData.evaluador2Id === eval2Id && initialData.evaluador2Nombre || "Evaluador 2";
   const perQuestionVal = p => {
     const sc = scores[p.id] || {
       e1: 4,
@@ -3420,6 +3539,141 @@ const EmployeeCategorySettingsView = ({
     }
   }, "✕")), renderModalContent())));
 };
+// Archivar empleados (han salido de la empresa): fecha de baja (último día) y motivo opcional.
+// Se guardan en la propia ficha (archivado / fechaBaja / motivoBaja); no cuentan como activos en nada, pero su info se conserva.
+const ArchiveEmployeesModal = ({
+  emps,
+  edit,
+  onConfirm,
+  onClose
+}) => {
+  const prim = emps[0] || {};
+  const [fecha, setFecha] = useState(edit && prim.fechaBaja ? prim.fechaBaja : today());
+  const [motivo, setMotivo] = useState(edit && prim.motivoBaja ? prim.motivoBaja : "");
+  const ok = /^\d{4}-\d{2}-\d{2}$/.test(fecha);
+  const inp = {
+    background: C.bg,
+    border: `1px solid ${C.border2}`,
+    borderRadius: "6px",
+    padding: "8px 10px",
+    fontSize: "12px",
+    outline: "none",
+    width: "100%",
+    boxSizing: "border-box"
+  };
+  const lbl = {
+    display: "block",
+    fontSize: "11px",
+    fontWeight: "700",
+    color: C.muted,
+    textTransform: "uppercase",
+    marginBottom: "4px"
+  };
+  return React.createElement("div", {
+    onClick: onClose,
+    style: {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: "rgba(0,0,0,0.4)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 4000
+    }
+  }, React.createElement("div", {
+    onClick: e => e.stopPropagation(),
+    style: {
+      background: C.card,
+      borderRadius: "12px",
+      padding: "24px",
+      width: "90%",
+      maxWidth: "480px",
+      maxHeight: "85vh",
+      overflow: "auto",
+      boxShadow: "0 10px 40px rgba(0,0,0,0.2)"
+    }
+  }, React.createElement("div", {
+    style: {
+      fontSize: "16px",
+      fontWeight: "700",
+      marginBottom: "10px"
+    }
+  }, edit ? "📅 Editar baja" : emps.length > 1 ? `🗄️ Archivar ${emps.length} empleados` : "🗄️ Archivar empleado"), React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      fontWeight: "600",
+      marginBottom: "10px",
+      color: C.text
+    }
+  }, emps.map(e => e.nombre).join(", ")), !edit && React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: C.text2,
+      lineHeight: "1.5",
+      background: C.expandBg,
+      borderRadius: "8px",
+      padding: "10px 12px",
+      marginBottom: "14px"
+    }
+  }, "Dejará de contar como empleado activo: no saldrá en evaluaciones, Resultados ni Gestión de carga. Su ficha y sus evaluaciones se conservan (pestaña Archivados). En Gestión de carga cuentan sus horas hasta la fecha de baja incluida; las posteriores no. Se puede reactivar cuando quieras."), React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr",
+      gap: "12px",
+      marginBottom: "16px"
+    }
+  }, React.createElement("div", null, React.createElement("label", {
+    style: lbl
+  }, "Fecha de baja (último día en la empresa)"), React.createElement("input", {
+    type: "date",
+    value: fecha,
+    onChange: e => setFecha(e.target.value),
+    style: inp
+  })), React.createElement("div", null, React.createElement("label", {
+    style: lbl
+  }, "Motivo (opcional)"), React.createElement("input", {
+    type: "text",
+    value: motivo,
+    placeholder: "Fin de contrato, baja voluntaria, excedencia...",
+    onChange: e => setMotivo(e.target.value),
+    style: inp
+  }))), React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "8px"
+    }
+  }, React.createElement("button", {
+    onClick: onClose,
+    style: {
+      background: C.item,
+      border: `1px solid ${C.border2}`,
+      color: C.text,
+      borderRadius: "6px",
+      padding: "8px 16px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: "pointer"
+    }
+  }, "Cancelar"), React.createElement("button", {
+    onClick: () => ok && onConfirm(fecha, motivo.trim()),
+    disabled: !ok,
+    style: {
+      background: C.accent,
+      color: "white",
+      border: "none",
+      borderRadius: "6px",
+      padding: "8px 16px",
+      fontSize: "12px",
+      fontWeight: "600",
+      cursor: ok ? "pointer" : "not-allowed",
+      opacity: ok ? 1 : 0.5
+    }
+  }, edit ? "Guardar" : "Archivar"))));
+};
 const EmployeesView = ({
   employees,
   addEmployee,
@@ -3427,6 +3681,8 @@ const EmployeesView = ({
   updateEmployee,
   onBulkAdd,
   onBulkRemove,
+  onArchive,
+  onUnarchive,
   sapModules,
   sectors,
   skills,
@@ -3444,6 +3700,7 @@ const EmployeesView = ({
 }) => {
   const [editingEmp, setEditingEmp] = useState(null);
   const [creatingEmp, setCreatingEmp] = useState(false);
+  const [archModal, setArchModal] = useState(null); // { ids, edit } mientras se pide fecha y motivo de baja
   const [showCatSettings, setShowCatSettings] = useState(false);
   if (showCatSettings) return React.createElement(EmployeeCategorySettingsView, {
     sapModules: sapModules,
@@ -3532,7 +3789,20 @@ const EmployeesView = ({
     updateEmployee: updateEmployee,
     onBulkAdd: onBulkAdd,
     onBulkRemove: onBulkRemove,
-    onCreateNew: () => setCreatingEmp(true)
+    onCreateNew: () => setCreatingEmp(true),
+    onArchiveRequest: (ids, edit) => setArchModal({
+      ids,
+      edit
+    }),
+    onUnarchive: onUnarchive
+  }), archModal && React.createElement(ArchiveEmployeesModal, {
+    emps: employees.filter(e => archModal.ids.includes(e.id)),
+    edit: archModal.edit,
+    onConfirm: (fecha, motivo) => {
+      onArchive(archModal.ids, fecha, motivo);
+      setArchModal(null);
+    },
+    onClose: () => setArchModal(null)
   }), (editingEmp || creatingEmp) && React.createElement(EditEmployeeModal, {
     emp: editingEmp || {},
     isNew: creatingEmp,
@@ -4262,7 +4532,8 @@ const cargaIndiceEmpleados = (empleados, equiv) => {
       empleado: x.e.nombre,
       aprox,
       sectorOrigen: x.e.sector || "",
-      modulosOrigen: (x.e.modules && x.e.modules.length ? x.e.modules : [x.e.module]).filter(Boolean).join(", ")
+      modulosOrigen: (x.e.modules && x.e.modules.length ? x.e.modules : [x.e.module]).filter(Boolean).join(", "),
+      fechaBaja: x.e.fechaBaja || ""
     };
   };
   return (nom, ape) => {
@@ -4280,6 +4551,21 @@ const cargaIndiceEmpleados = (empleados, equiv) => {
     return cand.length === 1 ? aMapeo(cand[0], true) : null;
   };
 };
+// Personas archivadas (han salido de la empresa): cuentan hasta su fecha de baja (incluida); lo posterior se descarta al CALCULAR
+// (las imputaciones siguen guardadas: si se corrige la fecha o se reactiva a la persona, vuelven a contar). Si hay un activo con ese
+// mismo nombre (reincorporación), manda el activo y no se corta.
+const cargaCorteBajas = (empleados, archivados) => {
+  const conFecha = (archivados || []).filter(e => e && e.fechaBaja);
+  if (!conFecha.length) return () => "";
+  const vivo = cargaIndiceEmpleados(empleados, {});
+  const baja = cargaIndiceEmpleados(conFecha, {});
+  return (nom, ape) => {
+    const b = baja(nom, ape);
+    return b && b.fechaBaja && !vivo(nom, ape) ? b.fechaBaja : "";
+  };
+};
+// Fila posterior a la baja: con día, el día es posterior; sin día (formato antiguo, solo mes), el mes es posterior al de la baja
+const cargaTrasBaja = (f, corte) => !!corte && (f.dia ? f.dia > corte : f.mes > corte.slice(0, 7));
 // Origen del sector/módulo de las personas: "empleados" (Gestión de empleados) o "fichero" (mapeo importado)
 const cargaOrigenPersonas = cfg => cfg.origenPersonas || (CARGA_PRUEBAS ? "empleados" : "fichero");
 // cfg.equivSectores se guarda como lista [{de, a}] (así se sustituye entera al guardar)
@@ -4299,8 +4585,9 @@ const cargaAsigTexto = p => `${p.sectorOrigen || "sin sector"} / ${[p.modulo, p.
 const cargaPeriodoTexto = p => `${p.desde === CARGA_DESDE_SIEMPRE ? "Desde el inicio" : "Desde " + cargaMesLabel(p.desde)}: ${cargaAsigTexto(p)}`;
 // Compara la memoria con lo que hay ahora en Gestión de empleados y la actualiza:
 // persona nueva → periodo "desde siempre"; cambio de sector/módulo → periodo nuevo desde desdeCambio; ya no está → se marca la baja y se conserva
-const cargaActualizarAsignaciones = (asignaciones, personas, empleados, equiv, desdeCambio, hoy) => {
+const cargaActualizarAsignaciones = (asignaciones, personas, empleados, equiv, desdeCambio, hoy, archivados) => {
   const vivo = cargaIndiceEmpleados(empleados, equiv);
+  const archi = cargaIndiceEmpleados(archivados || [], equiv);
   const mapa = new Map((asignaciones || []).map(a => [a.clave, {
     ...a,
     periodos: [...(a.periodos || [])]
@@ -4324,7 +4611,8 @@ const cargaActualizarAsignaciones = (asignaciones, personas, empleados, equiv, d
       persona = (nom + " " + ape).trim();
     if (!m) {
       if (a && !a.baja) {
-        a.baja = hoy;
+        const b = archi(nom, ape);
+        a.baja = b && b.fechaBaja || hoy;
         res.bajas.push(persona);
       }
       continue;
@@ -4377,14 +4665,15 @@ const cargaActualizarAsignaciones = (asignaciones, personas, empleados, equiv, d
   };
 };
 // Devuelve (nom, ape, mes) → { sector, modulo, ... } o null. Con Gestión de empleados manda la memoria; si la persona aún no está en ella, se lee en directo
-const cargaResolverPersonas = (cfg, empleados) => {
+const cargaResolverPersonas = (cfg, empleados, archivados) => {
   if (cargaOrigenPersonas(cfg) !== "empleados") return cargaIndiceMapeo(cfg.mapeo);
   const equiv = cargaEquivObj(cfg.equivSectores);
   const vivo = cargaIndiceEmpleados(empleados, equiv);
+  const archi = cargaIndiceEmpleados(archivados || [], equiv);
   const memoria = new Map((cfg.asignaciones || []).map(a => [a.clave, a]));
   return (nom, ape, mes) => {
     const a = memoria.get(cargaClavePersona(nom, ape));
-    if (!a || !a.periodos || !a.periodos.length) return vivo(nom, ape);
+    if (!a || !a.periodos || !a.periodos.length) return vivo(nom, ape) || archi(nom, ape);
     const p = mes ? cargaPeriodoDe(a.periodos, mes) : a.periodos[a.periodos.length - 1];
     return {
       nom,
@@ -4419,8 +4708,9 @@ const cargaEsExcluido = (persona, excluidos) => {
   });
 };
 // Imputaciones enriquecidas con sector/módulo de la persona, categoría y sector/código del proyecto (sin excluidos)
-const cargaEnriquecer = (filas, cfg, empleados) => {
-  const buscar = cargaResolverPersonas(cfg, empleados);
+const cargaEnriquecer = (filas, cfg, empleados, archivados) => {
+  const buscar = cargaResolverPersonas(cfg, empleados, archivados);
+  const corteDe = cargaCorteBajas(empleados, archivados);
   const buscarPro = cargaIndiceProyectos(cfg.proyectos);
   const ddnSet = new Set((cfg.ddnProyectos || []).map(cargaNorm));
   const reclSet = cargaReclSet(cfg);
@@ -4436,11 +4726,13 @@ const cargaEnriquecer = (filas, cfg, empleados) => {
       info = {
         excluido: cargaEsExcluido(persona, cfg.excluidos),
         sector: m && m.sector || "Sin mapear",
-        modulo: m && m.modulo || "Sin mapear"
+        modulo: m && m.modulo || "Sin mapear",
+        corte: corteDe(f.nom, f.ape)
       };
       porPersona.set(kper, info);
     }
     if (info.excluido) continue;
+    if (cargaTrasBaja(f, info.corte)) continue; // persona archivada: nada después de su fecha de baja
     const kp = f.cod + "|" + f.pro;
     let pinfo = porProyecto.get(kp);
     if (!pinfo) {
@@ -5784,6 +6076,60 @@ const cargaAnalisis = (datos, hayMapeoProyectos, mesActual = cargaMesActual()) =
     total: listaPro.reduce((s, p) => s + p.h, 0),
     top5: listaPro.slice(0, 5).reduce((s, p) => s + p.h, 0)
   };
+  // Personas por proyecto y módulo en el mes de referencia (solo categoría Proyecto, persona con >0 h en ese proyecto)
+  const modPro = (() => {
+    const acum = new Map(); // proyecto|persona|módulo -> horas
+    for (const d of datos) {
+      if (d.grupo !== "proy" || d.mes !== mesRef) continue;
+      const k = d.cod + "|" + d.pro + "\u0001" + d.persona + "\u0001" + (d.modulo || "Sin mapear");
+      acum.set(k, (acum.get(k) || 0) + d.h);
+    }
+    const pros = new Map(),
+      totMod = new Map();
+    for (const [k, h] of acum) {
+      if (!(h > 0)) continue;
+      const [pk, persona, modulo] = k.split("\u0001");
+      let p = pros.get(pk);
+      if (!p) {
+        const i = pk.indexOf("|");
+        p = {
+          cod: pk.slice(0, i),
+          pro: pk.slice(i + 1),
+          h: 0,
+          personas: new Set(),
+          mods: new Map()
+        };
+        pros.set(pk, p);
+      }
+      p.h += h;
+      p.personas.add(persona);
+      let m = p.mods.get(modulo);
+      if (!m) {
+        m = {
+          personas: new Set(),
+          h: 0
+        };
+        p.mods.set(modulo, m);
+      }
+      m.personas.add(persona);
+      m.h += h;
+      let tm = totMod.get(modulo);
+      if (!tm) {
+        tm = new Set();
+        totMod.set(modulo, tm);
+      }
+      tm.add(persona);
+    }
+    const cols = [...totMod.keys()].sort((a, b) => (a === "Sin mapear") - (b === "Sin mapear") || totMod.get(b).size - totMod.get(a).size || a.localeCompare(b, "es"));
+    const lista = [...pros.values()].map(p => ({
+      ...p,
+      max: Math.max(...[...p.mods.values()].map(m => m.personas.size))
+    })).sort((a, b) => b.max - a.max || b.personas.size - a.personas.size || b.h - a.h);
+    return {
+      cols,
+      lista
+    };
+  })();
   // Lectura rápida: frases con lo más relevante para decidir (sin nombres de personas)
   const insights = [];
   if (mesRef) {
@@ -5868,6 +6214,7 @@ const cargaAnalisis = (datos, hayMapeoProyectos, mesActual = cargaMesActual()) =
     alertas,
     cruce,
     proyectos,
+    modPro,
     insights,
     mesActual
   };
@@ -7561,6 +7908,7 @@ const CargaKpisView = ({
   const [rPer, setRPer] = useState("ref");
   const [rTodos, setRTodos] = useState(false);
   const [aTodas, setATodas] = useState(false);
+  const [mpTodos, setMpTodos] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [modoPDF, setModoPDF] = useState(false);
   const contenedorRef = useRef(null);
@@ -7580,6 +7928,7 @@ const CargaKpisView = ({
     alertas,
     cruce,
     proyectos,
+    modPro,
     insights,
     mesActual
   } = an;
@@ -7700,6 +8049,7 @@ const CargaKpisView = ({
     metR = CARGA_METRICAS[rMet];
   const rItems = rTodos || modoPDF ? ranking : ranking.slice(0, 12);
   const aItems = aTodas || modoPDF ? alertas : alertas.slice(0, 15);
+  const mpItems = mpTodos || modoPDF ? modPro.lista : modPro.lista.slice(0, 15);
   const sem = cargaSemaforo(tRef.disp, tRef.total);
   const tdS = {
     padding: "7px 10px",
@@ -8003,6 +8353,85 @@ const CargaKpisView = ({
     }
   }, "Sin horas de proyecto."))), React.createElement(CargaCard, {
     ancho: true,
+    titulo: `Personas por proyecto y módulo · ${refLabel}`,
+    sub: "Personas distintas de cada módulo con horas en cada proyecto (solo categoría Proyecto, mes de referencia, filtros actuales). Entre paréntesis, sus horas. En negrita: 2 o más personas del mismo módulo en el proyecto."
+  }, modPro.lista.length ? React.createElement("div", {
+    style: {
+      overflowX: "auto"
+    }
+  }, React.createElement("table", {
+    style: {
+      width: "100%",
+      borderCollapse: "collapse"
+    }
+  }, React.createElement("thead", null, React.createElement("tr", null, React.createElement("th", {
+    style: thS
+  }, "Proyecto"), modPro.cols.map(c => React.createElement("th", {
+    key: c,
+    style: {
+      ...thS,
+      textAlign: "right"
+    }
+  }, c)), React.createElement("th", {
+    style: {
+      ...thS,
+      textAlign: "right"
+    }
+  }, "Total pers."))), React.createElement("tbody", null, mpItems.map(p => React.createElement("tr", {
+    key: p.cod + "|" + p.pro
+  }, React.createElement("td", {
+    style: {
+      ...tdS,
+      maxWidth: "260px"
+    }
+  }, React.createElement("div", {
+    style: {
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      fontWeight: "600"
+    },
+    title: p.pro
+  }, p.pro), p.cod && React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: C.muted
+    }
+  }, p.cod)), modPro.cols.map(c => {
+    const m = p.mods.get(c);
+    return React.createElement("td", {
+      key: c,
+      style: {
+        ...tdS,
+        textAlign: "right",
+        whiteSpace: "nowrap",
+        fontVariantNumeric: "tabular-nums",
+        color: m ? C.text : C.muted,
+        fontWeight: m && m.personas.size >= 2 ? "700" : "400",
+        background: m && m.personas.size >= 2 ? C.rowBorder : "transparent"
+      }
+    }, m ? [m.personas.size, React.createElement("span", {
+      key: "h",
+      style: {
+        fontSize: "10px",
+        color: C.muted,
+        fontWeight: "400"
+      }
+    }, ` (${cargaFmtH(m.h)} h)`)] : "–");
+  }), React.createElement("td", {
+    style: {
+      ...tdS,
+      textAlign: "right",
+      fontWeight: "600",
+      fontVariantNumeric: "tabular-nums"
+    }
+  }, p.personas.size)))))) : React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: C.muted
+    }
+  }, "Sin horas de proyecto en el mes de referencia con los filtros actuales."), modPro.lista.length > 15 && verMas(mpTodos, setMpTodos, modPro.lista.length)), React.createElement(CargaCard, {
+    ancho: true,
     titulo: `Personas que requieren atención · ${refLabel}`,
     sub: `Disponibilidad > 30 % (▲ > 40 %), imputación > 15 % sobre la mediana del mes (${cargaFmtH(mediana[mesRef] || 0)} h), caídas de proyecto ≥ 25 pp, trabajo fuera de su sector y personas sin mapear`
   }, alertas.length ? React.createElement("div", {
@@ -8190,7 +8619,7 @@ const CargaKpisView = ({
 // Flujo semanal: se suben el export de imputaciones (InformeDetallado) y el de proyectos. Cada fichero se reconoce
 // por sus columnas, da igual el orden o el nombre. Las imputaciones sustituyen SOLO el rango de fechas que trae
 // el fichero (lo de fuera se conserva) y los proyectos se actualizan por código.
-const cargaAnalizarFicheros = async (files, cfg, filasActuales, empleados) => {
+const cargaAnalizarFicheros = async (files, cfg, filasActuales, empleados, archivados) => {
   let imp = null,
     pro = null,
     map = null;
@@ -8238,7 +8667,7 @@ const cargaAnalizarFicheros = async (files, cfg, filasActuales, empleados) => {
     const mesesAfect = cargaMesesEntre(desde, hasta);
     const antes = filasActuales.filter(f => f.dia && f.dia >= desde && f.dia <= hasta);
     const antiguos = mesesAfect.filter(m => filasActuales.some(f => f.mes === m && !f.dia));
-    const buscar = cargaOrigenPersonas(cfg) === "empleados" ? cargaResolverPersonas(cfg, empleados) : cargaIndiceMapeo(map ? map.personas : cfg.mapeo);
+    const buscar = cargaOrigenPersonas(cfg) === "empleados" ? cargaResolverPersonas(cfg, empleados, archivados) : cargaIndiceMapeo(map ? map.personas : cfg.mapeo);
     const personas = [...new Map(imp.filas.map(f => [(f.nom + " " + f.ape).trim(), f])).entries()];
     const conocidas = new Set(filasActuales.map(f => (f.nom + " " + f.ape).trim()));
     const buscarPro = cargaIndiceProyectos(listaPro);
@@ -8267,7 +8696,7 @@ const cargaAnalizarFicheros = async (files, cfg, filasActuales, empleados) => {
       nom: f.nom,
       ape: f.ape
     }));
-    asig = cargaActualizarAsignaciones(cfg.asignaciones, personasTodas, empleados, cargaEquivObj(cfg.equivSectores), cargaMesActual(), ahora.slice(0, 10));
+    asig = cargaActualizarAsignaciones(cfg.asignaciones, personasTodas, empleados, cargaEquivObj(cfg.equivSectores), cargaMesActual(), ahora.slice(0, 10), archivados);
   }
   return {
     detectados,
@@ -8375,6 +8804,7 @@ const CargaImportModal = ({
   cfg,
   filasActuales,
   empleados,
+  archivados,
   onClose,
   onSaved
 }) => {
@@ -8390,7 +8820,7 @@ const CargaImportModal = ({
     setAnalisis(null);
     setTrabajando("analizando");
     try {
-      setAnalisis(await cargaAnalizarFicheros([...files], cfg, filasActuales, empleados));
+      setAnalisis(await cargaAnalizarFicheros([...files], cfg, filasActuales, empleados, archivados));
     } catch (e) {
       console.error("Gestión de carga: error analizando ficheros", e);
       setError(e.message || String(e));
@@ -8585,8 +9015,9 @@ const CARGA_ENLACE_ORDEN = {
   "Exacto": 3,
   "Excluida": 4
 };
-const cargaFilasEnlace = (filas, empleados, equiv, excluidos, asignaciones) => {
+const cargaFilasEnlace = (filas, empleados, equiv, excluidos, asignaciones, archivados) => {
   const vivo = cargaIndiceEmpleados(empleados, equiv);
+  const archi = cargaIndiceEmpleados(archivados || [], equiv);
   const memoria = new Map((asignaciones || []).map(a => [a.clave, a]));
   const porPersona = new Map();
   for (const f of filas) {
@@ -8602,14 +9033,19 @@ const cargaFilasEnlace = (filas, empleados, equiv, excluidos, asignaciones) => {
   }
   return [...porPersona.values()].map(p => {
     const m = vivo(p.nom, p.ape);
+    const b = m ? null : archi(p.nom, p.ape); // archivado en Gestión de empleados
     const clave = cargaClavePersona(p.nom, p.ape);
     const a = memoria.get(clave);
     const ultimo = a && a.periodos && a.periodos.length ? a.periodos[a.periodos.length - 1] : null;
-    const enlace = cargaEsExcluido(p.persona, excluidos) ? "Excluida" : m ? m.aprox ? "Aproximado" : "Exacto" : ultimo ? "Baja (histórico)" : "No encontrada";
+    const enlace = cargaEsExcluido(p.persona, excluidos) ? "Excluida" : m ? m.aprox ? "Aproximado" : "Exacto" : ultimo || b ? "Baja (histórico)" : "No encontrada";
     const usado = ultimo || (m ? {
       sectorOrigen: m.sectorOrigen,
       modulo: m.modulo,
       modulo2: m.modulo2
+    } : b ? {
+      sectorOrigen: b.sectorOrigen,
+      modulo: b.modulo,
+      modulo2: b.modulo2
     } : null);
     const vivoPer = m ? {
       sectorOrigen: m.sectorOrigen || "",
@@ -8621,12 +9057,12 @@ const cargaFilasEnlace = (filas, empleados, equiv, excluidos, asignaciones) => {
       clave,
       enlace,
       horas: p.horas,
-      empleado: m ? m.empleado : ultimo ? ultimo.empleado : "",
+      empleado: m ? m.empleado : ultimo ? ultimo.empleado : b ? b.empleado : "",
       sectorOrigen: usado ? usado.sectorOrigen || "" : "",
       sector: usado ? cargaSectorEquivalente(usado.sectorOrigen, equiv) : "",
       modulos: usado ? [usado.modulo, usado.modulo2].filter(Boolean).join(", ") : "",
       historial: a && a.periodos.length > 1 ? a.periodos.map(cargaPeriodoTexto).join(" → ") : "",
-      baja: a && a.baja ? a.baja : "",
+      baja: b && b.fechaBaja ? b.fechaBaja : a && a.baja ? a.baja : "",
       pendiente: ultimo && vivoPer && !cargaMismaAsignacion(ultimo, vivoPer) ? `Gestión de empleados dice ahora: ${cargaAsigTexto(vivoPer)}` : "",
       sinMemoria: !ultimo && !!m,
       vivo: vivoPer && {
@@ -8639,6 +9075,7 @@ const cargaFilasEnlace = (filas, empleados, equiv, excluidos, asignaciones) => {
 const CargaEnlaceModal = ({
   filas,
   empleados,
+  archivados,
   equiv,
   excluidos,
   asignaciones,
@@ -8649,7 +9086,7 @@ const CargaEnlaceModal = ({
   const [texto, setTexto] = useState("");
   const [guardando, setGuardando] = useState("");
   const [error, setError] = useState("");
-  const todas = useMemo(() => cargaFilasEnlace(filas, empleados, equiv, excluidos, asignaciones), [filas, empleados, equiv, excluidos, asignaciones]);
+  const todas = useMemo(() => cargaFilasEnlace(filas, empleados, equiv, excluidos, asignaciones, archivados), [filas, empleados, archivados, equiv, excluidos, asignaciones]);
   const cuenta = k => todas.filter(r => r.enlace === k).length;
   const conCambios = todas.filter(r => r.historial || r.pendiente).length;
   const visibles = todas.filter(r => (filtro === "todos" || r.enlace === filtro || filtro === "cambios" && (r.historial || r.pendiente)) && (!texto || cargaNorm(r.persona + " " + r.empleado).includes(cargaNorm(texto))));
@@ -8893,6 +9330,7 @@ const CargaAjustesModal = ({
   filas,
   mesesMeta,
   empleados,
+  archivados,
   onClose,
   onSaved
 }) => {
@@ -8912,7 +9350,7 @@ const CargaAjustesModal = ({
   const opcionesHbu = useMemo(() => [...new Set([...CARGA_SECTORES_HBU.map(x => x[1]), ...(cfg.proyectos || []).map(p => p.sector).filter(Boolean)])].sort((a, b) => a.localeCompare(b, "es")), [cfg.proyectos]);
   const enlace = useMemo(() => {
     if (origen !== "empleados") return null;
-    const rows = cargaFilasEnlace(filas, empleados, equiv, lista(excl), cfg.asignaciones).filter(r => r.enlace !== "Excluida");
+    const rows = cargaFilasEnlace(filas, empleados, equiv, lista(excl), cfg.asignaciones, archivados).filter(r => r.enlace !== "Excluida");
     const de = k => rows.filter(r => r.enlace === k);
     return {
       total: rows.length,
@@ -8922,7 +9360,7 @@ const CargaAjustesModal = ({
       bajas: de("Baja (histórico)").length,
       pendientes: rows.filter(r => r.pendiente || r.sinMemoria).length
     };
-  }, [origen, empleados, equiv, filas, excl, cfg.asignaciones]);
+  }, [origen, empleados, archivados, equiv, filas, excl, cfg.asignaciones]);
   const guardarAsignaciones = async listaAsig => {
     await firebase.firestore().collection("appData").doc(CARGA_CFG_DOC).set({
       asignaciones: listaAsig
@@ -8936,7 +9374,7 @@ const CargaAjustesModal = ({
     const r = cargaActualizarAsignaciones(cfg.asignaciones, filas.map(f => ({
       nom: f.nom,
       ape: f.ape
-    })), empleados, equiv, cargaMesActual(), new Date().toISOString().slice(0, 10));
+    })), empleados, equiv, cargaMesActual(), new Date().toISOString().slice(0, 10), archivados);
     if (!r.nuevas.length && !r.cambios.length && !r.bajas.length && !r.vueltas.length) {
       window.alert("La memoria ya está al día con Gestión de empleados.");
       return;
@@ -9275,6 +9713,7 @@ const CargaAjustesModal = ({
   }, "🔄 Actualizar ahora con Gestión de empleados")), verEnlace && React.createElement(CargaEnlaceModal, {
     filas,
     empleados,
+    archivados,
     equiv,
     excluidos: lista(excl),
     asignaciones: cfg.asignaciones,
@@ -9339,7 +9778,8 @@ const CargaAjustesModal = ({
 const GestionCargaView = ({
   onBack,
   onLogout,
-  empleados = []
+  empleados = [],
+  archivados = []
 }) => {
   const [estado, setEstado] = useState("cargando");
   const [errorCarga, setErrorCarga] = useState("");
@@ -9404,7 +9844,7 @@ const GestionCargaView = ({
       vivo = false;
     };
   }, [reloadTick]);
-  const datos = useMemo(() => cargaEnriquecer(filas, cfg, empleados), [filas, cfg, empleados]);
+  const datos = useMemo(() => cargaEnriquecer(filas, cfg, empleados, archivados), [filas, cfg, empleados, archivados]);
   const uniq = arr => [...new Set(arr)].sort((a, b) => a.localeCompare(b, "es"));
   const optSector = useMemo(() => uniq(datos.map(d => d.sector)), [datos]);
   const optModulo = useMemo(() => uniq(datos.filter(d => !fSector.length || fSector.includes(d.sector)).map(d => d.modulo)), [datos, fSector]);
@@ -9921,7 +10361,7 @@ const GestionCargaView = ({
         marginTop: "12px",
         lineHeight: "1.6"
       }
-    }, "Disponibilidad = Disponibilidad + Formación SAP + Formación no SAP + Onboarding + Gestión de Equipos. ", "Vacaciones / Bajas = Vacaciones + Bajas y ausencias. Otros = Becarios + Genérica + Management & Operation. Proyecto + Disponibilidad + Desarrollo de Negocio + Vacaciones / Bajas + Otros = 100 % de las horas. ", "Semáforo de disponibilidad: verde ≤ 30 %, ámbar 30-40 %, rojo > 40 %. ", "Pulsa una tarjeta para ver las imputaciones de ese concepto con los filtros actuales; el % Disp. de una fila muestra a qué conceptos de disponibilidad se debe. ", "Los proyectos reclasificados (⚙️ Ajustes) cuentan como Proyecto.", agrupar === "persona" ? " Pulsa una fila para ver el desglose por proyecto." : ""));
+    }, "Disponibilidad = Disponibilidad + Formación SAP + Formación no SAP + Onboarding + Gestión de Equipos. ", "Vacaciones / Bajas = Vacaciones + Bajas y ausencias. Otros = Becarios + Genérica + Management & Operation. Proyecto + Disponibilidad + Desarrollo de Negocio + Vacaciones / Bajas + Otros = 100 % de las horas. ", "Semáforo de disponibilidad: verde ≤ 30 %, ámbar 30-40 %, rojo > 40 %. ", "Pulsa una tarjeta para ver las imputaciones de ese concepto con los filtros actuales; el % Disp. de una fila muestra a qué conceptos de disponibilidad se debe. ", "Los proyectos reclasificados (⚙️ Ajustes) cuentan como Proyecto. ", archivados.length > 0 ? "Las personas archivadas en Gestión de empleados cuentan hasta su fecha de baja (incluida). " : "", agrupar === "persona" ? " Pulsa una fila para ver el desglose por proyecto." : ""));
     const describir = (sel, todos) => sel.length ? sel.join(", ") : todos;
     const filtrosTexto = [describir(fSector, "Todos los sectores"), describir(fModulo, "todos los módulos"), fPersona.length ? `${fPersona.length} persona${fPersona.length === 1 ? "" : "s"}` : "todas las personas", describir(fMes, "todos los meses")].join(" · ");
     cuerpo = React.createElement(React.Fragment, null, filtros, vista === "kpis" ? React.createElement(CargaKpisView, {
@@ -9969,6 +10409,7 @@ const GestionCargaView = ({
     cfg,
     filasActuales: filas,
     empleados,
+    archivados,
     onClose: () => setShowImport(false),
     onSaved: recargar
   }), showAjustes && React.createElement(CargaAjustesModal, {
@@ -9976,6 +10417,7 @@ const GestionCargaView = ({
     filas,
     mesesMeta,
     empleados,
+    archivados,
     onClose: () => setShowAjustes(false),
     onSaved: recargar
   }));
@@ -12725,7 +13167,7 @@ const ResultadosEvaluacionView = ({
   }, "EMPLEADO"), React.createElement(SearchableSelect, {
     options: employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
       value: e.id,
-      label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}`
+      label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}${e.archivado ? " (archivado)" : ""}`
     })),
     value: selEmp?.id || "",
     onChange: id => {
@@ -13165,6 +13607,9 @@ function App() {
       }
     })();
   }, [dataReady, canAutoSave, modules, evaluators, employees, evalHistory, sapModules, sectors, skills, locations, areaModules, factorBono]);
+  // Archivados = han salido de la empresa: no cuentan como activos en nada (evaluaciones, evaluadores, Gestión de carga)
+  const empActivosList = useMemo(() => employees.filter(e => !e.archivado), [employees]);
+  const empArchivadosList = useMemo(() => employees.filter(e => e.archivado), [employees]);
   const retryLoad = () => {
     setLoadError(false);
     setRetryTick(t => t + 1);
@@ -13210,12 +13655,42 @@ function App() {
       id
     } : e));
   };
+  const archiveEmployees = (ids, fechaBaja, motivoBaja) => {
+    persistEmployees(employees.map(e => ids.includes(e.id) ? {
+      ...e,
+      archivado: true,
+      fechaBaja,
+      motivoBaja: motivoBaja || ""
+    } : e));
+  };
+  const unarchiveEmployee = id => {
+    persistEmployees(employees.map(e => {
+      if (e.id !== id) return e;
+      const {
+        archivado,
+        fechaBaja,
+        motivoBaja,
+        ...rest
+      } = e;
+      return rest;
+    }));
+  };
+  // Opciones del desplegable de empleado en evaluaciones: solo activos (+ el seleccionado si es un archivado al editar una evaluación antigua)
+  const empOpcionesSel = sel => (sel && !empActivosList.some(x => x.id === sel.id) ? [...empActivosList, sel] : empActivosList).slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
+    value: e.id,
+    label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}${e.archivado ? " (archivado)" : ""}`
+  }));
   const onBulkAdd = emps => {
-    const added = emps.filter(e => !employees.find(x => x.nombre.toLowerCase() === e.nombre.toLowerCase())).length;
-    const updated = emps.filter(e => employees.find(x => x.nombre.toLowerCase() === e.nombre.toLowerCase())).length;
+    // La importación no toca a los archivados: si una fila coincide por nombre solo con un archivado, se omite y se avisa
+    const mismoNombre = (x, e) => x.nombre.toLowerCase() === e.nombre.toLowerCase();
+    const deArchivado = e => !employees.some(x => !x.archivado && mismoNombre(x, e)) && employees.some(x => x.archivado && mismoNombre(x, e));
+    const omitidos = emps.filter(deArchivado).length;
+    emps = emps.filter(e => !deArchivado(e));
+    const added = emps.filter(e => !employees.find(x => !x.archivado && mismoNombre(x, e))).length;
+    const updated = emps.filter(e => employees.find(x => !x.archivado && mismoNombre(x, e))).length;
     const newEmps = [...employees];
     for (const emp of emps) {
-      const idx = newEmps.findIndex(e => e.nombre.toLowerCase() === emp.nombre.toLowerCase());
+      const idx = newEmps.findIndex(e => !e.archivado && e.nombre.toLowerCase() === emp.nombre.toLowerCase());
       if (idx >= 0) {
         newEmps[idx] = {
           ...newEmps[idx],
@@ -13231,7 +13706,8 @@ function App() {
     persistEmployees(newEmps);
     return {
       added,
-      updated
+      updated,
+      omitidos
     };
   };
   const addSapModule = name => {
@@ -13394,7 +13870,8 @@ function App() {
     onLogout: () => window.doLogout()
   });
   if (appScreen === "carga") return React.createElement(GestionCargaView, {
-    empleados: employees,
+    empleados: empActivosList,
+    archivados: empArchivadosList,
     onBack: () => setAppScreen("home"),
     onLogout: () => window.doLogout()
   });
@@ -13423,6 +13900,8 @@ function App() {
     updateEmployee: updateEmployee,
     onBulkAdd: onBulkAdd,
     onBulkRemove: removeEmployees,
+    onArchive: archiveEmployees,
+    onUnarchive: unarchiveEmployee,
     sapModules: sapModules,
     sectors: sectors,
     skills: skills,
@@ -13613,10 +14092,7 @@ function App() {
       marginBottom: "6px"
     }
   }, "EMPLEADO"), React.createElement(SearchableSelect, {
-    options: employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
-      value: e.id,
-      label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}`
-    })),
+    options: empOpcionesSel(selectedEmployeeOp),
     value: selectedEmployeeOp?.id || "",
     onChange: id => {
       const emp = employees.find(x => x.id === id) || null;
@@ -13682,7 +14158,7 @@ function App() {
     area: selectedAreaOp,
     employee: selectedEmployeeOp,
     evalDate: evalDateOp,
-    employees: employees,
+    employees: empActivosList,
     initialData: editingEntry && (editingEntry.tipo || "conocimiento") === "operativo" ? editingEntry : null,
     onSave: d => editingEntry ? saveEvaluationEdit(editingEntry._hid, {
       ...d,
@@ -13818,10 +14294,7 @@ function App() {
       marginBottom: "6px"
     }
   }, "EMPLEADO"), React.createElement(SearchableSelect, {
-    options: employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
-      value: e.id,
-      label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}`
-    })),
+    options: empOpcionesSel(selectedEmployee),
     value: selectedEmployee?.id || "",
     onChange: id => {
       const emp = employees.find(x => x.id === id) || null;
@@ -13898,7 +14371,7 @@ function App() {
     module: selectedModule,
     employee: selectedEmployee,
     evalDate: evalDate,
-    employees: employees,
+    employees: empActivosList,
     initialData: editingEntry && (editingEntry.tipo || "conocimiento") !== "operativo" ? editingEntry : null,
     onSave: d => editingEntry ? saveEvaluationEdit(editingEntry._hid, {
       ...d,
