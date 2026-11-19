@@ -6107,12 +6107,14 @@ const cargaAnalisis = (datos, hayMapeoProyectos, mesActual = cargaMesActual()) =
       if (!m) {
         m = {
           personas: new Set(),
-          h: 0
+          h: 0,
+          ph: new Map()
         };
         p.mods.set(modulo, m);
       }
       m.personas.add(persona);
       m.h += h;
+      m.ph.set(persona, (m.ph.get(persona) || 0) + h);
       let tm = totMod.get(modulo);
       if (!tm) {
         tm = new Set();
@@ -7909,6 +7911,12 @@ const CargaKpisView = ({
   const [rTodos, setRTodos] = useState(false);
   const [aTodas, setATodas] = useState(false);
   const [mpTodos, setMpTodos] = useState(false);
+  const [mpAbiertos, setMpAbiertos] = useState(() => new Set());
+  const mpToggle = k => setMpAbiertos(prev => {
+    const n = new Set(prev);
+    n.has(k) ? n.delete(k) : n.add(k);
+    return n;
+  });
   const [showExport, setShowExport] = useState(false);
   const [modoPDF, setModoPDF] = useState(false);
   const contenedorRef = useRef(null);
@@ -8065,6 +8073,12 @@ const CargaKpisView = ({
     borderBottom: `1px solid ${C.border}`,
     textAlign: "left",
     whiteSpace: "nowrap"
+  };
+  const mpTh = {
+    position: "sticky",
+    top: 0,
+    background: C.card,
+    zIndex: 2
   };
   const verMas = (activo, set, n) => !modoPDF && n > 0 && React.createElement("button", {
     onClick: () => set(!activo),
@@ -8357,7 +8371,8 @@ const CargaKpisView = ({
     sub: "Personas distintas de cada módulo con horas en cada proyecto (solo categoría Proyecto, mes de referencia, filtros actuales). Entre paréntesis, sus horas. En negrita: 2 o más personas del mismo módulo en el proyecto."
   }, modPro.lista.length ? React.createElement("div", {
     style: {
-      overflowX: "auto"
+      overflow: "auto",
+      maxHeight: modoPDF ? undefined : "70vh"
     }
   }, React.createElement("table", {
     style: {
@@ -8365,67 +8380,115 @@ const CargaKpisView = ({
       borderCollapse: "collapse"
     }
   }, React.createElement("thead", null, React.createElement("tr", null, React.createElement("th", {
-    style: thS
+    style: {
+      ...thS,
+      ...mpTh
+    }
   }, "Proyecto"), modPro.cols.map(c => React.createElement("th", {
     key: c,
     style: {
       ...thS,
+      ...mpTh,
       textAlign: "right"
     }
   }, c)), React.createElement("th", {
     style: {
       ...thS,
+      ...mpTh,
       textAlign: "right"
     }
-  }, "Total pers."))), React.createElement("tbody", null, mpItems.map(p => React.createElement("tr", {
-    key: p.cod + "|" + p.pro
-  }, React.createElement("td", {
-    style: {
-      ...tdS,
-      maxWidth: "260px"
-    }
-  }, React.createElement("div", {
-    style: {
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
-      fontWeight: "600"
-    },
-    title: p.pro
-  }, p.pro), p.cod && React.createElement("div", {
-    style: {
-      fontSize: "11px",
-      color: C.muted
-    }
-  }, p.cod)), modPro.cols.map(c => {
-    const m = p.mods.get(c);
-    return React.createElement("td", {
-      key: c,
+  }, "Total pers."))), React.createElement("tbody", null, mpItems.map(p => {
+    const pk = p.cod + "|" + p.pro,
+      abierto = mpAbiertos.has(pk);
+    return React.createElement(React.Fragment, {
+      key: pk
+    }, React.createElement("tr", null, React.createElement("td", {
+      style: {
+        ...tdS,
+        maxWidth: "260px",
+        cursor: modoPDF ? undefined : "pointer"
+      },
+      onClick: modoPDF ? undefined : () => mpToggle(pk),
+      title: "Pulsa para ver las personas de cada módulo",
+      "aria-expanded": abierto
+    }, React.createElement("div", {
+      style: {
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        fontWeight: "600"
+      },
+      title: p.pro
+    }, (abierto ? "▾ " : "▸ ") + p.pro), p.cod && React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: C.muted,
+        paddingLeft: "14px"
+      }
+    }, p.cod)), modPro.cols.map(c => {
+      const m = p.mods.get(c);
+      return React.createElement("td", {
+        key: c,
+        style: {
+          ...tdS,
+          textAlign: "right",
+          whiteSpace: "nowrap",
+          fontVariantNumeric: "tabular-nums",
+          color: m ? C.text : C.muted,
+          fontWeight: m && m.personas.size >= 2 ? "700" : "400",
+          background: m && m.personas.size >= 2 ? C.rowBorder : "transparent"
+        }
+      }, m ? [m.personas.size, React.createElement("span", {
+        key: "h",
+        style: {
+          fontSize: "10px",
+          color: C.muted,
+          fontWeight: "400"
+        }
+      }, ` (${cargaFmtH(m.h)} h)`)] : "–");
+    }), React.createElement("td", {
       style: {
         ...tdS,
         textAlign: "right",
-        whiteSpace: "nowrap",
-        fontVariantNumeric: "tabular-nums",
-        color: m ? C.text : C.muted,
-        fontWeight: m && m.personas.size >= 2 ? "700" : "400",
-        background: m && m.personas.size >= 2 ? C.rowBorder : "transparent"
+        fontWeight: "600",
+        fontVariantNumeric: "tabular-nums"
       }
-    }, m ? [m.personas.size, React.createElement("span", {
-      key: "h",
+    }, p.personas.size)), abierto && React.createElement("tr", {
+      "data-mp-detalle": "1"
+    }, React.createElement("td", {
       style: {
-        fontSize: "10px",
+        ...tdS,
+        background: C.rowBorder,
+        fontSize: "11px",
         color: C.muted,
-        fontWeight: "400"
+        verticalAlign: "top"
       }
-    }, ` (${cargaFmtH(m.h)} h)`)] : "–");
-  }), React.createElement("td", {
-    style: {
-      ...tdS,
-      textAlign: "right",
-      fontWeight: "600",
-      fontVariantNumeric: "tabular-nums"
-    }
-  }, p.personas.size)))))) : React.createElement("div", {
+    }, "Personas"), modPro.cols.map(c => {
+      const m = p.mods.get(c);
+      return React.createElement("td", {
+        key: c,
+        style: {
+          ...tdS,
+          background: C.rowBorder,
+          textAlign: "right",
+          verticalAlign: "top",
+          fontSize: "11px",
+          lineHeight: "1.5"
+        }
+      }, m ? [...m.ph.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "es")).map(([n, h]) => React.createElement("div", {
+        key: n
+      }, n, React.createElement("span", {
+        style: {
+          color: C.muted
+        }
+      }, ` (${cargaFmtH(h)} h)`))) : "");
+    }), React.createElement("td", {
+      style: {
+        ...tdS,
+        background: C.rowBorder
+      }
+    }, "")));
+  })))) : React.createElement("div", {
     style: {
       fontSize: "12px",
       color: C.muted
