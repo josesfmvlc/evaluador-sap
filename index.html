@@ -6339,6 +6339,22 @@ const cargaHojaExcel = (filas, {
   }));
   return ws;
 };
+// Exporta el maestro de proyectos guardado (solo lectura): campos del maestro + categoría de Gestión de carga y si está reclasificado
+const cargaExportarProyectos = cfg => {
+  const lista = cfg.proyectos || [];
+  if (!lista.length) {
+    alert("Todavía no hay proyectos guardados. Importa el maestro de proyectos primero.");
+    return;
+  }
+  const ddnSet = new Set((cfg.ddnProyectos || []).map(cargaNorm));
+  const reclSet = cargaReclSet(cfg);
+  const filas = [["Código", "Nombre", "Sector (Hbu)", "Estado", "Cliente", "Grupo", "Tipo", "Región", "Subsector", "Mercado", "Categoría (Gestión de carga)", "Reclasificado como Proyecto"], ...lista.map(p => [p.cod || "", p.nom || "", p.sector || "", p.estado || "", p.cliente || "", p.grupo || "", p.tipo || "", p.region || "", p.subsector || "", p.mercado || "", cargaEsRecl(reclSet, p.cod, p.nom) ? "Proyecto" : cargaCategoria(p.nom, ddnSet), cargaEsRecl(reclSet, p.cod, p.nom) ? "Sí" : "No"])];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, cargaHojaExcel(filas, {
+    anchos: [14, 52, 30, 12, 28, 18, 16, 14, 18, 18, 26, 14]
+  }), "Proyectos");
+  XLSX.writeFile(wb, `Proyectos_gestion_carga_${cargaHoy()}.xlsx`);
+};
 const cargaFilasGrupo = t => [t.total, t.proy, cargaPctDe(t, "proy"), t.disp, cargaPctDe(t, "disp"), t.form, t.ddn, cargaPctDe(t, "ddn"), t.vac, cargaPctDe(t, "vac"), t.otros];
 const CARGA_CAB_GRUPO = ["Horas", "Horas proyecto", "% Proyecto", "Horas disponibilidad", "% Disponibilidad", "Horas formación", "Horas DDN", "% DDN", "Horas vac./bajas", "% Vac./Bajas", "Horas otros"];
 const cargaExportarExcel = (an, datos, filtrosTexto, nombre) => {
@@ -9634,9 +9650,20 @@ const CargaAjustesModal = ({
     style: {
       fontSize: "11px",
       color: C.muted,
-      marginTop: "6px"
+      marginTop: "6px",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      flexWrap: "wrap"
     }
-  }, `Mapeo guardado: ${(cfg.mapeo || []).length} personas · ${(cfg.proyectos || []).length} proyectos` + (cfg.proyectosActualizados ? ` (actualizados el ${new Date(cfg.proyectosActualizados).toLocaleDateString("es-ES")})` : ""))), React.createElement("div", {
+  }, React.createElement("span", null, `Mapeo guardado: ${(cfg.mapeo || []).length} personas · ${(cfg.proyectos || []).length} proyectos` + (cfg.proyectosActualizados ? ` (actualizados el ${new Date(cfg.proyectosActualizados).toLocaleDateString("es-ES")})` : "")), React.createElement("button", {
+    onClick: () => cargaExportarProyectos(cfg),
+    title: "Descarga el maestro de proyectos guardado en un Excel (solo lectura)",
+    style: cargaBtn(false, {
+      padding: "4px 10px",
+      fontSize: "11px"
+    })
+  }, "⬇️ Exportar proyectos (Excel)"))), React.createElement("div", {
     style: {
       marginBottom: "16px",
       border: `1px solid ${C.border}`,
