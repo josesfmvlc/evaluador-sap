@@ -10519,11 +10519,44 @@ const GestionCargaView = ({
 const STAFFING_URL = "https://cargabilidad-industria-procesos.hiberus-ip.workers.dev";
 const STAFFING_ORIGIN = new URL(STAFFING_URL).origin;
 const STAFFING_CHANNEL = "hiberus-staffing-v1";
+// ¿Dar de alta automáticamente en Staffing a los empleados de Industria de Procesos / Manufacturing que aún no están? Decidido el 23-nov: SÍ (capacidad 100 %, equipo según sector). Poner false para desactivarlo.
+const STAFFING_CREAR_PERSONAS = true;
+// Datos que se envían a Staffing: personas de Gestión de empleados y maestro de proyectos de Gestión de carga (lectura; no se escribe nada)
+const staffingPayload = async empleados => {
+  const personas = (empleados || []).filter(e => e && e.id != null && e.nombre).map(e => ({
+    id: String(e.id),
+    nombre: String(e.nombre),
+    sector: e.sector || "",
+    modulos: (e.modules && e.modules.length ? e.modules : [e.module]).filter(Boolean),
+    baja: e.fechaBaja || "",
+    archivado: !!e.archivado
+  }));
+  const snap = await firebase.firestore().collection("appData").doc(CARGA_CFG_DOC).get();
+  const lista = snap.exists && Array.isArray(snap.data().proyectos) ? snap.data().proyectos : [];
+  const ddnSet = new Set((snap.exists && snap.data().ddnProyectos || []).map(cargaNorm));
+  const reclSet = cargaReclSet(snap.exists ? snap.data() : {});
+  const proyectos = lista.filter(p => p && p.cod && p.nom).map(p => ({
+    cod: String(p.cod),
+    nombre: String(p.nom),
+    sector: p.sector || "",
+    estado: p.estado || "",
+    cliente: p.cliente || "",
+    categoria: cargaEsRecl(reclSet, p.cod, p.nom) ? "Proyecto" : cargaCategoria(p.nom, ddnSet)
+  }));
+  return {
+    personas,
+    proyectos,
+    crearPersonas: STAFFING_CREAR_PERSONAS
+  };
+};
 const StaffingView = ({
   onHome,
-  onLogout
+  onLogout,
+  empleados
 }) => {
   const frameRef = useRef(null);
+  const empRef = useRef(empleados);
+  empRef.current = empleados;
   const [cargando, setCargando] = useState(true);
   useEffect(() => {
     const onMessage = async event => {
@@ -10534,6 +10567,26 @@ const StaffingView = ({
       // La actividad dentro del iframe no llega a este documento: se cuenta para el cierre por inactividad (15 min)
       if (data.type === "activity") {
         if (typeof window.resetInactivity === "function") window.resetInactivity();
+        return;
+      }
+      if (data.type === "need-sync") {
+        let respuesta;
+        try {
+          respuesta = {
+            type: "datos",
+            ...(await staffingPayload(empRef.current))
+          };
+        } catch (e) {
+          console.error("Staffing: no se han podido preparar las personas y los proyectos", e);
+          respuesta = {
+            type: "datos",
+            error: "No se han podido leer los datos de Gestión de empleados / Gestión de carga."
+          };
+        }
+        frame.contentWindow.postMessage({
+          channel: STAFFING_CHANNEL,
+          ...respuesta
+        }, STAFFING_ORIGIN);
         return;
       }
       if (data.type !== "need-token") return;
@@ -13956,6 +14009,7 @@ function App() {
     onLogout: () => window.doLogout()
   });
   if (appScreen === "staffing") return React.createElement(StaffingView, {
+    empleados: employees,
     onHome: () => setAppScreen("home"),
     onLogout: () => window.doLogout()
   });
