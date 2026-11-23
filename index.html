@@ -10552,7 +10552,8 @@ const staffingPayload = async empleados => {
 const StaffingView = ({
   onHome,
   onLogout,
-  empleados
+  empleados,
+  soloStaffing
 }) => {
   const frameRef = useRef(null);
   const empRef = useRef(empleados);
@@ -10570,6 +10571,15 @@ const StaffingView = ({
         return;
       }
       if (data.type === "need-sync") {
+        // Usuario «solo Staffing»: no puede (ni debe) leer Gestión de empleados / Gestión de carga; Staffing sigue con los últimos datos sincronizados
+        if (soloStaffing) {
+          frame.contentWindow.postMessage({
+            channel: STAFFING_CHANNEL,
+            type: "datos",
+            omitir: true
+          }, STAFFING_ORIGIN);
+          return;
+        }
         let respuesta;
         try {
           respuesta = {
@@ -13511,6 +13521,29 @@ function App() {
   const [canAutoSave, setCanAutoSave] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [retryTick, setRetryTick] = useState(0);
+  // Rol del usuario: null = comprobando · "completo" = todo (como siempre) · "staffing" = solo Staffing
+  const [rolUsuario, setRolUsuario] = useState(null);
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      let rol = "completo";
+      try {
+        const u = window._auth && window._auth.currentUser;
+        const email = u && u.email ? String(u.email).trim().toLowerCase() : "";
+        if (email) {
+          const d = await firebase.firestore().collection("authorizedUsers").doc(email).get();
+          if (d.exists && d.data() && d.data().rol === "staffing") rol = "staffing";
+        }
+      } catch (e) {
+        // Sin documento de rol legible → comportamiento de siempre; los datos los protegen las reglas de Firestore, no esta pantalla
+        console.warn("No se ha podido leer el rol del usuario; se asume acceso completo.", e);
+      }
+      if (vivo) setRolUsuario(rol);
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, [retryTick]);
   const remoteApplyRef = useRef(false);
   const [modules, setModules] = useState([QM_MODULE]);
   const [evaluators, setEvaluators] = useState(["Evaluador 1", "Evaluador 2"]);
@@ -13546,6 +13579,7 @@ function App() {
   const [viewOp, setViewOp] = useState("eval-op");
   const [editingEntry, setEditingEntry] = useState(null);
   useEffect(() => {
+    if (rolUsuario !== "completo") return;
     (async () => {
       let empOk = false;
       let cfgOk = false;
@@ -13660,7 +13694,7 @@ function App() {
       setCanAutoSave(empOk && cfgOk);
       setLoadError(!(empOk && cfgOk));
     })();
-  }, [retryTick]);
+  }, [retryTick, rolUsuario]);
   // --- Sincronización en tiempo real: escucha cambios de otras sesiones/usuarios ---
   // Solo se activa una vez la carga inicial ha sido fiable (canAutoSave). Cada cambio recibido
   // se marca con remoteApplyRef para que el efecto de guardado de abajo NO lo vuelva a escribir
@@ -13939,7 +13973,12 @@ function App() {
       setEvalHistory(prev => prev.filter((_, i) => i !== fallbackIdx));
     }
   };
-  if (!dataReady) return React.createElement("div", {
+  if (rolUsuario === "staffing") return React.createElement(StaffingView, {
+    empleados: [],
+    soloStaffing: true,
+    onLogout: () => window.doLogout()
+  });
+  if (rolUsuario === null || !dataReady) return React.createElement("div", {
     style: {
       padding: "20px",
       textAlign: "center"
