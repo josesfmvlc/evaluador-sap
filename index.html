@@ -52,6 +52,11 @@
           style="background:#2563eb;color:white;border:none;border-radius:9px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px;">
           Entrar
         </button>
+        <div id="login-info" role="status" style="font-size:12px;color:#15803d;min-height:16px;text-align:center;"></div>
+        <button type="button" onclick="doReset()"
+          style="background:none;border:none;color:#2563eb;font-size:12px;font-weight:600;cursor:pointer;text-decoration:underline;margin-top:-8px;">
+          ¿Has olvidado tu contraseña?
+        </button>
       </div>
     </div>
   </div>
@@ -111,7 +116,7 @@ const hbBrand = (label = "Gestión Saphia") => React.createElement("div", {
     textOverflow: "ellipsis"
   }
 }, label));
-// Barra superior común a todas las apps: [🏠 |] logo + título de la app ...... [Cerrar sesión]
+// Barra superior común a todas las apps: [🏠 |] logo + título de la app ...... [🔑 Contraseña] [Cerrar sesión]
 const HbShellBar = ({
   title = "Gestión Saphia",
   onHome,
@@ -156,7 +161,28 @@ const HbShellBar = ({
     background: "rgba(255,255,255,0.3)",
     flexShrink: 0
   }
-}), hbBrand(title)), onLogout && React.createElement("button", {
+}), hbBrand(title)), onLogout && React.createElement("div", {
+  style: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    flexShrink: 0
+  }
+}, React.createElement("button", {
+  onClick: () => window.openChangePassword && window.openChangePassword(),
+  title: "Cambiar mi contraseña",
+  style: {
+    background: "rgba(255,255,255,0.12)",
+    border: "1px solid rgba(255,255,255,0.3)",
+    color: "white",
+    borderRadius: "6px",
+    padding: "5px 14px",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
+    flexShrink: 0
+  }
+}, "🔑 Contraseña"), React.createElement("button", {
   onClick: onLogout,
   style: {
     background: "rgba(255,255,255,0.12)",
@@ -169,7 +195,7 @@ const HbShellBar = ({
     cursor: "pointer",
     flexShrink: 0
   }
-}, "Cerrar sesión"));
+}, "Cerrar sesión")));
 const C = {
   bg: "#f0f4f8",
   card: "#ffffff",
@@ -14672,8 +14698,136 @@ function App() {
     const pass = document.getElementById('login-pass').value;
     const errEl = document.getElementById('login-error');
     errEl.textContent = '';
+    document.getElementById('login-info').textContent = '';
     _auth.signInWithEmailAndPassword(email, pass)
       .catch(() => { errEl.textContent = 'Credenciales incorrectas'; });
+  }
+
+  // ===== Restablecer contraseña desde el login (2026-11-24) =====
+  // Mensaje deliberadamente genérico: no revela si el email tiene cuenta.
+  function doReset() {
+    const email = document.getElementById('login-email').value.trim();
+    const errEl = document.getElementById('login-error');
+    const infoEl = document.getElementById('login-info');
+    errEl.textContent = ''; infoEl.textContent = '';
+    if (!email) { errEl.textContent = 'Escribe tu email y pulsa de nuevo «¿Has olvidado tu contraseña?».'; return; }
+    _auth.sendPasswordResetEmail(email).then(function() {
+      infoEl.textContent = 'Si el email tiene cuenta, recibirás un correo para elegir una contraseña nueva. Revisa también el spam.';
+    }).catch(function(e) {
+      const c = e && e.code;
+      if (c === 'auth/network-request-failed') errEl.textContent = 'No hay conexión. Inténtalo de nuevo.';
+      else if (c === 'auth/too-many-requests') errEl.textContent = 'Demasiados intentos. Espera unos minutos.';
+      else if (c === 'auth/invalid-email') errEl.textContent = 'Revisa el formato del email.';
+      else infoEl.textContent = 'Si el email tiene cuenta, recibirás un correo para elegir una contraseña nueva. Revisa también el spam.';
+    });
+  }
+
+  // ===== Cambio de contraseña dentro de la app (2026-11-24) =====
+  // Reautentica con la contraseña actual (Firebase lo exige) y cambia. Primer acceso = cambio obligatorio.
+  const PWD_MIN = 8;
+  let pwdEl = null;
+  let pwdBusy = false;
+
+  function pwdValidate(cur, nw, rep) {
+    if (!cur) return 'Escribe tu contraseña actual.';
+    if (nw.length < PWD_MIN) return 'La nueva contraseña debe tener al menos ' + PWD_MIN + ' caracteres.';
+    if (nw === cur) return 'La nueva contraseña debe ser distinta de la actual.';
+    if (nw !== rep) return 'Las dos contraseñas nuevas no coinciden.';
+    return '';
+  }
+  function pwdMsg(code) {
+    switch (code) {
+      case 'auth/wrong-password': case 'auth/invalid-credential': case 'auth/invalid-login-credentials':
+        return 'La contraseña actual no es correcta.';
+      case 'auth/weak-password': return 'La nueva contraseña es demasiado débil. Usa al menos ' + PWD_MIN + ' caracteres.';
+      case 'auth/too-many-requests': return 'Demasiados intentos fallidos. Espera unos minutos y vuelve a probar.';
+      case 'auth/network-request-failed': return 'No hay conexión. Comprueba tu red e inténtalo de nuevo.';
+      case 'auth/requires-recent-login': return 'Por seguridad, cierra sesión, vuelve a entrar y repite el cambio.';
+      default: return 'No se ha podido cambiar la contraseña. Inténtalo de nuevo.';
+    }
+  }
+  // Marca (en Firestore) que este usuario ya eligió su contraseña. Nunca rechaza: si falla, el cambio de contraseña ya está hecho.
+  function markPwdChanged() {
+    try {
+      const email = String(_auth.currentUser.email || '').trim().toLowerCase();
+      return Promise.resolve(_db.collection('passwordStatus').doc(email).set({ changedAt: firebase.firestore.FieldValue.serverTimestamp() })).catch(function(e) { console.warn('No se pudo registrar el cambio de contraseña.', e); });
+    } catch (e) { return Promise.resolve(); }
+  }
+  function closePwdModal() {
+    if (pwdEl) { pwdEl.remove(); pwdEl = null; }
+    pwdBusy = false;
+  }
+  function openPwdModal(forced) {
+    if (!_auth.currentUser || pwdEl) return;
+    pwdEl = document.createElement('div');
+    pwdEl.id = 'pwd-modal';
+    pwdEl.setAttribute('role', 'dialog');
+    pwdEl.setAttribute('aria-modal', 'true');
+    pwdEl.setAttribute('aria-labelledby', 'pwd-title');
+    pwdEl.style.cssText = 'position:fixed;inset:0;z-index:99990;background:rgba(15,23,42,0.5);display:flex;align-items:center;justify-content:center;font-family:Inter,system-ui,-apple-system,sans-serif;';
+    const inp = 'width:100%;padding:10px 14px;border:1.5px solid #dde3ea;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;color:#1a2332;';
+    const lbl = 'display:block;font-size:12px;font-weight:600;color:#4a5568;margin-bottom:6px;';
+    pwdEl.innerHTML =
+      '<div style="background:white;border-radius:16px;padding:28px 32px;width:400px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.25);">' +
+        '<div style="text-align:center;font-size:30px;margin-bottom:6px;">🔑</div>' +
+        '<div id="pwd-title" style="text-align:center;font-size:18px;font-weight:800;color:#1a2332;margin-bottom:6px;">' + (forced ? 'Elige tu contraseña' : 'Cambiar contraseña') + '</div>' +
+        '<div style="text-align:center;font-size:13px;color:#4a5568;margin-bottom:18px;">' +
+          (forced ? 'Es tu primer acceso. Antes de continuar, elige una contraseña personal (la actual es la que te han dado).' : 'Escribe la actual y elige una nueva (mínimo ' + PWD_MIN + ' caracteres).') + '</div>' +
+        '<div style="display:flex;flex-direction:column;gap:12px;">' +
+          '<div><label for="pwd-cur" style="' + lbl + '">Contraseña actual</label><input id="pwd-cur" type="password" autocomplete="current-password" style="' + inp + '"/></div>' +
+          '<div><label for="pwd-new" style="' + lbl + '">Nueva contraseña</label><input id="pwd-new" type="password" autocomplete="new-password" style="' + inp + '"/></div>' +
+          '<div><label for="pwd-rep" style="' + lbl + '">Repite la nueva contraseña</label><input id="pwd-rep" type="password" autocomplete="new-password" style="' + inp + '"/></div>' +
+          '<label style="font-size:12px;color:#4a5568;display:flex;align-items:center;gap:6px;cursor:pointer;"><input id="pwd-show" type="checkbox"/> Mostrar contraseñas</label>' +
+          '<div id="pwd-err" role="alert" style="font-size:12px;color:#dc2626;min-height:16px;"></div>' +
+          '<div id="pwd-ok" role="status" style="font-size:13px;font-weight:600;color:#15803d;"></div>' +
+          '<button id="pwd-save" type="button" style="background:#2563eb;color:white;border:none;border-radius:9px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;">Guardar contraseña</button>' +
+          '<button id="pwd-cancel" type="button" style="background:none;border:none;color:#4a5568;font-size:13px;font-weight:600;cursor:pointer;padding:4px;">' + (forced ? 'Cerrar sesión' : 'Cancelar') + '</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(pwdEl);
+    const $ = function(id) { return document.getElementById(id); };
+    const showErr = function(t) { $('pwd-err').textContent = t || ''; };
+    $('pwd-show').addEventListener('change', function(ev) {
+      ['pwd-cur', 'pwd-new', 'pwd-rep'].forEach(function(id) { $(id).type = ev.target.checked ? 'text' : 'password'; });
+    });
+    $('pwd-cancel').addEventListener('click', function() { if (forced) { closePwdModal(); _auth.signOut(); } else closePwdModal(); });
+    pwdEl.addEventListener('keydown', function(ev) {
+      if (ev.key === 'Enter') { ev.preventDefault(); $('pwd-save').click(); }
+      else if (ev.key === 'Escape' && !forced && !pwdBusy) closePwdModal();
+    });
+    $('pwd-save').addEventListener('click', function() {
+      if (pwdBusy) return;
+      showErr('');
+      const cur = $('pwd-cur').value, nw = $('pwd-new').value, rp = $('pwd-rep').value;
+      const bad = pwdValidate(cur, nw, rp);
+      if (bad) { showErr(bad); return; }
+      const user = _auth.currentUser;
+      if (!user || !user.email) { showErr('No hay sesión iniciada.'); return; }
+      pwdBusy = true;
+      const btn = $('pwd-save'); btn.disabled = true; btn.textContent = 'Guardando…';
+      let ok = false;
+      user.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(user.email, cur))
+        .then(function() { return user.updatePassword(nw); })
+        .then(function() { ok = true; return markPwdChanged(); })
+        .then(function() {
+          $('pwd-ok').textContent = 'Contraseña cambiada correctamente.';
+          $('pwd-cancel').style.display = 'none';
+          setTimeout(closePwdModal, 1400);
+        })
+        .catch(function(e) { showErr(pwdMsg(e && e.code)); })
+        .then(function() { if (!ok && pwdEl) { pwdBusy = false; btn.disabled = false; btn.textContent = 'Guardar contraseña'; } });
+    });
+    try { $('pwd-cur').focus(); } catch (e) {}
+  }
+  // Primer acceso: sin passwordStatus/{email} → cambio obligatorio. Cualquier fallo de lectura = no se bloquea a nadie.
+  function checkFirstAccess(user) {
+    try {
+      const email = String(user.email || '').trim().toLowerCase();
+      if (!email) return;
+      Promise.resolve(_db.collection('passwordStatus').doc(email).get()).then(function(d) {
+        if (!d.exists && _auth.currentUser && _auth.currentUser.uid === user.uid) openPwdModal(true);
+      }).catch(function(e) { console.warn('No se pudo comprobar el primer acceso; no se bloquea.', e); });
+    } catch (e) {}
   }
 
   const root = ReactDOM.createRoot(document.getElementById('root'));
@@ -14686,8 +14840,10 @@ function App() {
       document.getElementById('login-screen').style.display = 'none';
       document.getElementById('root').style.display = 'block';
       root.render(React.createElement(App, null));
+      checkFirstAccess(user);
     } else {
       hideInactivityWarning();
+      closePwdModal();
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('root').style.display = 'none';
       if (hadUser && Date.now() - getLastActivity() >= INACTIVITY_TIMEOUT) {
@@ -14698,6 +14854,7 @@ function App() {
   });
 
   window.doLogout = function() { _auth.signOut(); };
+  window.openChangePassword = function() { openPwdModal(false); };
   window._db = _db;
   window._auth = _auth;
 
