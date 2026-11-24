@@ -9891,6 +9891,11 @@ const CargaAjustesModal = ({
   }, guardando ? "Guardando..." : "Guardar")));
 };
 // ---------- Vista principal ----------
+// Etiqueta de proyecto para filtrar: «código · Nombre» (como en Staffing); sin código, solo el nombre
+const cargaProyLabel = d => {
+  const n = d.pro || "";
+  return d.cod && n ? d.cod + " · " + n : n || d.cod || "(sin proyecto)";
+};
 const GestionCargaView = ({
   onBack,
   onLogout,
@@ -9915,6 +9920,8 @@ const GestionCargaView = ({
   const [fModulo, setFModulo] = useState([]);
   const [fSector, setFSector] = useState([]);
   const [fMes, setFMes] = useState([]);
+  const [fProyecto, setFProyecto] = useState([]);
+  const mesPorDefecto = useRef(false); // el mes actual se fija una sola vez, al entrar
   const [agrupar, setAgrupar] = useState("persona");
   const [abierta, setAbierta] = useState(null);
   const [dispAbierta, setDispAbierta] = useState(null); // fila con el reparto de la disponibilidad desplegado
@@ -9967,7 +9974,15 @@ const GestionCargaView = ({
   const optPersona = useMemo(() => uniq(datos.filter(d => (!fSector.length || fSector.includes(d.sector)) && (!fModulo.length || fModulo.includes(d.modulo))).map(d => d.persona)), [datos, fSector, fModulo]);
   const mesesOrden = useMemo(() => [...new Set(datos.map(d => d.mes))].sort(), [datos]);
   const optMes = mesesOrden.map(cargaMesLabel);
-  const filtrados = useMemo(() => datos.filter(d => (!fPersona.length || fPersona.includes(d.persona)) && (!fModulo.length || fModulo.includes(d.modulo)) && (!fSector.length || fSector.includes(d.sector)) && (!fMes.length || fMes.includes(cargaMesLabel(d.mes)))), [datos, fPersona, fModulo, fSector, fMes]);
+  const optProyecto = useMemo(() => uniq([...datos.filter(d => (!fSector.length || fSector.includes(d.sector)) && (!fModulo.length || fModulo.includes(d.modulo)) && (!fPersona.length || fPersona.includes(d.persona)) && (!fMes.length || fMes.includes(cargaMesLabel(d.mes)))).map(cargaProyLabel), ...fProyecto]), [datos, fSector, fModulo, fPersona, fMes, fProyecto]);
+  // Al entrar, filtrado por el mes actual (o, si aún no hay datos de ese mes, por el último con datos)
+  useEffect(() => {
+    if (estado !== "ok" || mesPorDefecto.current || !mesesOrden.length) return;
+    mesPorDefecto.current = true;
+    const actual = cargaMesActual();
+    setFMes([cargaMesLabel(mesesOrden.includes(actual) ? actual : mesesOrden[mesesOrden.length - 1])]);
+  }, [estado, mesesOrden]);
+  const filtrados = useMemo(() => datos.filter(d => (!fPersona.length || fPersona.includes(d.persona)) && (!fModulo.length || fModulo.includes(d.modulo)) && (!fSector.length || fSector.includes(d.sector)) && (!fProyecto.length || fProyecto.includes(cargaProyLabel(d))) && (!fMes.length || fMes.includes(cargaMesLabel(d.mes)))), [datos, fPersona, fModulo, fSector, fMes, fProyecto]);
   // Para la presentación del trimestre: solo filtros de sector y módulo (nunca por persona ni por mes)
   const datosBase = useMemo(() => datos.filter(d => (!fModulo.length || fModulo.includes(d.modulo)) && (!fSector.length || fSector.includes(d.sector))), [datos, fModulo, fSector]);
   const totales = useMemo(() => cargaSumar(filtrados), [filtrados]);
@@ -9991,12 +10006,13 @@ const GestionCargaView = ({
     })).sort((a, b) => a.nombre.localeCompare(b.nombre, "es") || a.mes.localeCompare(b.mes));
   }, [filtrados, agrupar]);
   const nPersonas = useMemo(() => new Set(filtrados.map(d => d.persona)).size, [filtrados]);
-  const hayFiltros = fPersona.length || fModulo.length || fSector.length || fMes.length;
+  const hayFiltros = fPersona.length || fModulo.length || fSector.length || fMes.length || fProyecto.length;
   const limpiar = () => {
     setFPersona([]);
     setFModulo([]);
     setFSector([]);
     setFMes([]);
+    setFProyecto([]);
   };
   const recargar = () => {
     setShowImport(false);
@@ -10235,6 +10251,11 @@ const GestionCargaView = ({
       options: optPersona,
       selected: fPersona,
       onChange: setFPersona
+    }), React.createElement(MultiSelectDropdown, {
+      label: "Proyecto",
+      options: optProyecto,
+      selected: fProyecto,
+      onChange: setFProyecto
     }), React.createElement(MultiSelectDropdown, {
       label: "Mes",
       options: optMes,
@@ -10479,7 +10500,7 @@ const GestionCargaView = ({
       }
     }, "Disponibilidad = Disponibilidad + Formación SAP + Formación no SAP + Onboarding + Gestión de Equipos. ", "Vacaciones / Bajas = Vacaciones + Bajas y ausencias. Otros = Becarios + Genérica + Management & Operation. Proyecto + Disponibilidad + Desarrollo de Negocio + Vacaciones / Bajas + Otros = 100 % de las horas. ", "Semáforo de disponibilidad: verde ≤ 30 %, ámbar 30-40 %, rojo > 40 %. ", "Pulsa una tarjeta para ver las imputaciones de ese concepto con los filtros actuales; el % Disp. de una fila muestra a qué conceptos de disponibilidad se debe. ", "Los proyectos reclasificados (⚙️ Ajustes) cuentan como Proyecto. ", archivados.length > 0 ? "Las personas archivadas en Gestión de empleados cuentan hasta su fecha de baja (incluida). " : "", agrupar === "persona" ? " Pulsa una fila para ver el desglose por proyecto." : ""));
     const describir = (sel, todos) => sel.length ? sel.join(", ") : todos;
-    const filtrosTexto = [describir(fSector, "Todos los sectores"), describir(fModulo, "todos los módulos"), fPersona.length ? `${fPersona.length} persona${fPersona.length === 1 ? "" : "s"}` : "todas las personas", describir(fMes, "todos los meses")].join(" · ");
+    const filtrosTexto = [describir(fSector, "Todos los sectores"), describir(fModulo, "todos los módulos"), fPersona.length ? `${fPersona.length} persona${fPersona.length === 1 ? "" : "s"}` : "todas las personas", fProyecto.length ? `${fProyecto.length} proyecto${fProyecto.length === 1 ? "" : "s"}` : "todos los proyectos", describir(fMes, "todos los meses")].join(" · ");
     cuerpo = React.createElement(React.Fragment, null, filtros, vista === "kpis" ? React.createElement(CargaKpisView, {
       datos: filtrados,
       datosBase,
