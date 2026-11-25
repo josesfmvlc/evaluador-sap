@@ -3852,7 +3852,7 @@ const EmployeesView = ({
 // Esta vista lee y escribe solo esos documentos; no toca appData/employees ni appData/config.
 // Modo pruebas: abriendo la app con ?pruebas=1 se usan documentos aparte (appData/pruebas_carga_*), sin tocar los reales
 // Presentación: solo invertir cuando la coma identifica apellidos y nombre de forma inequívoca.
-const nombreVisible = nombre => { const t = String(nombre == null ? "" : nombre).trim(); const partes = t.split(","); return partes.length === 2 && partes[0].trim() && partes[1].trim() ? partes[1].trim() + " " + partes[0].trim() : t; };
+const nombreVisible = nombre => { const t = String(nombre == null ? "" : nombre).replace(/n~(?=[aáeéiíoóuú])/gi, m => m[0] === "N" ? "Ñ" : "ñ").normalize("NFC").trim(); const partes = t.split(","); return partes.length === 2 && partes[0].trim() && partes[1].trim() ? partes[1].trim() + " " + partes[0].trim() : t; };
 const CARGA_PRUEBAS = typeof location !== "undefined" && /[?&]pruebas=1(&|$)/.test(location.search);
 const CARGA_PREFIJO = CARGA_PRUEBAS ? "pruebas_" : "";
 const CARGA_CFG_DOC = CARGA_PREFIJO + "carga_cfg";
