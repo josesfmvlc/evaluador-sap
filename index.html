@@ -6488,21 +6488,14 @@ const HB = {
 const cargaHex = c => c.replace("#", "").toUpperCase();
 const cargaCorta = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
 const cargaCrearPPT = (datosBase, trim, alcance, hayMapeoProyectos) => {
-  const FT = "Montserrat",
-    FB = "Lato";
+  const FT = "Montserrat", FB = "Lato";
   const datosQ = datosBase.filter(d => trim.meses.includes(d.mes));
   const an = cargaAnalisis(datosQ, hayMapeoProyectos, "9999-99"); // trimestre cerrado: el mes de referencia es su último mes
   const tQ = cargaSumar(datosQ);
-  const qPrevMeses = (() => {
-    const q = trim.q === 1 ? 4 : trim.q - 1,
-      a = trim.q === 1 ? String(+trim.anio - 1) : trim.anio;
-    return [0, 1, 2].map(i => `${a}-${String((q - 1) * 3 + 1 + i).padStart(2, "0")}`);
-  })();
-  const datosPrev = datosBase.filter(d => qPrevMeses.includes(d.mes));
-  const tPrevQ = datosPrev.length ? cargaSumar(datosPrev) : null;
-  const prevLabel = `T${trim.q === 1 ? 4 : trim.q - 1}`;
+  // No se comparan selecciones arbitrarias con un periodo distinto.
+  const tPrevQ = null, prevLabel = "período anterior";
   const fteMedio = trim.meses.reduce((s, m) => s + (an.mediana[m] ? an.tMes[m].disp / an.mediana[m] : 0), 0) / trim.meses.length;
-  const ctxMeses = [...new Set(datosBase.map(d => d.mes))].filter(m => m <= trim.meses[trim.meses.length - 1]).sort().slice(-6);
+  const ctxMeses = trim.meses;
   const tCtx = Object.fromEntries(ctxMeses.map(m => [m, cargaSumar(datosBase.filter(d => d.mes === m))]));
   const modulos = an.dims.modulo.filter(e => e.label !== "Sin mapear" && e.tot.total >= 100);
   const sectores = an.dims.sector.filter(e => e.label !== "Sin mapear" && e.tot.total >= 50).sort((a, b) => b.tot.total - a.tot.total);
@@ -6513,352 +6506,66 @@ const cargaCrearPPT = (datosBase, trim, alcance, hayMapeoProyectos) => {
   pptx.title = `Gestión de carga · Resultados ${trim.label}`;
   const pie = `Gestión de carga · Resultados ${trim.label} · ${alcance}`;
   pptx.defineSlideMaster({
-    title: "HB_BASE",
-    background: {
-      color: HB.ice
-    },
-    objects: [{
-      rect: {
-        x: 0,
-        y: 7.08,
-        w: 13.333,
-        h: 0.02,
-        fill: {
-          color: HB.sky
-        }
-      }
-    }, {
-      text: {
-        text: pie,
-        options: {
-          x: 0.5,
-          y: 7.12,
-          w: 10,
-          h: 0.3,
-          fontFace: FB,
-          fontSize: 9,
-          color: HB.slate
-        }
-      }
-    }],
-    slideNumber: {
-      x: 12.4,
-      y: 7.12,
-      w: 0.5,
-      h: 0.3,
-      fontFace: FB,
-      fontSize: 9,
-      color: HB.slate,
-      align: "right"
-    }
+    title: "HB_BASE", background: { color: HB.ice },
+    objects: [
+      { rect: { x: 0, y: 7.08, w: 13.333, h: 0.02, fill: { color: HB.sky } } },
+      { text: { text: pie, options: { x: 0.5, y: 7.12, w: 10, h: 0.3, fontFace: FB, fontSize: 9, color: HB.slate } } }
+    ],
+    slideNumber: { x: 12.4, y: 7.12, w: 0.5, h: 0.3, fontFace: FB, fontSize: 9, color: HB.slate, align: "right" }
   });
-  const nueva = () => pptx.addSlide({
-    masterName: "HB_BASE"
-  });
+  const nueva = () => pptx.addSlide({ masterName: "HB_BASE" });
   const titulo = (s, t, sub) => {
-    s.addShape(pptx.ShapeType.rect, {
-      x: 0.5,
-      y: 0.42,
-      w: 0.07,
-      h: 0.62,
-      fill: {
-        color: HB.turq
-      },
-      line: {
-        color: HB.turq,
-        width: 0
-      }
-    });
-    s.addText(t, {
-      x: 0.72,
-      y: 0.34,
-      w: 12,
-      h: 0.55,
-      fontFace: FT,
-      fontSize: 24,
-      bold: true,
-      color: HB.deep,
-      margin: 0
-    });
-    if (sub) s.addText(sub, {
-      x: 0.72,
-      y: 0.86,
-      w: 12,
-      h: 0.32,
-      fontFace: FB,
-      fontSize: 12,
-      color: HB.slate,
-      margin: 0
-    });
+    s.addShape(pptx.ShapeType.rect, { x: 0.5, y: 0.42, w: 0.07, h: 0.62, fill: { color: HB.turq }, line: { color: HB.turq, width: 0 } });
+    s.addText(t, { x: 0.72, y: 0.34, w: 12, h: 0.55, fontFace: FT, fontSize: 24, bold: true, color: HB.deep, margin: 0 });
+    if (sub) s.addText(sub, { x: 0.72, y: 0.86, w: 12, h: 0.32, fontFace: FB, fontSize: 12, color: HB.slate, margin: 0 });
   };
-  const tarjeta = (s, x, y, w, h, fill = HB.white, linea = HB.sky) => s.addShape(pptx.ShapeType.roundRect, {
-    x,
-    y,
-    w,
-    h,
-    rectRadius: 0.08,
-    fill: {
-      color: fill
-    },
-    line: {
-      color: linea,
-      width: 1
-    }
-  });
-  const pctTxt = v => v == null ? "—" : (v * 100).toLocaleString("es-ES", {
-    maximumFractionDigits: 1
-  }) + "%";
+  const tarjeta = (s, x, y, w, h, fill = HB.white, linea = HB.sky) => s.addShape(pptx.ShapeType.roundRect, { x, y, w, h, rectRadius: 0.08, fill: { color: fill }, line: { color: linea, width: 1 } });
+  const pctTxt = v => v == null ? "—" : (v * 100).toLocaleString("es-ES", { maximumFractionDigits: 1 }) + "%";
   const deltaTxt = (a, b, sentido, pp = true) => {
     if (a == null || b == null) return null;
-    const d = pp ? (a - b) * 100 : b ? (a / b - 1) * 100 : 0;
-    if (Math.abs(d) < 0.05) return {
-      text: `= vs ${prevLabel}`,
-      color: HB.slate
-    };
-    const bueno = sentido === 0 ? null : d > 0 === sentido > 0;
-    return {
-      text: `${d > 0 ? "▲" : "▼"} ${Math.abs(Math.round(d * 10) / 10).toLocaleString("es-ES")}${pp ? " pp" : " %"} vs ${prevLabel}`,
-      color: bueno == null ? HB.slate : bueno ? "006300" : "D03B3B"
-    };
+    const d = pp ? (a - b) * 100 : (b ? (a / b - 1) * 100 : 0);
+    if (Math.abs(d) < 0.05) return { text: `= vs ${prevLabel}`, color: HB.slate };
+    const bueno = sentido === 0 ? null : (d > 0) === (sentido > 0);
+    return { text: `${d > 0 ? "▲" : "▼"} ${Math.abs(Math.round(d * 10) / 10).toLocaleString("es-ES")}${pp ? " pp" : " %"} vs ${prevLabel}`, color: bueno == null ? HB.slate : bueno ? "006300" : "D03B3B" };
   };
-  const ejes = {
-    catAxisLabelFontFace: FB,
-    catAxisLabelFontSize: 11,
-    catAxisLabelColor: HB.slate,
-    valAxisLabelFontFace: FB,
-    valAxisLabelFontSize: 10,
-    valAxisLabelColor: "898781",
-    valGridLine: {
-      color: "E1E0D9",
-      size: 0.5
-    },
-    catGridLine: {
-      style: "none"
-    },
-    catAxisLineShow: false,
-    valAxisLineShow: false,
-    legendFontFace: FB,
-    legendFontSize: 11,
-    legendColor: HB.deep
-  };
+  const ejes = { catAxisLabelFontFace: FB, catAxisLabelFontSize: 11, catAxisLabelColor: HB.slate, valAxisLabelFontFace: FB, valAxisLabelFontSize: 10, valAxisLabelColor: "898781", valGridLine: { color: "E1E0D9", size: 0.5 }, catGridLine: { style: "none" }, catAxisLineShow: false, valAxisLineShow: false, legendFontFace: FB, legendFontSize: 11, legendColor: HB.deep };
   const coloresGrupo = CARGA_GRUPOS.map(g => cargaHex(g.color));
   // 1. Portada
   let s = pptx.addSlide();
-  s.background = {
-    color: HB.deep
-  };
-  s.addShape(pptx.ShapeType.ellipse, {
-    x: 8.6,
-    y: -1.6,
-    w: 6.4,
-    h: 6.4,
-    fill: {
-      color: HB.primary,
-      transparency: 35
-    },
-    line: {
-      color: HB.primary,
-      width: 0
-    }
-  });
-  s.addShape(pptx.ShapeType.ellipse, {
-    x: 10.6,
-    y: 3.4,
-    w: 4.2,
-    h: 4.2,
-    fill: {
-      color: HB.violet,
-      transparency: 45
-    },
-    line: {
-      color: HB.violet,
-      width: 0
-    }
-  });
-  s.addShape(pptx.ShapeType.ellipse, {
-    x: 9.3,
-    y: 4.6,
-    w: 1.1,
-    h: 1.1,
-    fill: {
-      color: HB.turq
-    },
-    line: {
-      color: HB.turq,
-      width: 0
-    }
-  });
-  s.addShape(pptx.ShapeType.rect, {
-    x: 0.8,
-    y: 2.35,
-    w: 1.2,
-    h: 0.08,
-    fill: {
-      color: HB.turq
-    },
-    line: {
-      color: HB.turq,
-      width: 0
-    }
-  });
-  s.addText("Gestión de carga", {
-    x: 0.8,
-    y: 1.6,
-    w: 8,
-    h: 0.6,
-    fontFace: FB,
-    fontSize: 18,
-    color: HB.sky,
-    margin: 0
-  });
-  s.addText(`Resultados del trimestre`, {
-    x: 0.8,
-    y: 2.6,
-    w: 8.2,
-    h: 1.0,
-    fontFace: FT,
-    fontSize: 44,
-    bold: true,
-    color: HB.white,
-    margin: 0
-  });
-  s.addText(`${trim.label} · ${trim.rango}`, {
-    x: 0.8,
-    y: 3.6,
-    w: 8,
-    h: 0.7,
-    fontFace: FT,
-    fontSize: 28,
-    color: HB.turq,
-    margin: 0
-  });
-  s.addText(`Alcance: ${alcance}`, {
-    x: 0.8,
-    y: 4.6,
-    w: 8,
-    h: 0.4,
-    fontFace: FB,
-    fontSize: 14,
-    color: HB.sky,
-    margin: 0
-  });
-  s.addText(`Generado el ${new Date().toLocaleDateString("es-ES")}${trim.completo ? "" : " · trimestre incompleto: datos parciales"}`, {
-    x: 0.8,
-    y: 6.5,
-    w: 8,
-    h: 0.35,
-    fontFace: FB,
-    fontSize: 11,
-    color: HB.sky,
-    margin: 0
-  });
+  s.background = { color: HB.deep };
+  s.addShape(pptx.ShapeType.ellipse, { x: 8.6, y: -1.6, w: 6.4, h: 6.4, fill: { color: HB.primary, transparency: 35 }, line: { color: HB.primary, width: 0 } });
+  s.addShape(pptx.ShapeType.ellipse, { x: 10.6, y: 3.4, w: 4.2, h: 4.2, fill: { color: HB.violet, transparency: 45 }, line: { color: HB.violet, width: 0 } });
+  s.addShape(pptx.ShapeType.ellipse, { x: 9.3, y: 4.6, w: 1.1, h: 1.1, fill: { color: HB.turq }, line: { color: HB.turq, width: 0 } });
+  s.addShape(pptx.ShapeType.rect, { x: 0.8, y: 2.35, w: 1.2, h: 0.08, fill: { color: HB.turq }, line: { color: HB.turq, width: 0 } });
+  s.addText("Gestión de carga", { x: 0.8, y: 1.6, w: 8, h: 0.6, fontFace: FB, fontSize: 18, color: HB.sky, margin: 0 });
+  s.addText(`Resultados del período`, { x: 0.8, y: 2.6, w: 8.2, h: 1.0, fontFace: FT, fontSize: 44, bold: true, color: HB.white, margin: 0 });
+  s.addText(`${trim.rango}`, { x: 0.8, y: 3.6, w: 8, h: 0.7, fontFace: FT, fontSize: 28, color: HB.turq, margin: 0 });
+  s.addText(`Alcance: ${alcance}`, { x: 0.8, y: 4.6, w: 8, h: 0.4, fontFace: FB, fontSize: 14, color: HB.sky, margin: 0 });
+  s.addText(`Generado el ${new Date().toLocaleDateString("es-ES")}${trim.meses.some(m => m >= cargaMesActual()) ? " · incluye mes en curso: datos parciales" : ""}`, { x: 0.8, y: 6.5, w: 8, h: 0.35, fontFace: FB, fontSize: 11, color: HB.sky, margin: 0 });
   // 2. El trimestre en cifras
   s = nueva();
-  titulo(s, "El trimestre en cifras", `${trim.label} (${trim.rango}) comparado con ${prevLabel}${tPrevQ ? "" : " (sin datos del trimestre anterior)"}`);
-  const cifras = [{
-    label: "Ocupación en proyecto",
-    valor: pctTxt(cargaPctDe(tQ, "proy")),
-    sub: `${cargaFmtH(tQ.proy)} h de proyecto`,
-    d: deltaTxt(cargaPctDe(tQ, "proy"), cargaPctDe(tPrevQ, "proy"), 1),
-    color: HB.primary
-  }, {
-    label: "Disponibilidad",
-    valor: pctTxt(cargaPctDe(tQ, "disp")),
-    sub: `${cargaFmtH(tQ.disp)} h sin asignar a proyecto`,
-    d: deltaTxt(cargaPctDe(tQ, "disp"), cargaPctDe(tPrevQ, "disp"), -1),
-    color: cargaHex(CV.disp)
-  }, {
-    label: "Capacidad libre media",
-    valor: fteMedio.toLocaleString("es-ES", {
-      maximumFractionDigits: 1
-    }),
-    sub: "personas a jornada completa / mes",
-    d: null,
-    color: HB.deep
-  }, {
-    label: "Desarrollo de Negocio",
-    valor: pctTxt(cargaPctDe(tQ, "ddn")),
-    sub: `${cargaFmtH(tQ.ddn)} h en preventa y DDN`,
-    d: deltaTxt(cargaPctDe(tQ, "ddn"), cargaPctDe(tPrevQ, "ddn"), 0),
-    color: cargaHex(CV.ddn)
-  }, {
-    label: "Vacaciones y bajas",
-    valor: pctTxt(cargaPctDe(tQ, "vac")),
-    sub: `${cargaFmtH(tQ.vac)} h`,
-    d: deltaTxt(cargaPctDe(tQ, "vac"), cargaPctDe(tPrevQ, "vac"), 0),
-    color: cargaHex(CV.vac)
-  }, {
-    label: "Horas imputadas",
-    valor: cargaFmtH(tQ.total),
-    sub: `${an.personas.length} personas · ${an.proyectos.lista.length} proyectos`,
-    d: deltaTxt(tQ.total, tPrevQ ? tPrevQ.total : null, 0, false),
-    color: HB.deep
-  }];
+  titulo(s, "El período en cifras", trim.rango);
+  const cifras = [
+    { label: "Ocupación en proyecto", valor: pctTxt(cargaPctDe(tQ, "proy")), sub: `${cargaFmtH(tQ.proy)} h de proyecto`, d: deltaTxt(cargaPctDe(tQ, "proy"), cargaPctDe(tPrevQ, "proy"), 1), color: HB.primary },
+    { label: "Disponibilidad", valor: pctTxt(cargaPctDe(tQ, "disp")), sub: `${cargaFmtH(tQ.disp)} h sin asignar a proyecto`, d: deltaTxt(cargaPctDe(tQ, "disp"), cargaPctDe(tPrevQ, "disp"), -1), color: cargaHex(CV.disp) },
+    { label: "Capacidad libre media", valor: fteMedio.toLocaleString("es-ES", { maximumFractionDigits: 1 }), sub: "personas a jornada completa / mes", d: null, color: HB.deep },
+    { label: "Desarrollo de Negocio", valor: pctTxt(cargaPctDe(tQ, "ddn")), sub: `${cargaFmtH(tQ.ddn)} h en preventa y DDN`, d: deltaTxt(cargaPctDe(tQ, "ddn"), cargaPctDe(tPrevQ, "ddn"), 0), color: cargaHex(CV.ddn) },
+    { label: "Vacaciones y bajas", valor: pctTxt(cargaPctDe(tQ, "vac")), sub: `${cargaFmtH(tQ.vac)} h`, d: deltaTxt(cargaPctDe(tQ, "vac"), cargaPctDe(tPrevQ, "vac"), 0), color: cargaHex(CV.vac) },
+    { label: "Horas imputadas", valor: cargaFmtH(tQ.total), sub: `${an.personas.length} personas · ${an.proyectos.lista.length} proyectos`, d: deltaTxt(tQ.total, tPrevQ ? tPrevQ.total : null, 0, false), color: HB.deep }
+  ];
   cifras.forEach((c, i) => {
-    const x = 0.5 + i % 3 * 4.15,
-      y = 1.55 + Math.floor(i / 3) * 2.7;
+    const x = 0.5 + (i % 3) * 4.15, y = 1.55 + Math.floor(i / 3) * 2.7;
     tarjeta(s, x, y, 3.95, 2.45);
-    s.addShape(pptx.ShapeType.rect, {
-      x: x + 0.3,
-      y: y + 0.35,
-      w: 0.45,
-      h: 0.06,
-      fill: {
-        color: c.color
-      },
-      line: {
-        color: c.color,
-        width: 0
-      }
-    });
-    s.addText(c.label, {
-      x: x + 0.3,
-      y: y + 0.45,
-      w: 3.4,
-      h: 0.4,
-      fontFace: FB,
-      fontSize: 13,
-      color: HB.slate,
-      margin: 0
-    });
-    s.addText(c.valor, {
-      x: x + 0.3,
-      y: y + 0.85,
-      w: 3.4,
-      h: 0.85,
-      fontFace: FT,
-      fontSize: 40,
-      bold: true,
-      color: HB.deep,
-      margin: 0
-    });
-    s.addText(c.sub, {
-      x: x + 0.3,
-      y: y + 1.7,
-      w: 3.4,
-      h: 0.3,
-      fontFace: FB,
-      fontSize: 11,
-      color: HB.slate,
-      margin: 0
-    });
-    if (c.d) s.addText(c.d.text, {
-      x: x + 0.3,
-      y: y + 2.0,
-      w: 3.4,
-      h: 0.3,
-      fontFace: FB,
-      fontSize: 11,
-      bold: true,
-      color: c.d.color,
-      margin: 0
-    });
+    s.addShape(pptx.ShapeType.rect, { x: x + 0.3, y: y + 0.35, w: 0.45, h: 0.06, fill: { color: c.color }, line: { color: c.color, width: 0 } });
+    s.addText(c.label, { x: x + 0.3, y: y + 0.45, w: 3.4, h: 0.4, fontFace: FB, fontSize: 13, color: HB.slate, margin: 0 });
+    s.addText(c.valor, { x: x + 0.3, y: y + 0.85, w: 3.4, h: 0.85, fontFace: FT, fontSize: 40, bold: true, color: HB.deep, margin: 0 });
+    s.addText(c.sub, { x: x + 0.3, y: y + 1.7, w: 3.4, h: 0.3, fontFace: FB, fontSize: 11, color: HB.slate, margin: 0 });
+    if (c.d) s.addText(c.d.text, { x: x + 0.3, y: y + 2.0, w: 3.4, h: 0.3, fontFace: FB, fontSize: 11, bold: true, color: c.d.color, margin: 0 });
   });
   // 3. Mensajes clave (agregados, sin personas)
   const mensajes = [];
-  const pQ = cargaPctDe(tQ, "proy"),
-    pP = cargaPctDe(tPrevQ, "proy");
-  mensajes.push(`La ocupación en proyecto del trimestre fue del ${pctTxt(pQ)}` + (pP != null ? `, ${pQ >= pP ? "+" : "−"}${Math.abs(Math.round((pQ - pP) * 1000) / 10).toLocaleString("es-ES")} pp respecto a ${prevLabel}.` : "."));
+  const pQ = cargaPctDe(tQ, "proy"), pP = cargaPctDe(tPrevQ, "proy");
+  mensajes.push(`La ocupación en proyecto del período fue del ${pctTxt(pQ)}` + (pP != null ? `, ${pQ >= pP ? "+" : "−"}${Math.abs(Math.round((pQ - pP) * 1000) / 10).toLocaleString("es-ES")} pp respecto a ${prevLabel}.` : "."));
   const modDisp = [...modulos].sort((a, b) => b.tot.disp - a.tot.disp).filter(e => e.tot.disp > 0);
   if (modDisp.length) mensajes.push(`La capacidad libre se concentra en ${modDisp.slice(0, 3).map(e => `${e.label} (${cargaFmtH(e.tot.disp)} h)`).join(", ")}: palanca para nuevas oportunidades.`);
   const modOcup = [...modulos].sort((a, b) => b.tot.proy / b.tot.total - a.tot.proy / a.tot.total);
@@ -6868,211 +6575,54 @@ const cargaCrearPPT = (datosBase, trim, alcance, hayMapeoProyectos) => {
   if (an.cruce && an.cruce.total) mensajes.push(`${pctTxt(an.cruce.fuera / an.cruce.total)} de las horas de proyecto se prestan a otros sectores: la colaboración entre sectores es relevante.`);
   if (an.proyectos.lista.length >= 5) mensajes.push(`Los 5 proyectos principales concentran el ${pctTxt(an.proyectos.top5 / an.proyectos.total)} de las horas de proyecto.`);
   const nAltas = an.alertas.filter(a => a.disp > 0.4).length;
-  mensajes.push(nAltas ? `Al cierre del trimestre, ${nAltas} persona${nAltas === 1 ? "" : "s"} superan el 40 % de disponibilidad: prioridad de asignación.` : "Al cierre del trimestre nadie supera el 40 % de disponibilidad.");
+  mensajes.push(nAltas ? `Al cierre del período, ${nAltas} persona${nAltas === 1 ? "" : "s"} superan el 40 % de disponibilidad: prioridad de asignación.` : "Al cierre del período nadie supera el 40 % de disponibilidad.");
   s = nueva();
   titulo(s, "Mensajes clave", `Lo que nos dice ${trim.label}`);
   mensajes.slice(0, 6).forEach((m, i) => {
-    const x = 0.5 + i % 2 * 6.2,
-      y = 1.5 + Math.floor(i / 2) * 1.8;
+    const x = 0.5 + (i % 2) * 6.2, y = 1.5 + Math.floor(i / 2) * 1.8;
     tarjeta(s, x, y, 6.0, 1.6, i === 0 ? HB.mist : HB.white);
-    s.addText(String(i + 1).padStart(2, "0"), {
-      x: x + 0.25,
-      y: y + 0.3,
-      w: 0.9,
-      h: 0.8,
-      fontFace: FT,
-      fontSize: 30,
-      bold: true,
-      color: i === 0 ? HB.primary : HB.turq,
-      margin: 0
-    });
-    s.addText(m, {
-      x: x + 1.2,
-      y: y + 0.15,
-      w: 4.6,
-      h: 1.3,
-      fontFace: FB,
-      fontSize: 14,
-      color: HB.deep,
-      valign: "middle",
-      margin: 0
-    });
+    s.addText(String(i + 1).padStart(2, "0"), { x: x + 0.25, y: y + 0.3, w: 0.9, h: 0.8, fontFace: FT, fontSize: 30, bold: true, color: i === 0 ? HB.primary : HB.turq, margin: 0 });
+    s.addText(m, { x: x + 1.2, y: y + 0.15, w: 4.6, h: 1.3, fontFace: FB, fontSize: 14, color: HB.deep, valign: "middle", margin: 0 });
   });
   // 4. Evolución mensual
   s = nueva();
   titulo(s, "Evolución mensual", `Reparto de las horas imputadas en los últimos ${ctxMeses.length} meses`);
   const gruposLinea = CARGA_GRUPOS.filter(g => g.key !== "otros");
   tarjeta(s, 0.5, 1.45, 8.7, 5.4);
-  s.addChart(pptx.ChartType.line, gruposLinea.map(g => ({
-    name: g.label,
-    labels: ctxMeses.map(cargaMesLabel),
-    values: ctxMeses.map(m => cargaPctDe(tCtx[m], g.key) || 0)
-  })), {
-    x: 0.7,
-    y: 1.6,
-    w: 8.3,
-    h: 5.1,
-    ...ejes,
-    chartColors: gruposLinea.map(g => cargaHex(g.color)),
-    lineSize: 2,
-    lineDataSymbol: "circle",
-    lineDataSymbolSize: 7,
-    valAxisLabelFormatCode: "0%",
-    valAxisMinVal: 0,
-    showLegend: true,
-    legendPos: "t"
-  });
+  s.addChart(pptx.ChartType.line, gruposLinea.map(g => ({ name: g.label, labels: ctxMeses.map(cargaMesLabel), values: ctxMeses.map(m => cargaPctDe(tCtx[m], g.key) || 0) })),
+    { x: 0.7, y: 1.6, w: 8.3, h: 5.1, ...ejes, chartColors: gruposLinea.map(g => cargaHex(g.color)), lineSize: 2, lineDataSymbol: "circle", lineDataSymbolSize: 7, valAxisLabelFormatCode: "0%", valAxisMinVal: 0, showLegend: true, legendPos: "t" });
   const mejor = [...trim.meses].sort((a, b) => cargaPctDe(an.tMes[b], "proy") - cargaPctDe(an.tMes[a], "proy"))[0];
   const masVac = [...trim.meses].sort((a, b) => cargaPctDe(an.tMes[b], "vac") - cargaPctDe(an.tMes[a], "vac"))[0];
   [[`Ocupación media ${trim.label}`, pctTxt(pQ), HB.primary], [`Mes con más ocupación`, `${cargaMesLabel(mejor)} · ${pctTxt(cargaPctDe(an.tMes[mejor], "proy"))}`, HB.deep], [`Mes con más vacaciones/bajas`, `${cargaMesLabel(masVac)} · ${pctTxt(cargaPctDe(an.tMes[masVac], "vac"))}`, HB.deep]].forEach(([l, v, c], i) => {
     const y = 1.45 + i * 1.85;
     tarjeta(s, 9.45, y, 3.4, 1.65, i === 0 ? HB.deep : HB.white, i === 0 ? HB.deep : HB.sky);
-    s.addText(l, {
-      x: 9.7,
-      y: y + 0.2,
-      w: 3,
-      h: 0.4,
-      fontFace: FB,
-      fontSize: 12,
-      color: i === 0 ? HB.sky : HB.slate,
-      margin: 0
-    });
-    s.addText(v, {
-      x: 9.7,
-      y: y + 0.65,
-      w: 3,
-      h: 0.7,
-      fontFace: FT,
-      fontSize: i === 0 ? 32 : 22,
-      bold: true,
-      color: i === 0 ? HB.white : c,
-      margin: 0
-    });
+    s.addText(l, { x: 9.7, y: y + 0.2, w: 3, h: 0.4, fontFace: FB, fontSize: 12, color: i === 0 ? HB.sky : HB.slate, margin: 0 });
+    s.addText(v, { x: 9.7, y: y + 0.65, w: 3, h: 0.7, fontFace: FT, fontSize: i === 0 ? 32 : 22, bold: true, color: i === 0 ? HB.white : c, margin: 0 });
   });
   // 5. ¿En qué se van las horas?
   s = nueva();
-  titulo(s, "¿En qué se van las horas?", "Composición de las horas imputadas por mes y en el conjunto del trimestre");
+  titulo(s, "¿En qué se van las horas?", "Composición de las horas imputadas por mes y en el conjunto del período");
   tarjeta(s, 0.5, 1.45, 7.6, 5.4);
-  s.addChart(pptx.ChartType.bar, CARGA_GRUPOS.map(g => ({
-    name: g.label,
-    labels: trim.meses.map(cargaMesLabel),
-    values: trim.meses.map(m => Math.round(an.tMes[m][g.key]))
-  })), {
-    x: 0.7,
-    y: 1.6,
-    w: 7.2,
-    h: 5.1,
-    ...ejes,
-    barDir: "col",
-    barGrouping: "stacked",
-    barGapWidthPct: 70,
-    chartColors: coloresGrupo,
-    valAxisLabelFormatCode: "#,##0",
-    showLegend: true,
-    legendPos: "t"
-  });
+  s.addChart(pptx.ChartType.bar, CARGA_GRUPOS.map(g => ({ name: g.label, labels: trim.meses.map(cargaMesLabel), values: trim.meses.map(m => Math.round(an.tMes[m][g.key])) })),
+    { x: 0.7, y: 1.6, w: 7.2, h: 5.1, ...ejes, barDir: "col", barGrouping: "stacked", barGapWidthPct: 70, chartColors: coloresGrupo, valAxisLabelFormatCode: "#,##0", showLegend: true, legendPos: "t" });
   tarjeta(s, 8.35, 1.45, 4.5, 5.4);
-  s.addText(`Total ${trim.label}`, {
-    x: 8.6,
-    y: 1.6,
-    w: 4,
-    h: 0.35,
-    fontFace: FT,
-    fontSize: 14,
-    bold: true,
-    color: HB.deep,
-    margin: 0
-  });
-  s.addChart(pptx.ChartType.doughnut, [{
-    name: "Horas",
-    labels: CARGA_GRUPOS.map(g => g.label),
-    values: CARGA_GRUPOS.map(g => Math.round(tQ[g.key]))
-  }], {
-    x: 8.5,
-    y: 2.0,
-    w: 4.2,
-    h: 4.7,
-    holeSize: 58,
-    chartColors: coloresGrupo,
-    showPercent: true,
-    showValue: false,
-    showLabel: false,
-    dataLabelColor: HB.white,
-    dataLabelFontSize: 10,
-    dataLabelFontFace: FB,
-    showLegend: true,
-    legendPos: "b",
-    legendFontFace: FB,
-    legendFontSize: 10,
-    legendColor: HB.deep
-  });
+  s.addText(`Total ${trim.label}`, { x: 8.6, y: 1.6, w: 4, h: 0.35, fontFace: FT, fontSize: 14, bold: true, color: HB.deep, margin: 0 });
+  s.addChart(pptx.ChartType.doughnut, [{ name: "Horas", labels: CARGA_GRUPOS.map(g => g.label), values: CARGA_GRUPOS.map(g => Math.round(tQ[g.key])) }],
+    { x: 8.5, y: 2.0, w: 4.2, h: 4.7, holeSize: 58, chartColors: coloresGrupo, showPercent: true, showValue: false, showLabel: false, dataLabelColor: HB.white, dataLabelFontSize: 10, dataLabelFontFace: FB, showLegend: true, legendPos: "b", legendFontFace: FB, legendFontSize: 10, legendColor: HB.deep });
   // 6. Ocupación por módulo
   if (modulos.length) {
     s = nueva();
     const ocup = [...modulos].sort((a, b) => a.tot.proy / a.tot.total - b.tot.proy / b.tot.total);
-    titulo(s, "Ocupación en proyecto por módulo", `% de las horas del trimestre dedicadas a proyecto · media del equipo ${pctTxt(pQ)}`);
+    titulo(s, "Ocupación en proyecto por módulo", `% de las horas del período dedicadas a proyecto · media del equipo ${pctTxt(pQ)}`);
     tarjeta(s, 0.5, 1.45, 8.4, 5.4);
-    s.addChart(pptx.ChartType.bar, [{
-      name: "% Proyecto",
-      labels: ocup.map(e => e.label),
-      values: ocup.map(e => e.tot.proy / e.tot.total)
-    }], {
-      x: 0.7,
-      y: 1.55,
-      w: 8.0,
-      h: 5.2,
-      ...ejes,
-      barDir: "bar",
-      barGapWidthPct: 45,
-      chartColors: [cargaHex(CV.proy)],
-      valAxisHidden: true,
-      valGridLine: {
-        style: "none"
-      },
-      valAxisMaxVal: 1,
-      valAxisMinVal: 0,
-      showValue: true,
-      dataLabelFormatCode: "0%",
-      dataLabelPosition: "outEnd",
-      dataLabelFontFace: FB,
-      dataLabelFontSize: 10,
-      dataLabelColor: HB.deep,
-      showLegend: false,
-      catAxisLabelFontSize: 10
-    });
-    const alta = [...ocup].reverse().slice(0, 3),
-      baja = ocup.slice(0, 3);
+    s.addChart(pptx.ChartType.bar, [{ name: "% Proyecto", labels: ocup.map(e => e.label), values: ocup.map(e => e.tot.proy / e.tot.total) }],
+      { x: 0.7, y: 1.55, w: 8.0, h: 5.2, ...ejes, barDir: "bar", barGapWidthPct: 45, chartColors: [cargaHex(CV.proy)], valAxisHidden: true, valGridLine: { style: "none" }, valAxisMaxVal: 1, valAxisMinVal: 0, showValue: true, dataLabelFormatCode: "0%", dataLabelPosition: "outEnd", dataLabelFontFace: FB, dataLabelFontSize: 10, dataLabelColor: HB.deep, showLegend: false, catAxisLabelFontSize: 10 });
+    const alta = [...ocup].reverse().slice(0, 3), baja = ocup.slice(0, 3);
     [["Más tensionados", alta, "D03B3B", "▲"], ["Con más margen", baja, "006300", "▼"]].forEach(([t, lista, col, ico], i) => {
       const y = 1.45 + i * 2.75;
       tarjeta(s, 9.15, y, 3.7, 2.55);
-      s.addText(`${ico} ${t}`, {
-        x: 9.4,
-        y: y + 0.2,
-        w: 3.3,
-        h: 0.4,
-        fontFace: FT,
-        fontSize: 14,
-        bold: true,
-        color: col,
-        margin: 0
-      });
-      s.addText(lista.map(e => ({
-        text: `${e.label}  ${pctTxt(e.tot.proy / e.tot.total)}`,
-        options: {
-          breakLine: true
-        }
-      })), {
-        x: 9.4,
-        y: y + 0.7,
-        w: 3.3,
-        h: 1.6,
-        fontFace: FB,
-        fontSize: 14,
-        color: HB.deep,
-        valign: "top",
-        margin: 0,
-        paraSpaceAfter: 6
-      });
+      s.addText(`${ico} ${t}`, { x: 9.4, y: y + 0.2, w: 3.3, h: 0.4, fontFace: FT, fontSize: 14, bold: true, color: col, margin: 0 });
+      s.addText(lista.map(e => ({ text: `${e.label}  ${pctTxt(e.tot.proy / e.tot.total)}`, options: { breakLine: true } })), { x: 9.4, y: y + 0.7, w: 3.3, h: 1.6, fontFace: FB, fontSize: 14, color: HB.deep, valign: "top", margin: 0, paraSpaceAfter: 6 });
     });
   }
   // 7. Capacidad libre por módulo
@@ -7080,504 +6630,98 @@ const cargaCrearPPT = (datosBase, trim, alcance, hayMapeoProyectos) => {
     s = nueva();
     const capac = [...modDisp].slice(0, 14).reverse();
     const medMes = trim.meses.reduce((acc, m) => acc + (an.mediana[m] || 0), 0);
-    titulo(s, "¿Dónde hay capacidad disponible?", "Horas de disponibilidad del trimestre por módulo (incluye formación y onboarding)");
+    titulo(s, "¿Dónde hay capacidad disponible?", "Horas de disponibilidad del período por módulo (incluye formación y onboarding)");
     tarjeta(s, 0.5, 1.45, 8.4, 5.4);
-    s.addChart(pptx.ChartType.bar, [{
-      name: "Horas disponibles",
-      labels: capac.map(e => e.label),
-      values: capac.map(e => Math.round(e.tot.disp))
-    }], {
-      x: 0.7,
-      y: 1.55,
-      w: 8.0,
-      h: 5.2,
-      ...ejes,
-      barDir: "bar",
-      barGapWidthPct: 45,
-      chartColors: [cargaHex(CV.disp)],
-      valAxisHidden: true,
-      valAxisMinVal: 0,
-      valAxisMaxVal: Math.max(...capac.map(e => e.tot.disp)) * 1.15,
-      valGridLine: {
-        style: "none"
-      },
-      showValue: true,
-      dataLabelFormatCode: "#,##0 \"h\"",
-      dataLabelPosition: "outEnd",
-      dataLabelFontFace: FB,
-      dataLabelFontSize: 10,
-      dataLabelColor: HB.deep,
-      showLegend: false,
-      catAxisLabelFontSize: 10
-    });
+    s.addChart(pptx.ChartType.bar, [{ name: "Horas disponibles", labels: capac.map(e => e.label), values: capac.map(e => Math.round(e.tot.disp)) }],
+      { x: 0.7, y: 1.55, w: 8.0, h: 5.2, ...ejes, barDir: "bar", barGapWidthPct: 45, chartColors: [cargaHex(CV.disp)], valAxisHidden: true, valAxisMinVal: 0, valAxisMaxVal: Math.max(...capac.map(e => e.tot.disp)) * 1.15, valGridLine: { style: "none" }, showValue: true, dataLabelFormatCode: "#,##0 \"h\"", dataLabelPosition: "outEnd", dataLabelFontFace: FB, dataLabelFontSize: 10, dataLabelColor: HB.deep, showLegend: false, catAxisLabelFontSize: 10 });
     tarjeta(s, 9.15, 1.45, 3.7, 5.4, HB.deep, HB.deep);
-    s.addText("Capacidad libre media", {
-      x: 9.4,
-      y: 1.7,
-      w: 3.3,
-      h: 0.4,
-      fontFace: FB,
-      fontSize: 13,
-      color: HB.sky,
-      margin: 0
-    });
-    s.addText(fteMedio.toLocaleString("es-ES", {
-      maximumFractionDigits: 1
-    }), {
-      x: 9.4,
-      y: 2.1,
-      w: 3.3,
-      h: 1.0,
-      fontFace: FT,
-      fontSize: 54,
-      bold: true,
-      color: HB.white,
-      margin: 0
-    });
-    s.addText("personas a jornada completa cada mes", {
-      x: 9.4,
-      y: 3.1,
-      w: 3.3,
-      h: 0.6,
-      fontFace: FB,
-      fontSize: 13,
-      color: HB.sky,
-      margin: 0
-    });
-    s.addShape(pptx.ShapeType.rect, {
-      x: 9.4,
-      y: 3.95,
-      w: 0.8,
-      h: 0.05,
-      fill: {
-        color: HB.turq
-      },
-      line: {
-        color: HB.turq,
-        width: 0
-      }
-    });
-    s.addText(modDisp.slice(0, 3).map(e => ({
-      text: `${e.label}: ≈ ${medMes ? (e.tot.disp / medMes * 3).toLocaleString("es-ES", {
-        maximumFractionDigits: 1
-      }) : "—"} pers./mes`,
-      options: {
-        breakLine: true
-      }
-    })), {
-      x: 9.4,
-      y: 4.15,
-      w: 3.3,
-      h: 2.4,
-      fontFace: FB,
-      fontSize: 13,
-      color: HB.white,
-      valign: "top",
-      margin: 0,
-      paraSpaceAfter: 6
-    });
+    s.addText("Capacidad libre media", { x: 9.4, y: 1.7, w: 3.3, h: 0.4, fontFace: FB, fontSize: 13, color: HB.sky, margin: 0 });
+    s.addText(fteMedio.toLocaleString("es-ES", { maximumFractionDigits: 1 }), { x: 9.4, y: 2.1, w: 3.3, h: 1.0, fontFace: FT, fontSize: 54, bold: true, color: HB.white, margin: 0 });
+    s.addText("personas a jornada completa cada mes", { x: 9.4, y: 3.1, w: 3.3, h: 0.6, fontFace: FB, fontSize: 13, color: HB.sky, margin: 0 });
+    s.addShape(pptx.ShapeType.rect, { x: 9.4, y: 3.95, w: 0.8, h: 0.05, fill: { color: HB.turq }, line: { color: HB.turq, width: 0 } });
+    s.addText(modDisp.slice(0, 3).map(e => ({ text: `${e.label}: ≈ ${medMes ? (e.tot.disp / medMes).toLocaleString("es-ES", { maximumFractionDigits: 1 }) : "—"} pers./mes`, options: { breakLine: true } })), { x: 9.4, y: 4.15, w: 3.3, h: 2.4, fontFace: FB, fontSize: 13, color: HB.white, valign: "top", margin: 0, paraSpaceAfter: 6 });
   }
   // 8. Mapa de calor módulo × mes
   if (modulos.length) {
+    for (let inicio = 0; inicio < trim.meses.length; inicio += 6) {
+    const mesesPagina = trim.meses.slice(inicio, inicio + 6);
     s = nueva();
     titulo(s, "Disponibilidad por módulo y mes", "% de horas en disponibilidad · más oscuro = más capacidad sin asignar");
     const filasM = [...modulos].sort((a, b) => b.tot.disp / b.tot.total - a.tot.disp / a.tot.total).slice(0, 15);
     const maxV = Math.max(0.0001, ...filasM.flatMap(e => trim.meses.map(m => cargaPctDe(e.meses[m], "disp") || 0)));
-    const cab = (t, al = "center") => ({
-      text: t,
-      options: {
-        bold: true,
-        color: HB.white,
-        fill: {
-          color: HB.deep
-        },
-        align: al,
-        fontFace: FT,
-        fontSize: 11
-      }
-    });
-    const filasT = [[cab("Módulo", "left"), ...trim.meses.map(m => cab(cargaMesLabel(m))), cab(trim.label), cab("Horas disp.")]];
+    const cab = (t, al = "center") => ({ text: t, options: { bold: true, color: HB.white, fill: { color: HB.deep }, align: al, fontFace: FT, fontSize: 11 } });
+    const filasT = [[cab("Módulo", "left"), ...mesesPagina.map(m => cab(cargaMesLabel(m))), cab("Total"), cab("Horas disp.")]];
     for (const e of filasM) {
       const celda = v => {
-        if (v == null) return {
-          text: "—",
-          options: {
-            align: "center",
-            color: "898781",
-            fill: {
-              color: HB.ice
-            }
-          }
-        };
+        if (v == null) return { text: "—", options: { align: "center", color: "898781", fill: { color: HB.ice } } };
         const paso = Math.min(CARGA_RAMPA.length - 1, Math.floor(v / maxV * CARGA_RAMPA.length));
-        return {
-          text: pctTxt(v),
-          options: {
-            align: "center",
-            fill: {
-              color: cargaHex(CARGA_RAMPA[paso])
-            },
-            color: paso >= 3 ? HB.white : HB.deep
-          }
-        };
+        return { text: pctTxt(v), options: { align: "center", fill: { color: cargaHex(CARGA_RAMPA[paso]) }, color: paso >= 3 ? HB.white : HB.deep } };
       };
-      filasT.push([{
-        text: e.label,
-        options: {
-          bold: true,
-          color: HB.deep,
-          fill: {
-            color: HB.white
-          }
-        }
-      }, ...trim.meses.map(m => celda(cargaPctDe(e.meses[m], "disp"))), celda(cargaPctDe(e.tot, "disp")), {
-        text: cargaFmtH(e.tot.disp),
-        options: {
-          align: "right",
-          color: HB.slate,
-          fill: {
-            color: HB.white
-          }
-        }
-      }]);
+      filasT.push([{ text: e.label, options: { bold: true, color: HB.deep, fill: { color: HB.white } } }, ...mesesPagina.map(m => celda(cargaPctDe(e.meses[m], "disp"))), celda(cargaPctDe(e.tot, "disp")), { text: cargaFmtH(e.tot.disp), options: { align: "right", color: HB.slate, fill: { color: HB.white } } }]);
     }
     const anchoMes = 1.45;
-    s.addTable(filasT, {
-      x: 0.5,
-      y: 1.45,
-      w: 12.33,
-      colW: [12.33 - anchoMes * (trim.meses.length + 1) - 1.6, ...trim.meses.map(() => anchoMes), anchoMes, 1.6],
-      fontFace: FB,
-      fontSize: 11,
-      rowH: Math.min(0.36, 5.3 / filasT.length),
-      border: {
-        type: "solid",
-        pt: 2,
-        color: HB.ice
-      },
-      valign: "middle"
-    });
+    s.addTable(filasT, { x: 0.5, y: 1.45, w: 12.33, colW: [12.33 - anchoMes * (mesesPagina.length + 1) - 1.6, ...mesesPagina.map(() => anchoMes), anchoMes, 1.6], fontFace: FB, fontSize: 11, rowH: Math.min(0.36, 5.3 / filasT.length), border: { type: "solid", pt: 2, color: HB.ice }, valign: "middle" });
+    }
   }
   // 9. Sectores
   if (sectores.length) {
     s = nueva();
-    titulo(s, "Visión por sector", "Ocupación, disponibilidad y composición de las horas de cada sector en el trimestre");
-    const lista = sectores.slice(0, 6),
-      cols = lista.length <= 4 ? 2 : 3,
-      w = cols === 2 ? 6.05 : 3.98,
-      h = lista.length <= cols ? 5.1 : 2.5;
+    titulo(s, "Visión por sector", "Ocupación, disponibilidad y composición de las horas de cada sector en el período");
+    const lista = sectores.slice(0, 6), cols = lista.length <= 4 ? 2 : 3, w = cols === 2 ? 6.05 : 3.98, h = lista.length <= cols ? 5.1 : 2.5;
     lista.forEach((e, i) => {
-      const x = 0.5 + i % cols * (w + 0.17),
-        y = 1.45 + Math.floor(i / cols) * (h + 0.15),
-        t = e.tot;
+      const x = 0.5 + (i % cols) * (w + 0.17), y = 1.45 + Math.floor(i / cols) * (h + 0.15), t = e.tot;
       tarjeta(s, x, y, w, h);
-      s.addText(e.label, {
-        x: x + 0.25,
-        y: y + 0.18,
-        w: w - 0.5,
-        h: 0.4,
-        fontFace: FT,
-        fontSize: 14,
-        bold: true,
-        color: HB.deep,
-        margin: 0
-      });
-      s.addText(`${e.personas.size} personas · ${cargaFmtH(t.total)} h`, {
-        x: x + 0.25,
-        y: y + 0.55,
-        w: w - 0.5,
-        h: 0.3,
-        fontFace: FB,
-        fontSize: 11,
-        color: HB.slate,
-        margin: 0
-      });
-      s.addText([{
-        text: pctTxt(t.proy / t.total),
-        options: {
-          fontFace: FT,
-          fontSize: 34,
-          bold: true,
-          color: HB.primary
-        }
-      }, {
-        text: "  ocupación",
-        options: {
-          fontFace: FB,
-          fontSize: 12,
-          color: HB.slate
-        }
-      }], {
-        x: x + 0.25,
-        y: y + 0.9,
-        w: w - 0.5,
-        h: 0.75,
-        margin: 0
-      });
-      s.addText(`Disponibilidad ${pctTxt(t.disp / t.total)} · DDN ${pctTxt(t.ddn / t.total)} · Vac./bajas ${pctTxt(t.vac / t.total)}`, {
-        x: x + 0.25,
-        y: y + 1.65,
-        w: w - 0.5,
-        h: 0.3,
-        fontFace: FB,
-        fontSize: 11,
-        color: HB.deep,
-        margin: 0
-      });
+      s.addText(e.label, { x: x + 0.25, y: y + 0.18, w: w - 0.5, h: 0.4, fontFace: FT, fontSize: 14, bold: true, color: HB.deep, margin: 0 });
+      s.addText(`${e.personas.size} personas · ${cargaFmtH(t.total)} h`, { x: x + 0.25, y: y + 0.55, w: w - 0.5, h: 0.3, fontFace: FB, fontSize: 11, color: HB.slate, margin: 0 });
+      s.addText([{ text: pctTxt(t.proy / t.total), options: { fontFace: FT, fontSize: 34, bold: true, color: HB.primary } }, { text: "  ocupación", options: { fontFace: FB, fontSize: 12, color: HB.slate } }], { x: x + 0.25, y: y + 0.9, w: w - 0.5, h: 0.75, margin: 0 });
+      s.addText(`Disponibilidad ${pctTxt(t.disp / t.total)} · DDN ${pctTxt(t.ddn / t.total)} · Vac./bajas ${pctTxt(t.vac / t.total)}`, { x: x + 0.25, y: y + 1.65, w: w - 0.5, h: 0.3, fontFace: FB, fontSize: 11, color: HB.deep, margin: 0 });
       let bx = x + 0.25;
-      const bw = w - 0.5,
-        segs = CARGA_GRUPOS.filter(g => t[g.key] > 0);
+      const bw = w - 0.5, segs = CARGA_GRUPOS.filter(g => t[g.key] > 0);
       segs.forEach((g, k) => {
         const ancho = Math.max(0.02, t[g.key] / t.total * (bw - 0.03 * (segs.length - 1)));
-        s.addShape(pptx.ShapeType.rect, {
-          x: bx,
-          y: y + 2.08,
-          w: ancho,
-          h: 0.22,
-          fill: {
-            color: cargaHex(g.color)
-          },
-          line: {
-            color: cargaHex(g.color),
-            width: 0
-          }
-        });
+        s.addShape(pptx.ShapeType.rect, { x: bx, y: y + 2.08, w: ancho, h: 0.22, fill: { color: cargaHex(g.color) }, line: { color: cargaHex(g.color), width: 0 } });
         bx += ancho + (k < segs.length - 1 ? 0.03 : 0);
       });
     });
-    s.addText(CARGA_GRUPOS.map(g => [{
-      text: "■ ",
-      options: {
-        color: cargaHex(g.color),
-        fontSize: 12
-      }
-    }, {
-      text: g.label + "    ",
-      options: {
-        color: HB.slate,
-        fontSize: 10
-      }
-    }]).flat(), {
-      x: 0.5,
-      y: 6.72,
-      w: 12.3,
-      h: 0.3,
-      fontFace: FB,
-      margin: 0
-    });
+    s.addText(CARGA_GRUPOS.map(g => [{ text: "■ ", options: { color: cargaHex(g.color), fontSize: 12 } }, { text: g.label + "    ", options: { color: HB.slate, fontSize: 10 } }]).flat(), { x: 0.5, y: 6.72, w: 12.3, h: 0.3, fontFace: FB, margin: 0 });
   }
   // 10. Carga cruzada entre sectores
   if (an.cruce && an.cruce.filas.length) {
     s = nueva();
     titulo(s, "Colaboración entre sectores", "¿Para qué sectores trabaja cada equipo? % de sus horas de proyecto · en negrita, su propio sector");
-    const cr = an.cruce,
-      cols = cr.cols.slice(0, 7);
-    const cab = t => ({
-      text: t,
-      options: {
-        bold: true,
-        color: HB.white,
-        fill: {
-          color: HB.deep
-        },
-        align: "center",
-        fontFace: FT,
-        fontSize: 9
-      }
-    });
+    const cr = an.cruce, cols = cr.cols.slice(0, 7);
+    const cab = t => ({ text: t, options: { bold: true, color: HB.white, fill: { color: HB.deep }, align: "center", fontFace: FT, fontSize: 9 } });
     const filasT = [[cab("Equipo \\ proyecto"), ...cols.map(cab), cab("En su sector")]];
-    for (const f of cr.filas.filter(f => f.total > 0 && f.sector !== "Sin mapear")) filasT.push([{
-      text: f.sector,
-      options: {
-        bold: true,
-        color: HB.deep,
-        fill: {
-          color: HB.white
-        },
-        fontSize: 10
-      }
-    }, ...cols.map(c => {
-      const p = (f.celdas[c] || 0) / f.total,
-        paso = f.celdas[c] ? Math.min(CARGA_RAMPA.length - 1, Math.floor(p * CARGA_RAMPA.length)) : -1;
-      return {
-        text: f.celdas[c] ? pctTxt(p) : "—",
-        options: {
-          align: "center",
-          bold: c === f.sector,
-          fill: {
-            color: paso < 0 ? HB.ice : cargaHex(CARGA_RAMPA[paso])
-          },
-          color: paso >= 3 ? HB.white : HB.deep
-        }
-      };
-    }), {
-      text: f.sector === "Sin mapear" ? "—" : pctTxt((f.celdas[f.sector] || 0) / f.total),
-      options: {
-        align: "center",
-        bold: true,
-        color: HB.deep,
-        fill: {
-          color: HB.mist
-        }
-      }
-    }]);
-    s.addTable(filasT, {
-      x: 0.5,
-      y: 1.45,
-      w: 8.9,
-      fontFace: FB,
-      fontSize: 10,
-      rowH: Math.min(0.55, 5.2 / filasT.length),
-      border: {
-        type: "solid",
-        pt: 2,
-        color: HB.ice
-      },
-      valign: "middle"
-    });
+    for (const f of cr.filas.filter(f => f.total > 0 && f.sector !== "Sin mapear")) filasT.push([{ text: f.sector, options: { bold: true, color: HB.deep, fill: { color: HB.white }, fontSize: 10 } },
+      ...cols.map(c => {
+        const p = (f.celdas[c] || 0) / f.total, paso = f.celdas[c] ? Math.min(CARGA_RAMPA.length - 1, Math.floor(p * CARGA_RAMPA.length)) : -1;
+        return { text: f.celdas[c] ? pctTxt(p) : "—", options: { align: "center", bold: c === f.sector, fill: { color: paso < 0 ? HB.ice : cargaHex(CARGA_RAMPA[paso]) }, color: paso >= 3 ? HB.white : HB.deep } };
+      }),
+      { text: f.sector === "Sin mapear" ? "—" : pctTxt((f.celdas[f.sector] || 0) / f.total), options: { align: "center", bold: true, color: HB.deep, fill: { color: HB.mist } } }]);
+    s.addTable(filasT, { x: 0.5, y: 1.45, w: 8.9, fontFace: FB, fontSize: 10, rowH: Math.min(0.55, 5.2 / filasT.length), border: { type: "solid", pt: 2, color: HB.ice }, valign: "middle" });
     tarjeta(s, 9.65, 1.45, 3.2, 5.4, HB.deep, HB.deep);
-    s.addText(pctTxt(cr.fuera / cr.total), {
-      x: 9.9,
-      y: 1.9,
-      w: 2.8,
-      h: 1.0,
-      fontFace: FT,
-      fontSize: 48,
-      bold: true,
-      color: HB.turq,
-      margin: 0
-    });
-    s.addText("de las horas de proyecto se dedican a proyectos de otro sector", {
-      x: 9.9,
-      y: 2.95,
-      w: 2.8,
-      h: 1.1,
-      fontFace: FB,
-      fontSize: 14,
-      color: HB.white,
-      margin: 0
-    });
-    if (cr.sinClas) s.addText(`${pctTxt(cr.sinClas / cr.total)} corresponde a proyectos sin sector en el mapeo.`, {
-      x: 9.9,
-      y: 4.4,
-      w: 2.8,
-      h: 0.9,
-      fontFace: FB,
-      fontSize: 11,
-      color: HB.sky,
-      margin: 0
-    });
+    s.addText(pctTxt(cr.fuera / cr.total), { x: 9.9, y: 1.9, w: 2.8, h: 1.0, fontFace: FT, fontSize: 48, bold: true, color: HB.turq, margin: 0 });
+    s.addText("de las horas de proyecto se dedican a proyectos de otro sector", { x: 9.9, y: 2.95, w: 2.8, h: 1.1, fontFace: FB, fontSize: 14, color: HB.white, margin: 0 });
+    if (cr.sinClas) s.addText(`${pctTxt(cr.sinClas / cr.total)} corresponde a proyectos sin sector en el mapeo.`, { x: 9.9, y: 4.4, w: 2.8, h: 0.9, fontFace: FB, fontSize: 11, color: HB.sky, margin: 0 });
   }
   // 11. Proyectos con más dedicación
   if (an.proyectos.lista.length) {
     s = nueva();
     const top = an.proyectos.lista.slice(0, 10);
-    titulo(s, "Proyectos con más dedicación", `Horas imputadas en el trimestre · ${an.proyectos.lista.length} proyectos con actividad`);
+    titulo(s, "Proyectos con más dedicación", `Horas imputadas en el período · ${an.proyectos.lista.length} proyectos con actividad`);
     tarjeta(s, 0.5, 1.45, 8.9, 5.4);
-    s.addChart(pptx.ChartType.bar, [{
-      name: "Horas",
-      labels: [...top].reverse().map(p => cargaCorta(p.pro, 42)),
-      values: [...top].reverse().map(p => Math.round(p.h))
-    }], {
-      x: 0.65,
-      y: 1.55,
-      w: 8.6,
-      h: 5.2,
-      ...ejes,
-      barDir: "bar",
-      barGapWidthPct: 40,
-      chartColors: [HB.primary],
-      valAxisHidden: true,
-      valAxisMinVal: 0,
-      valAxisMaxVal: top[0].h * 1.15,
-      valGridLine: {
-        style: "none"
-      },
-      showValue: true,
-      dataLabelFormatCode: "#,##0 \"h\"",
-      dataLabelPosition: "outEnd",
-      dataLabelFontFace: FB,
-      dataLabelFontSize: 10,
-      dataLabelColor: HB.deep,
-      showLegend: false,
-      catAxisLabelFontSize: 9
-    });
+    s.addChart(pptx.ChartType.bar, [{ name: "Horas", labels: [...top].reverse().map(p => cargaCorta(p.pro, 42)), values: [...top].reverse().map(p => Math.round(p.h)) }],
+      { x: 0.65, y: 1.55, w: 8.6, h: 5.2, ...ejes, barDir: "bar", barGapWidthPct: 40, chartColors: [HB.primary], valAxisHidden: true, valAxisMinVal: 0, valAxisMaxVal: top[0].h * 1.15, valGridLine: { style: "none" }, showValue: true, dataLabelFormatCode: "#,##0 \"h\"", dataLabelPosition: "outEnd", dataLabelFontFace: FB, dataLabelFontSize: 10, dataLabelColor: HB.deep, showLegend: false, catAxisLabelFontSize: 9 });
     tarjeta(s, 9.65, 1.45, 3.2, 2.6, HB.mist, HB.mist);
-    s.addText(pctTxt(an.proyectos.top5 / an.proyectos.total), {
-      x: 9.9,
-      y: 1.65,
-      w: 2.8,
-      h: 0.9,
-      fontFace: FT,
-      fontSize: 44,
-      bold: true,
-      color: HB.primary,
-      margin: 0
-    });
-    s.addText("de las horas de proyecto se concentra en los 5 primeros", {
-      x: 9.9,
-      y: 2.6,
-      w: 2.8,
-      h: 1.0,
-      fontFace: FB,
-      fontSize: 13,
-      color: HB.slate,
-      margin: 0
-    });
+    s.addText(pctTxt(an.proyectos.top5 / an.proyectos.total), { x: 9.9, y: 1.65, w: 2.8, h: 0.9, fontFace: FT, fontSize: 44, bold: true, color: HB.primary, margin: 0 });
+    s.addText("de las horas de proyecto se concentra en los 5 primeros", { x: 9.9, y: 2.6, w: 2.8, h: 1.0, fontFace: FB, fontSize: 13, color: HB.slate, margin: 0 });
     tarjeta(s, 9.65, 4.25, 3.2, 2.6);
     const mil = an.proyectos.lista.filter(p => p.h >= 1000).length;
-    s.addText([{
-      text: String(mil),
-      options: {
-        fontFace: FT,
-        fontSize: 36,
-        bold: true,
-        color: HB.deep,
-        breakLine: true
-      }
-    }, {
-      text: `proyecto${mil === 1 ? "" : "s"} con más de 1.000 h en el trimestre`,
-      options: {
-        fontFace: FB,
-        fontSize: 12,
-        color: HB.slate,
-        breakLine: true
-      }
-    }, {
-      text: " ",
-      options: {
-        fontSize: 8,
-        breakLine: true
-      }
-    }, {
-      text: cargaFmtH(an.proyectos.total / an.proyectos.lista.length) + " h",
-      options: {
-        fontFace: FT,
-        fontSize: 24,
-        bold: true,
-        color: HB.deep,
-        breakLine: true
-      }
-    }, {
-      text: "de media por proyecto",
-      options: {
-        fontFace: FB,
-        fontSize: 12,
-        color: HB.slate
-      }
-    }], {
-      x: 9.9,
-      y: 4.4,
-      w: 2.8,
-      h: 2.3,
-      valign: "top",
-      margin: 0
-    });
+    s.addText([{ text: String(mil), options: { fontFace: FT, fontSize: 36, bold: true, color: HB.deep, breakLine: true } }, { text: `proyecto${mil === 1 ? "" : "s"} con más de 1.000 h en el período`, options: { fontFace: FB, fontSize: 12, color: HB.slate, breakLine: true } }, { text: " ", options: { fontSize: 8, breakLine: true } }, { text: cargaFmtH(an.proyectos.total / an.proyectos.lista.length) + " h", options: { fontFace: FT, fontSize: 24, bold: true, color: HB.deep, breakLine: true } }, { text: "de media por proyecto", options: { fontFace: FB, fontSize: 12, color: HB.slate } }], { x: 9.9, y: 4.4, w: 2.8, h: 2.3, valign: "top", margin: 0 });
   }
   // 12. Distribución por sector de proyecto (y por tipo de proyecto si está en el mapeo)
   if (hayMapeoProyectos && an.proyectos.total) {
-    const porSec = new Map(),
-      porTipo = new Map();
+    const porSec = new Map(), porTipo = new Map();
     for (const p of an.proyectos.lista) {
       porSec.set(p.secPro, (porSec.get(p.secPro) || 0) + p.h);
       if (p.tipo) porTipo.set(p.tipo, (porTipo.get(p.tipo) || 0) + p.h);
@@ -7588,66 +6732,18 @@ const cargaCrearPPT = (datosBase, trim, alcance, hayMapeoProyectos) => {
       const corte = Math.min(n - 1, l.filter(x => x[1] / tot >= 0.03).length);
       return l.length > corte + 1 ? [...l.slice(0, corte), ["Otros", l.slice(corte).reduce((s2, x) => s2 + x[1], 0)]] : l;
     };
-    const sec = plegar(porSec, 6),
-      tipos = plegar(porTipo, 7);
+    const sec = plegar(porSec, 6), tipos = plegar(porTipo, 7);
     s = nueva();
-    titulo(s, "¿Para quién trabajamos?", "Horas de proyecto del trimestre según el sector del proyecto" + (tipos.length ? " y el tipo de proyecto" : ""));
+    titulo(s, "¿Para quién trabajamos?", "Horas de proyecto del período según el sector del proyecto" + (tipos.length ? " y el tipo de proyecto" : ""));
     const paleta = ["2A78D6", "EB6834", "1BAF7A", "EDA100", "E87BA4", "008300", "6250D6"];
     tarjeta(s, 0.5, 1.45, tipos.length ? 6.0 : 12.33, 5.4);
-    s.addChart(pptx.ChartType.doughnut, [{
-      name: "Horas",
-      labels: sec.map(x => x[0]),
-      values: sec.map(x => Math.round(x[1]))
-    }], {
-      x: 0.7,
-      y: 1.6,
-      w: tipos.length ? 5.6 : 11.9,
-      h: 5.1,
-      holeSize: 55,
-      chartColors: paleta,
-      showPercent: true,
-      showLabel: false,
-      showValue: false,
-      dataLabelColor: HB.white,
-      dataLabelFontSize: 11,
-      dataLabelFontFace: FB,
-      showLegend: true,
-      legendPos: "r",
-      legendFontFace: FB,
-      legendFontSize: 11,
-      legendColor: HB.deep
-    });
+    s.addChart(pptx.ChartType.doughnut, [{ name: "Horas", labels: sec.map(x => x[0]), values: sec.map(x => Math.round(x[1])) }],
+      { x: 0.7, y: 1.6, w: tipos.length ? 5.6 : 11.9, h: 5.1, holeSize: 55, chartColors: paleta, showPercent: true, showLabel: false, showValue: false, dataLabelColor: HB.white, dataLabelFontSize: 11, dataLabelFontFace: FB, showLegend: true, legendPos: "r", legendFontFace: FB, legendFontSize: 11, legendColor: HB.deep });
     if (tipos.length) {
       const tiposAsc = [...tipos].reverse();
       tarjeta(s, 6.7, 1.45, 6.13, 5.4);
-      s.addChart(pptx.ChartType.bar, [{
-        name: "Horas",
-        labels: tiposAsc.map(x => cargaCorta(x[0], 34)),
-        values: tiposAsc.map(x => Math.round(x[1]))
-      }], {
-        x: 6.85,
-        y: 1.55,
-        w: 5.85,
-        h: 5.2,
-        ...ejes,
-        barDir: "bar",
-        barGapWidthPct: 45,
-        chartColors: [HB.primary],
-        valAxisHidden: true,
-        valAxisMinVal: 0,
-        valAxisMaxVal: Math.max(...tiposAsc.map(x => x[1])) * 1.3,
-        valGridLine: {
-          style: "none"
-        },
-        showValue: true,
-        dataLabelFormatCode: "#,##0 \"h\"",
-        dataLabelPosition: "outEnd",
-        dataLabelFontFace: FB,
-        dataLabelFontSize: 10,
-        dataLabelColor: HB.deep,
-        showLegend: false,
-        catAxisLabelFontSize: 9
-      });
+      s.addChart(pptx.ChartType.bar, [{ name: "Horas", labels: tiposAsc.map(x => cargaCorta(x[0], 34)), values: tiposAsc.map(x => Math.round(x[1])) }],
+        { x: 6.85, y: 1.55, w: 5.85, h: 5.2, ...ejes, barDir: "bar", barGapWidthPct: 45, chartColors: [HB.primary], valAxisHidden: true, valAxisMinVal: 0, valAxisMaxVal: Math.max(...tiposAsc.map(x => x[1])) * 1.3, valGridLine: { style: "none" }, showValue: true, dataLabelFormatCode: "#,##0 \"h\"", dataLabelPosition: "outEnd", dataLabelFontFace: FB, dataLabelFontSize: 10, dataLabelColor: HB.deep, showLegend: false, catAxisLabelFontSize: 9 });
     }
   }
   // 13. Puntos de atención (solo recuentos agregados) y próximos pasos
@@ -7655,79 +6751,19 @@ const cargaCrearPPT = (datosBase, trim, alcance, hayMapeoProyectos) => {
   titulo(s, "Puntos de atención y próximos pasos", `Situación al cierre de ${cargaMesLabel(trim.meses[trim.meses.length - 1])} (recuentos agregados)`);
   const contar = tipo => an.alertas.filter(a => a.lista.some(l => l.tipo === tipo)).length;
   const modTension = modulos.filter(e => e.meses[an.mesRef] && cargaPctDe(e.meses[an.mesRef], "disp") > 0.3).map(e => e.label);
-  const atencion = [{
-    n: an.alertas.filter(a => a.disp > 0.4).length,
-    l: "personas con más del 40 % de disponibilidad",
-    nivel: "critical"
-  }, {
-    n: an.alertas.filter(a => a.seguidos >= 2).length,
-    l: "personas con 2 o más meses seguidos por encima del 30 %",
-    nivel: "warning"
-  }, {
-    n: contar("sobrecarga"),
-    l: "personas con posible sobrecarga (> 15 % sobre la mediana)",
-    nivel: "serious"
-  }, {
-    n: modTension.length,
-    l: "módulos con más del 30 % de disponibilidad" + (modTension.length ? `: ${modTension.slice(0, 4).join(", ")}` : ""),
-    nivel: modTension.length ? "warning" : "good"
-  }];
-  const estado = {
-    critical: ["D03B3B", "▲"],
-    serious: ["EC835A", "◆"],
-    warning: ["FAB219", "●"],
-    good: ["0CA30C", "✓"]
-  };
+  const atencion = [
+    { n: an.alertas.filter(a => a.disp > 0.4).length, l: "personas con más del 40 % de disponibilidad", nivel: "critical" },
+    { n: an.alertas.filter(a => a.seguidos >= 2).length, l: "personas con 2 o más meses seguidos por encima del 30 %", nivel: "warning" },
+    { n: contar("sobrecarga"), l: "personas con posible sobrecarga (> 15 % sobre la mediana)", nivel: "serious" },
+    { n: modTension.length, l: "módulos con más del 30 % de disponibilidad" + (modTension.length ? `: ${modTension.slice(0, 4).join(", ")}` : ""), nivel: modTension.length ? "warning" : "good" }
+  ];
+  const estado = { critical: ["D03B3B", "▲"], serious: ["EC835A", "◆"], warning: ["FAB219", "●"], good: ["0CA30C", "✓"] };
   atencion.forEach((a, i) => {
-    const y = 1.45 + i * 1.35,
-      [col, ico] = estado[a.n ? a.nivel : "good"];
+    const y = 1.45 + i * 1.35, [col, ico] = estado[a.n ? a.nivel : "good"];
     tarjeta(s, 0.5, y, 6.4, 1.2);
-    s.addShape(pptx.ShapeType.rect, {
-      x: 0.5,
-      y,
-      w: 0.12,
-      h: 1.2,
-      fill: {
-        color: col
-      },
-      line: {
-        color: col,
-        width: 0
-      }
-    });
-    s.addText([{
-      text: ico + " ",
-      options: {
-        color: col,
-        fontSize: 18
-      }
-    }, {
-      text: String(a.n),
-      options: {
-        color: HB.deep,
-        fontSize: 32,
-        bold: true,
-        fontFace: FT
-      }
-    }], {
-      x: 0.8,
-      y: y + 0.15,
-      w: 1.6,
-      h: 0.9,
-      margin: 0,
-      valign: "middle"
-    });
-    s.addText(a.l, {
-      x: 2.4,
-      y: y + 0.1,
-      w: 4.3,
-      h: 1.0,
-      fontFace: FB,
-      fontSize: 13,
-      color: HB.deep,
-      valign: "middle",
-      margin: 0
-    });
+    s.addShape(pptx.ShapeType.rect, { x: 0.5, y, w: 0.12, h: 1.2, fill: { color: col }, line: { color: col, width: 0 } });
+    s.addText([{ text: ico + " ", options: { color: col, fontSize: 18 } }, { text: String(a.n), options: { color: HB.deep, fontSize: 32, bold: true, fontFace: FT } }], { x: 0.8, y: y + 0.15, w: 1.6, h: 0.9, margin: 0, valign: "middle" });
+    s.addText(a.l, { x: 2.4, y: y + 0.1, w: 4.3, h: 1.0, fontFace: FB, fontSize: 13, color: HB.deep, valign: "middle", margin: 0 });
   });
   const pasos = [];
   if (modDisp.length) pasos.push(`Orientar la preventa y las nuevas oportunidades hacia ${modDisp.slice(0, 2).map(e => e.label).join(" y ")}, donde hay más capacidad libre.`);
@@ -7738,206 +6774,49 @@ const cargaCrearPPT = (datosBase, trim, alcance, hayMapeoProyectos) => {
   if (an.cruce && an.cruce.sinClas > 0) pasos.push("Completar el mapeo de proyectos para clasificar todas las horas por sector.");
   if (!pasos.length) pasos.push("Mantener el seguimiento mensual de ocupación y disponibilidad.");
   tarjeta(s, 7.15, 1.45, 5.7, 5.25, HB.mist, HB.mist);
-  s.addText("Próximos pasos sugeridos", {
-    x: 7.45,
-    y: 1.65,
-    w: 5.1,
-    h: 0.45,
-    fontFace: FT,
-    fontSize: 16,
-    bold: true,
-    color: HB.deep,
-    margin: 0
-  });
-  s.addText(pasos.slice(0, 5).map(p => ({
-    text: p,
-    options: {
-      bullet: {
-        code: "25B8"
-      },
-      breakLine: true
-    }
-  })), {
-    x: 7.45,
-    y: 2.2,
-    w: 5.1,
-    h: 4.3,
-    fontFace: FB,
-    fontSize: 13,
-    color: HB.deep,
-    valign: "top",
-    margin: 0,
-    paraSpaceAfter: 10
-  });
+  s.addText("Próximos pasos sugeridos", { x: 7.45, y: 1.65, w: 5.1, h: 0.45, fontFace: FT, fontSize: 16, bold: true, color: HB.deep, margin: 0 });
+  s.addText(pasos.slice(0, 5).map(p => ({ text: p, options: { bullet: { code: "25B8" }, breakLine: true } })), { x: 7.45, y: 2.2, w: 5.1, h: 4.3, fontFace: FB, fontSize: 13, color: HB.deep, valign: "top", margin: 0, paraSpaceAfter: 10 });
   // 14. Cierre
   s = pptx.addSlide();
-  s.background = {
-    color: HB.deep
-  };
-  s.addShape(pptx.ShapeType.ellipse, {
-    x: -1.5,
-    y: 3.8,
-    w: 5.5,
-    h: 5.5,
-    fill: {
-      color: HB.primary,
-      transparency: 40
-    },
-    line: {
-      color: HB.primary,
-      width: 0
-    }
-  });
-  s.addShape(pptx.ShapeType.ellipse, {
-    x: 10.8,
-    y: -1.2,
-    w: 3.6,
-    h: 3.6,
-    fill: {
-      color: HB.violet,
-      transparency: 45
-    },
-    line: {
-      color: HB.violet,
-      width: 0
-    }
-  });
-  s.addText("Gracias", {
-    x: 0,
-    y: 2.6,
-    w: 13.333,
-    h: 1.2,
-    fontFace: FT,
-    fontSize: 54,
-    bold: true,
-    color: HB.white,
-    align: "center",
-    margin: 0
-  });
-  s.addShape(pptx.ShapeType.rect, {
-    x: 6.17,
-    y: 3.85,
-    w: 1.0,
-    h: 0.07,
-    fill: {
-      color: HB.turq
-    },
-    line: {
-      color: HB.turq,
-      width: 0
-    }
-  });
-  s.addText(`Gestión de carga · ${trim.label}`, {
-    x: 0,
-    y: 4.05,
-    w: 13.333,
-    h: 0.5,
-    fontFace: FB,
-    fontSize: 16,
-    color: HB.sky,
-    align: "center",
-    margin: 0
-  });
+  s.background = { color: HB.deep };
+  s.addShape(pptx.ShapeType.ellipse, { x: -1.5, y: 3.8, w: 5.5, h: 5.5, fill: { color: HB.primary, transparency: 40 }, line: { color: HB.primary, width: 0 } });
+  s.addShape(pptx.ShapeType.ellipse, { x: 10.8, y: -1.2, w: 3.6, h: 3.6, fill: { color: HB.violet, transparency: 45 }, line: { color: HB.violet, width: 0 } });
+  s.addText("Gracias", { x: 0, y: 2.6, w: 13.333, h: 1.2, fontFace: FT, fontSize: 54, bold: true, color: HB.white, align: "center", margin: 0 });
+  s.addShape(pptx.ShapeType.rect, { x: 6.17, y: 3.85, w: 1.0, h: 0.07, fill: { color: HB.turq }, line: { color: HB.turq, width: 0 } });
+  s.addText(`Gestión de carga · ${trim.label}`, { x: 0, y: 4.05, w: 13.333, h: 0.5, fontFace: FB, fontSize: 16, color: HB.sky, align: "center", margin: 0 });
   return pptx;
 };
-const CargaExportModal = ({
-  trimestres,
-  onPDF,
-  onExcel,
-  onPPT,
-  onClose
-}) => {
+const CargaExportModal = ({ trimestres, onPDF, onExcel, onPPT, onClose }) => {
   const porDefecto = [...trimestres].reverse().find(t => t.completo) || trimestres[trimestres.length - 1];
-  const [trim, setTrim] = useState(porDefecto ? porDefecto.clave : "");
+  const mesesDisponibles = trimestres.flatMap(t => t.meses).sort();
+  const [seleccion, setSeleccion] = useState(() => new Set(porDefecto ? porDefecto.meses : []));
+  const alternar = m => setSeleccion(prev => { const n = new Set(prev); n.has(m) ? n.delete(m) : n.add(m); return n; });
+  const mesesElegidos = mesesDisponibles.filter(m => seleccion.has(m));
   const [trabajando, setTrabajando] = useState("");
   const [error, setError] = useState("");
   const lanzar = async (tipo, fn) => {
-    setError("");
-    setTrabajando(tipo);
-    try {
-      await fn();
-      onClose();
-    } catch (e) {
+    setError(""); setTrabajando(tipo);
+    try { await fn(); onClose(); } catch (e) {
       console.error("Gestión de carga: error exportando " + tipo, e);
       setError(e.message || String(e));
       setTrabajando("");
     }
   };
-  const opcion = (icono, tituloOp, texto, tipo, fn, extra) => React.createElement("div", {
-    style: {
-      border: `1px solid ${C.border}`,
-      borderRadius: "10px",
-      padding: "14px 16px",
-      marginBottom: "10px",
-      display: "flex",
-      gap: "14px",
-      alignItems: "center",
-      flexWrap: "wrap"
-    }
-  }, React.createElement("div", {
-    style: {
-      fontSize: "26px"
-    }
-  }, icono), React.createElement("div", {
-    style: {
-      flex: "1 1 240px"
-    }
-  }, React.createElement("div", {
-    style: {
-      fontSize: "14px",
-      fontWeight: "700",
-      color: C.text
-    }
-  }, tituloOp), React.createElement("div", {
-    style: {
-      fontSize: "12px",
-      color: C.text2,
-      marginTop: "2px",
-      lineHeight: "1.45"
-    }
-  }, texto), extra), React.createElement("button", {
-    onClick: () => lanzar(tipo, fn),
-    disabled: !!trabajando,
-    style: cargaBtn(true, {
-      opacity: trabajando ? 0.5 : 1,
-      minWidth: "110px"
-    })
-  }, trabajando === tipo ? "Generando..." : "Descargar"));
-  return React.createElement(CargaModal, {
-    title: "⬇️ Exportar KPIs",
-    onClose: trabajando ? () => {} : onClose,
-    width: "660px"
-  }, opcion("📄", "PDF", "El panel de KPIs tal como lo ves, con los filtros actuales y todas las filas desplegadas. Incluye nombres de personas (uso interno).", "pdf", onPDF), opcion("📊", "Excel", "Libro con resumen, evolución mensual, tablas por módulo, sector y persona, proyectos, alertas, carga cruzada y el detalle de imputaciones filtrado.", "excel", onExcel), opcion("📽️", "PowerPoint corporativo", "Presentación hiberus de resultados del trimestre, con gráficos editables. Sin nombres de personas: solo módulos, sectores y proyectos. Aplica los filtros de sector y módulo; ignora los de persona y mes.", "ppt", () => onPPT(trimestres.find(t => t.clave === trim)), trimestres.length ? React.createElement("div", {
-    style: {
-      marginTop: "8px",
-      display: "flex",
-      alignItems: "center",
-      gap: "8px",
-      fontSize: "12px",
-      color: C.text2
-    }
-  }, "Trimestre:", React.createElement("select", {
-    value: trim,
-    onChange: e => setTrim(e.target.value),
-    style: {
-      border: `1px solid ${C.border2}`,
-      borderRadius: "6px",
-      padding: "4px 8px",
-      fontSize: "12px"
-    }
-  }, trimestres.map(t => React.createElement("option", {
-    key: t.clave,
-    value: t.clave
-  }, `${t.label} (${t.rango})${t.completo ? "" : " · incompleto"}`)))) : null), error && React.createElement("div", {
-    style: {
-      background: "#fee2e2",
-      color: "#b91c1c",
-      borderRadius: "8px",
-      padding: "10px 12px",
-      fontSize: "12px",
-      marginTop: "6px"
-    }
-  }, error));
+  const opcion = (icono, tituloOp, texto, tipo, fn, extra) => React.createElement("div", { style: { border: `1px solid ${C.border}`, borderRadius: "10px", padding: "14px 16px", marginBottom: "10px", display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap" } },
+    React.createElement("div", { style: { fontSize: "26px" } }, icono),
+    React.createElement("div", { style: { flex: "1 1 240px" } },
+      React.createElement("div", { style: { fontSize: "14px", fontWeight: "700", color: C.text } }, tituloOp),
+      React.createElement("div", { style: { fontSize: "12px", color: C.text2, marginTop: "2px", lineHeight: "1.45" } }, texto),
+      extra),
+    React.createElement("button", { onClick: () => lanzar(tipo, fn), disabled: !!trabajando || (tipo === "ppt" && !mesesElegidos.length), style: cargaBtn(true, { opacity: trabajando || (tipo === "ppt" && !mesesElegidos.length) ? 0.5 : 1, minWidth: "110px" }) }, trabajando === tipo ? "Generando..." : "Descargar"));
+  return React.createElement(CargaModal, { title: "⬇️ Exportar KPIs", onClose: trabajando ? () => {} : onClose, width: "660px" },
+    opcion("📄", "PDF", "El panel de KPIs tal como lo ves, con los filtros actuales y todas las filas desplegadas. Incluye nombres de personas (uso interno).", "pdf", onPDF),
+    opcion("📊", "Excel", "Libro con resumen, evolución mensual, tablas por módulo, sector y persona, proyectos, alertas, carga cruzada y el detalle de imputaciones filtrado.", "excel", onExcel),
+    opcion("📽️", "PowerPoint corporativo", "Elige uno o varios meses con datos. Presentación hiberus con gráficos editables y sin nombres de personas. Aplica los filtros de sector y módulo; ignora los de persona, proyecto y mes.", "ppt", () => onPPT({ meses: mesesElegidos, label: mesesElegidos.length === 1 ? cargaMesLabel(mesesElegidos[0]) : `${mesesElegidos.length} meses`, rango: mesesElegidos.map(cargaMesLabel).join(", ") }),
+      React.createElement("div", { style: { marginTop: "8px", fontSize: "12px", color: C.text2 } },
+        React.createElement("div", { style: { marginBottom: "5px", fontWeight: "600" } }, "Meses de la presentación (selecciona al menos uno):"),
+        React.createElement("div", { style: { display: "flex", gap: "8px 12px", flexWrap: "wrap", maxHeight: "150px", overflowY: "auto" } }, mesesDisponibles.map(m => React.createElement("label", { key: m, style: { whiteSpace: "nowrap" } }, React.createElement("input", { type: "checkbox", checked: seleccion.has(m), onChange: () => alternar(m) }), " ", cargaMesLabel(m)))))),
+    error && React.createElement("div", { style: { background: "#fee2e2", color: "#b91c1c", borderRadius: "8px", padding: "10px 12px", fontSize: "12px", marginTop: "6px" } }, error));
 };
 // ---------- Panel de KPIs ----------
 const CargaKpisView = ({
