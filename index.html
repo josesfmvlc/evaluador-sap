@@ -1102,7 +1102,7 @@ const EmployeeListWithFilters = ({
   const filtered = base.filter(e => {
     const modList = e.modules && e.modules.length ? e.modules : e.module ? [e.module] : [];
     const skillList = e.skills && e.skills.length ? e.skills : e.skill ? [e.skill] : [];
-    return (!filters.nombre || e.nombre.toLowerCase().includes(filters.nombre.toLowerCase())) && (!filters.module.length || modList.some(m => filters.module.includes(m))) && (!filters.skill.length || skillList.some(s => filters.skill.includes(s))) && (!filters.antiguedad.length || filters.antiguedad.includes(e.antiguedad ? e.antiguedad.slice(0, 4) : "")) && (!filters.expSap.length || filters.expSap.includes(e.expSap ? e.expSap.slice(0, 4) : ""));
+    return (!filters.nombre || (e.nombre + " " + nombreVisible(e.nombre)).toLowerCase().includes(filters.nombre.toLowerCase())) && (!filters.module.length || modList.some(m => filters.module.includes(m))) && (!filters.skill.length || skillList.some(s => filters.skill.includes(s))) && (!filters.antiguedad.length || filters.antiguedad.includes(e.antiguedad ? e.antiguedad.slice(0, 4) : "")) && (!filters.expSap.length || filters.expSap.includes(e.expSap ? e.expSap.slice(0, 4) : ""));
   });
   const toggleSel = id => setSel(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id]);
   const selVisibles = filtered.filter(e => sel.includes(e.id));
@@ -1429,7 +1429,7 @@ const EmployeeListWithFilters = ({
       color: C.muted,
       fontSize: "12px"
     }
-  }, tab === "archivados" && !archivadosL.length ? "Todavía no hay empleados archivados" : "No hay empleados que coincidan con los filtros") : filtered.sort((a, b) => a.nombre.localeCompare(b.nombre)).map((e, idx) => React.createElement("div", {
+  }, tab === "archivados" && !archivadosL.length ? "Todavía no hay empleados archivados" : "No hay empleados que coincidan con los filtros") : filtered.sort((a, b) => nombreVisible(a.nombre).localeCompare(nombreVisible(b.nombre), "es")).map((e, idx) => React.createElement("div", {
     key: e.id,
     style: {
       ...empGrid,
@@ -1448,7 +1448,7 @@ const EmployeeListWithFilters = ({
       fontWeight: "600",
       color: C.text
     }
-  }, e.nombre), e.archivado && React.createElement("div", {
+  }, nombreVisible(e.nombre)), e.archivado && React.createElement("div", {
     style: {
       fontSize: "10px",
       color: "#b45309",
@@ -2554,7 +2554,7 @@ const EvaluationView = ({
   const _prevEvs = [[initialData && initialData.evaluador1Id, initialData && initialData.evaluador1Nombre], [initialData && initialData.evaluador2Id, initialData && initialData.evaluador2Nombre]].filter(([id]) => id && !employees.some(e => e.id === id));
   const evalOptions = employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
     value: e.id,
-    label: e.nombre
+    label: nombreVisible(e.nombre)
   })).concat(_prevEvs.map(([id, n]) => ({
     value: id,
     label: (n || "Evaluador") + " (archivado)"
@@ -2953,7 +2953,7 @@ const EvaluationViewOperativo = ({
   const _prevEvs = [[initialData && initialData.evaluador1Id, initialData && initialData.evaluador1Nombre], [initialData && initialData.evaluador2Id, initialData && initialData.evaluador2Nombre]].filter(([id]) => id && !employees.some(e => e.id === id));
   const evalOptions = employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
     value: e.id,
-    label: e.nombre
+    label: nombreVisible(e.nombre)
   })).concat(_prevEvs.map(([id, n]) => ({
     value: id,
     label: (n || "Evaluador") + " (archivado)"
@@ -3851,6 +3851,8 @@ const EmployeesView = ({
 //   appData/carga_m_AAAA-MM    -> imputaciones del mes agregadas por persona y proyecto
 // Esta vista lee y escribe solo esos documentos; no toca appData/employees ni appData/config.
 // Modo pruebas: abriendo la app con ?pruebas=1 se usan documentos aparte (appData/pruebas_carga_*), sin tocar los reales
+// Presentación: solo invertir cuando la coma identifica apellidos y nombre de forma inequívoca.
+const nombreVisible = nombre => { const t = String(nombre == null ? "" : nombre).trim(); const partes = t.split(","); return partes.length === 2 && partes[0].trim() && partes[1].trim() ? partes[1].trim() + " " + partes[0].trim() : t; };
 const CARGA_PRUEBAS = typeof location !== "undefined" && /[?&]pruebas=1(&|$)/.test(location.search);
 const CARGA_PREFIJO = CARGA_PRUEBAS ? "pruebas_" : "";
 const CARGA_CFG_DOC = CARGA_PREFIJO + "carga_cfg";
@@ -4777,7 +4779,7 @@ const cargaEnriquecer = (filas, cfg, empleados, archivados) => {
       porProyecto.set(kp, pinfo);
     }
     out.push({
-      persona,
+      persona: nombreVisible(persona),
       sector: info.sector,
       modulo: info.modulo,
       mes: f.mes,
@@ -10713,7 +10715,7 @@ const rvpCombinar = (real, plan, empleados, archivados, cfg) => {
     if (pi === undefined) {
       pi = P.length; personasIdx.set(clave, pi);
       const eq = RVP_EQUIPOS[p.equipo] ? p.equipo : rvpEquipo(r.sector);
-      P.push({ i: pi, key: clave, name: r.nombre || p.nombre, eq, mod: p.modulo || r.modulo || "", vinculada: p.vinculada && r.vinculada });
+      P.push({ i: pi, key: clave, name: nombreVisible(r.nombre || p.nombre), eq, mod: p.modulo || r.modulo || "", vinculada: p.vinculada && r.vinculada });
     }
     const T = r.total;
     const plan_ = {}, real_ = {};
@@ -10889,10 +10891,10 @@ const rvpMotor = D => {
   const nf = n => Math.round(n).toLocaleString("es-ES");
   const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
   const ptsH = p => p / 100 * D.avgH;
-  const rowsF = ms => rows.filter(r => S.teams.has(P[r.p].t) && ms.includes(r.m) && (!S.mod || P[r.p].mod === S.mod));
+  const rowsF = ms => rows.filter(r => S.teams.has(P[r.p].t) && ms.includes(r.m) && (!S.mod || P[r.p].mod === S.mod) && (S.fperson === "" || r.p === S.fperson));
   const selMonths = () => [...S.months].sort((a, b) => a - b);
   const pname = k => (PRO[k].code ? PRO[k].code + " · " : "") + PRO[k].name;
-  const visiblePersons = () => P.filter(p => S.teams.has(p.t) && (!S.mod || p.mod === S.mod));
+  const visiblePersons = () => P.filter(p => S.teams.has(p.t) && (!S.mod || p.mod === S.mod) && (S.fperson === "" || p.i === S.fperson));
   const GL = {
     FTE: { t: "FTE", d: "Full-Time Equivalent: <b>equivale a una persona a jornada completa durante un mes</b>. Dos personas a media jornada son 1 FTE. Si decimos «8 FTE de capacidad libre», es como si 8 personas estuvieran un mes entero sin trabajo de proyecto." },
     pts: { t: "Punto", d: "Punto porcentual: <b>1 punto = 1 % del tiempo del mes de una persona</b> (unas 1,7 horas). Si el plan decía 80 % y se hizo 60 %, la diferencia es de 20 puntos, unas 34 horas." },
@@ -11153,7 +11155,7 @@ const rvpMotor = D => {
     if (!agg.length) return '<div class="card empty">Sin datos con estos filtros.</div>';
     if (S.person === null || !agg.find(a => a.p === S.person)) S.person = agg[0].p;
     const p = P[S.person], T = TEAMS[p.t];
-    const pr = M.map((_, mi) => rowMap.get(p.i + "|" + mi) || null);
+    const pr = M.map((_, mi) => S.months.has(mi) ? rowMap.get(p.i + "|" + mi) || null : null);
     const list = agg.map(a => { const q = P[a.p]; const se = M.map((_, mi) => { const r = rowMap.get(q.i + "|" + mi); return r ? r.realProj - r.planProj : 0; });
       return `<div class="pi ${a.p === S.person ? "on" : ""}" data-a="person" data-v="${a.p}"><div><div class="n"><span class="dot" style="background:${TEAMS[q.t].c}"></span>${E(q.name)}</div><div class="d">${E(TEAMS[q.t].id)} · ${E(q.mod)} · <span style="color:${dcol(a.bias)};font-weight:600">${Math.abs(a.bias) <= 3 ? "bien planificado" : a.bias < 0 ? "hace menos" : "hace más"}</span></div></div>${spark(se, { w: 70, h: 26, c: dcol(a.bias), zero: 1, tip: "Diferencia mensual real − plan" })}</div>`; }).join("");
     const own = rowsF(ms).filter(r => r.p === p.i), st = stats(own);
@@ -11270,15 +11272,17 @@ const rvpMotor = D => {
   function chrome() {
     const mods = [...new Set(P.filter(p => S.teams.has(p.t)).map(p => p.mod).filter(Boolean))].sort();
     if (S.mod && !mods.includes(S.mod)) S.mod = "";
-    const filtered = S.teams.size < TEAMS.length || S.months.size < nM || S.mod;
+    const filtered = S.teams.size < TEAMS.length || S.months.size < nM || S.mod || S.fperson !== "";
+    const personasFiltro = P.filter(p => S.teams.has(p.t) && (!S.mod || p.mod === S.mod)).slice().sort((a, b) => a.name.localeCompare(b.name, "es", { sensitivity: "base" }));
     const teamValue = S.teams.size === TEAMS.length ? "all" : [...S.teams][0];
     const monthValue = S.months.size === nM && nM > 1 ? "all" : S.months.size ? [...S.months][0] : "current";
-    return `<div class="filters"><div class="fg"><label class="fl" for="rvp-team">Equipo</label><select id="rvp-team"><option value="all">Todos</option>${TEAMS.map((t, i) => `<option value="${i}" ${String(teamValue) === String(i) ? "selected" : ""}>${E(t.id || "Sin equipo")}</option>`).join("")}</select></div>
-     <div class="fg"><label class="fl" for="rvp-month">Mes</label><select id="rvp-month"><option value="all" ${monthValue === "all" ? "selected" : ""}>Todos</option>${!S.months.size ? '<option value="current" selected>Mes actual (sin datos)</option>' : ""}${M.map((m, i) => `<option value="${i}" ${String(monthValue) === String(i) ? "selected" : ""}>${E(m.l)}${m.partial ? " *" : ""}</option>`).join("")}</select></div>
+    return `<div class="filters"><div class="fg"><label class="fl" for="rvp-team">Equipo</label><select id="rvp-team"><option value="all">Todos</option>${!S.teams.size ? '<option value="missing" selected>Equipo seleccionado (sin datos)</option>' : ""}${TEAMS.map((t, i) => `<option value="${i}" ${String(teamValue) === String(i) ? "selected" : ""}>${E(t.id || "Sin equipo")}</option>`).join("")}</select></div>
+     <div class="fg"><label class="fl" for="rvp-month">Mes</label><select id="rvp-month"><option value="all" ${monthValue === "all" ? "selected" : ""}>Todos</option>${!S.months.size ? '<option value="current" selected>Mes seleccionado (sin datos)</option>' : ""}${M.map((m, i) => `<option value="${i}" ${String(monthValue) === String(i) ? "selected" : ""}>${E(m.l)}${m.partial ? " *" : ""}</option>`).join("")}</select></div>
      <div class="fg"><label class="fl" for="rvp-mod">Módulo</label><select id="rvp-mod"><option value="">Todos</option>${mods.map(m => `<option ${S.mod === m ? "selected" : ""}>${E(m)}</option>`).join("")}</select></div>
+     <div class="fg"><label class="fl" for="rvp-person">Persona</label><select id="rvp-person"><option value="">Todas</option>${S.fperson === -1 ? '<option value="missing" selected>Persona seleccionada (sin datos)</option>' : ""}${personasFiltro.map(p => `<option value="${p.i}" ${S.fperson === p.i ? "selected" : ""}>${E(p.name)}</option>`).join("")}</select></div>
      <div class="fg note">${visiblePersons().length} personas · ${S.months.size} meses ${filtered ? '<button class="bt" data-a="resetf">Quitar filtros</button>' : ""} <button class="bt" data-a="reload">Actualizar datos</button></div></div>`;
   }
-  const estadoInicial = () => ({ tab: "res", teams: new Set(TEAMS.map((_, i) => i)), months: new Set(M.map((m, i) => m.partial ? i : -1).filter(i => i >= 0)), mod: "", person: null, pm: Math.max(0, nM - 1), pf: "all", open: null, heatAll: false });
+  const estadoInicial = () => ({ tab: "res", teams: new Set(TEAMS.map((_, i) => i)), months: new Set(M.map((m, i) => m.partial ? i : -1).filter(i => i >= 0)), mod: "", allTeams: true, allMonths: false, fperson: "", person: null, pm: Math.max(0, nM - 1), pf: "all", open: null, heatAll: false });
   function html(state) {
     S = state;
     const generado = D.generado ? new Date(D.generado) : null;
@@ -11293,8 +11297,8 @@ const rvpMotor = D => {
     if (a === "team") { const i = +v; if (S.teams.has(i)) { if (S.teams.size > 1) S.teams.delete(i); } else S.teams.add(i); }
     else if (a === "month") { const i = +v; if (S.months.has(i)) { if (S.months.size > 1) S.months.delete(i); } else S.months.add(i); }
     else if (a === "mq") S.months = new Set(v === "all" ? M.map((_, i) => i) : M.map((_, i) => i).slice(-3));
-    else if (a === "onlyteam") { S.teams = new Set([+v]); scroll = 0; }
-    else if (a === "resetf") { S.teams = new Set(TEAMS.map((_, i) => i)); S.months = new Set(M.map((_, i) => i)); S.mod = ""; }
+    else if (a === "onlyteam") { S.teams = new Set([+v]); S.allTeams = false; S.fperson = ""; scroll = 0; }
+    else if (a === "resetf") { S.teams = new Set(TEAMS.map((_, i) => i)); S.months = new Set(M.map((_, i) => i)); S.mod = ""; S.fperson = ""; S.allTeams = true; S.allMonths = true; }
     else if (a === "gotab") { S.tab = v; scroll = 0; }
     else if (a === "gopro") { S.tab = "pro"; S.pf = v; S.open = null; scroll = 0; }
     else if (a === "person") { S.person = +v; S.tab = "per"; scroll = 0; }
@@ -11309,6 +11313,26 @@ const rvpMotor = D => {
   return { html, accion, estadoInicial, vacio: !rows.length };
 };
 
+// Conserva las selecciones por sus claves estables cuando cambia el orden de los datos.
+const rvpRestaurarFiltros = (anterior, actual, state) => {
+  if (!anterior || !state) return null;
+  const ini = rvpMotor(actual).estadoInicial();
+  const teamIds = new Set([...state.teams].map(i => anterior.equipos[i]?.id).filter(x => x !== undefined));
+  ini.teams = new Set(actual.equipos.map((t, i) => teamIds.has(t.id) || state.allTeams ? i : -1).filter(i => i >= 0));
+  const monthIds = new Set([...state.months].map(i => anterior.meses[i]?.k).filter(Boolean));
+  ini.months = new Set(actual.meses.map((m, i) => monthIds.has(m.k) || state.allMonths ? i : -1).filter(i => i >= 0));
+  const personIndex = i => { const k = anterior.P[i]?.key; return k == null ? -1 : actual.P.findIndex(p => p.key === k); };
+  const fp = state.fperson === "" ? -1 : personIndex(state.fperson);
+  ini.fperson = state.fperson === "" ? "" : fp; // -1 mantiene el filtro vacío si la persona desaparece
+  const person = state.person === null ? -1 : personIndex(state.person);
+  ini.person = person < 0 ? null : person;
+  ini.mod = state.mod; ini.tab = state.tab; ini.pf = state.pf; ini.open = state.open; ini.heatAll = state.heatAll;
+  ini.allTeams = state.allTeams; ini.allMonths = state.allMonths;
+  const oldPm = anterior.meses[state.pm]?.k, pm = actual.meses.findIndex(m => m.k === oldPm);
+  ini.pm = pm < 0 ? ([...ini.months][0] ?? 0) : pm;
+  return ini;
+};
+
 const RealVsPlanView = ({ onBack, onLogout, empleados = [], archivados = [] }) => {
   const [estado, setEstado] = useState("cargando");
   const [error, setError] = useState("");
@@ -11317,6 +11341,7 @@ const RealVsPlanView = ({ onBack, onLogout, empleados = [], archivados = [] }) =
   const [, setVer] = useState(0);
   const motor = useMemo(() => datos ? rvpMotor(datos) : null, [datos]);
   const S = useRef(null);
+  const datosRef = useRef(null);
   const tipRef = useRef(null);
   const empRef = useRef(empleados); empRef.current = empleados;
   const arcRef = useRef(archivados); arcRef.current = archivados;
@@ -11328,7 +11353,7 @@ const RealVsPlanView = ({ onBack, onLogout, empleados = [], archivados = [] }) =
         const [plan, real] = await Promise.all([rvpFetchPlan(), rvpLeerReal(empRef.current, arcRef.current)]);
         if (!vivo) return;
         const d = rvpCombinar(real.datos, plan, empRef.current, arcRef.current, real.cfg);
-        S.current = null; setDatos(d); setEstado("ok");
+        S.current = rvpRestaurarFiltros(datosRef.current, d, S.current); datosRef.current = d; setDatos(d); setEstado("ok");
       } catch (e) {
         console.error("Real vs planificado:", e);
         if (vivo) { setError(e && e.message ? e.message : String(e)); setEstado("error"); }
@@ -11350,9 +11375,10 @@ const RealVsPlanView = ({ onBack, onLogout, empleados = [], archivados = [] }) =
     }, 0);
   };
   const onChange = e => { if (!e.target || !motor) return; const id = e.target.id, v = e.target.value;
-    if (id === "rvp-mod") S.current.mod = v;
-    else if (id === "rvp-team") S.current.teams = new Set(v === "all" ? datos.equipos.map((_, i) => i) : [+v]);
-    else if (id === "rvp-month") S.current.months = new Set(v === "all" ? datos.meses.map((_, i) => i) : v === "current" ? [] : [+v]);
+    if (id === "rvp-mod") { S.current.mod = v; S.current.fperson = ""; }
+    else if (id === "rvp-person") S.current.fperson = v === "" ? "" : v === "missing" ? -1 : +v;
+    else if (id === "rvp-team") { S.current.teams = new Set(v === "all" ? datos.equipos.map((_, i) => i) : v === "missing" ? [] : [+v]); S.current.allTeams = v === "all"; S.current.fperson = ""; }
+    else if (id === "rvp-month") { S.current.months = new Set(v === "all" ? datos.meses.map((_, i) => i) : v === "current" ? [] : [+v]); S.current.allMonths = v === "all"; if (v !== "all" && v !== "current") S.current.pm = +v; }
     else return; setVer(n => n + 1); };
   const onMove = e => {
     const tip = tipRef.current; if (!tip) return;
@@ -14190,7 +14216,7 @@ const ResultadosEvaluacionView = ({
   }, "EMPLEADO"), React.createElement(SearchableSelect, {
     options: employees.slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
       value: e.id,
-      label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}${e.archivado ? " (archivado)" : ""}`
+      label: `${nombreVisible(e.nombre)}${e.nivel ? ` (${e.nivel})` : ""}${e.archivado ? " (archivado)" : ""}`
     })),
     value: selEmp?.id || "",
     onChange: id => {
@@ -14725,7 +14751,7 @@ function App() {
   // Opciones del desplegable de empleado en evaluaciones: solo activos (+ el seleccionado si es un archivado al editar una evaluación antigua)
   const empOpcionesSel = sel => (sel && !empActivosList.some(x => x.id === sel.id) ? [...empActivosList, sel] : empActivosList).slice().sort((a, b) => a.nombre.localeCompare(b.nombre)).map(e => ({
     value: e.id,
-    label: `${e.nombre}${e.nivel ? ` (${e.nivel})` : ""}${e.archivado ? " (archivado)" : ""}`
+    label: `${nombreVisible(e.nombre)}${e.nivel ? ` (${e.nivel})` : ""}${e.archivado ? " (archivado)" : ""}`
   }));
   const onBulkAdd = emps => {
     // La importación no toca a los archivados: si una fila coincide por nombre solo con un archivado, se omite y se avisa
