@@ -6814,8 +6814,10 @@ const CargaExportModal = ({ trimestres, onPDF, onExcel, onPPT, onClose }) => {
     opcion("📊", "Excel", "Libro con resumen, evolución mensual, tablas por módulo, sector y persona, proyectos, alertas, carga cruzada y el detalle de imputaciones filtrado.", "excel", onExcel),
     opcion("📽️", "PowerPoint corporativo", "Elige uno o varios meses con datos. Presentación hiberus con gráficos editables y sin nombres de personas. Aplica los filtros de sector y módulo; ignora los de persona, proyecto y mes.", "ppt", () => onPPT({ meses: mesesElegidos, label: mesesElegidos.length === 1 ? cargaMesLabel(mesesElegidos[0]) : `${mesesElegidos.length} meses`, rango: mesesElegidos.map(cargaMesLabel).join(", ") }),
       React.createElement("div", { style: { marginTop: "8px", fontSize: "12px", color: C.text2 } },
-        React.createElement("div", { style: { marginBottom: "5px", fontWeight: "600" } }, "Meses de la presentación (selecciona al menos uno):"),
-        React.createElement("div", { style: { display: "flex", gap: "8px 12px", flexWrap: "wrap", maxHeight: "150px", overflowY: "auto" } }, mesesDisponibles.map(m => React.createElement("label", { key: m, style: { whiteSpace: "nowrap" } }, React.createElement("input", { type: "checkbox", checked: seleccion.has(m), onChange: () => alternar(m) }), " ", cargaMesLabel(m)))))),
+        React.createElement("div", { style: { marginBottom: "5px", fontWeight: "600" } }, "Meses de la presentación:"),
+        React.createElement("details", { style: { maxWidth: "300px", border: `1px solid ${C.border2}`, borderRadius: "7px", background: "white" } },
+          React.createElement("summary", { style: { cursor: "pointer", padding: "8px 10px", color: C.text } }, mesesElegidos.length === 0 ? "Selecciona al menos un mes" : mesesElegidos.length === 1 ? cargaMesLabel(mesesElegidos[0]) : `${mesesElegidos.length} meses seleccionados`),
+          React.createElement("div", { style: { maxHeight: "160px", overflowY: "auto", padding: "4px 10px 8px", borderTop: `1px solid ${C.border}` } }, mesesDisponibles.map(m => React.createElement("label", { key: m, style: { display: "flex", alignItems: "center", gap: "7px", padding: "5px 0", cursor: "pointer" } }, React.createElement("input", { type: "checkbox", checked: seleccion.has(m), onChange: () => alternar(m) }), cargaMesLabel(m))))))),
     error && React.createElement("div", { style: { background: "#fee2e2", color: "#b91c1c", borderRadius: "8px", padding: "10px 12px", fontSize: "12px", marginTop: "6px" } }, error));
 };
 // ---------- Panel de KPIs ----------
