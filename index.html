@@ -10605,31 +10605,18 @@ const staffingPayload = async empleados => {
 // Un «caso» = una persona en un mes con plan en Staffing E imputaciones reales. Lo que no cruza no se descarta: sale en «Calidad del cruce».
 const RVP_PLAN_URL = STAFFING_URL + "/api/plan";
 const RVP_ACIERTO = 10; // puntos: el plan «acierta» si lo real queda a menos de 10 puntos de lo planificado
-const RVP_EQUIPOS = {
-  "S&C": ["S&C (Servicios)", "#6366f1"],
-  "IP": ["Industria de Procesos", "#0ea5e9"],
-  "Manufacturing": ["Manufacturing", "#10b981"],
-  "Basis": ["Basis", "#f59e0b"],
-  "Estructura": ["Estructura", "#a855f7"],
-  "": ["Sin equipo", "#94a3b8"]
-};
+const RVP_EQUIPOS = { "S&C": ["S&C (Servicios)", "#6366f1"], "IP": ["Industria de Procesos", "#0ea5e9"], "Manufacturing": ["Manufacturing", "#10b981"], "Basis": ["Basis", "#f59e0b"], "Estructura": ["Estructura", "#a855f7"], "": ["Sin equipo", "#94a3b8"] };
 const rvpEquipo = sector => {
   const s = cargaNorm(sector).replace(/\s+/g, " ");
-  return s.includes("MANUFACTUR") ? "Manufacturing" : s.includes("INDUSTRIA") ? "IP" : s.includes("SERVICIO") ? "S&C" : s.includes("BASIS") ? "Basis" : s.includes("ESTRUCTURA") || s === "SAPHIA" ? "Estructura" : "";
+  return s.includes("MANUFACTUR") ? "Manufacturing" : s.includes("INDUSTRIA") ? "IP" : s.includes("SERVICIO") ? "S&C" : s.includes("BASIS") ? "Basis" : (s.includes("ESTRUCTURA") || s === "SAPHIA") ? "Estructura" : "";
 };
 const rvpTok = s => cargaTokens(s).sort().join(" ");
 // Persona (texto) → empleado de Gestión de empleados (activo o archivado), por las palabras del nombre (mismo criterio que Gestión de carga)
 const rvpResolverEmpleado = (activos, archivados) => {
   const build = lista => {
-    const l = (lista || []).filter(e => e && e.nombre && e.id != null).map(e => ({
-      e,
-      t: cargaTokens(e.nombre)
-    })).filter(x => x.t.length);
+    const l = (lista || []).filter(e => e && e.nombre && e.id != null).map(e => ({ e, t: cargaTokens(e.nombre) })).filter(x => x.t.length);
     const exacto = new Map();
-    for (const x of l) {
-      const k = [...x.t].sort().join(" ");
-      exacto.set(k, exacto.has(k) ? null : x);
-    }
+    for (const x of l) { const k = [...x.t].sort().join(" "); exacto.set(k, exacto.has(k) ? null : x); }
     return nombre => {
       const t = cargaTokens(nombre);
       if (!t.length) return null;
@@ -10637,15 +10624,11 @@ const rvpResolverEmpleado = (activos, archivados) => {
       if (ex) return ex.e;
       if (ex === null) return null; // dos empleados con el mismo nombre: mejor no adivinar
       const st = new Set(t);
-      const cand = l.filter(x => {
-        const c = x.t.filter(w => st.has(w)).length;
-        return c >= 2 && (c === x.t.length || c === t.length);
-      });
+      const cand = l.filter(x => { const c = x.t.filter(w => st.has(w)).length; return c >= 2 && (c === x.t.length || c === t.length); });
       return cand.length === 1 ? cand[0].e : null;
     };
   };
-  const vivo = build(activos),
-    archi = build(archivados);
+  const vivo = build(activos), archi = build(archivados);
   return nombre => vivo(nombre) || archi(nombre);
 };
 const rvpFetchPlan = async () => {
@@ -10653,21 +10636,10 @@ const rvpFetchPlan = async () => {
   if (!user) throw new Error("No hay sesión de Gestión Saphia.");
   const idToken = await user.getIdToken();
   let r;
-  try {
-    r = await fetch(RVP_PLAN_URL, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json"
-      },
-      body: JSON.stringify({
-        idToken
-      })
-    });
-  } catch (e) {
-    throw new Error("No se ha podido conectar con Staffing. Comprueba que el Worker de Cargabilidad está actualizado (endpoint /api/plan) y que EMBED_ORIGINS incluye el origen de Gestión Saphia.");
-  }
+  try { r = await fetch(RVP_PLAN_URL, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ idToken }) }); }
+  catch (e) { throw new Error("No se ha podido conectar con Staffing. Comprueba que el Worker de Cargabilidad está actualizado (endpoint /api/plan) y que EMBED_ORIGINS incluye el origen de Gestión Saphia."); }
   const j = await r.json().catch(() => null);
-  if (!r.ok || !j || !j.ok) throw new Error(j && j.error || "Staffing ha respondido " + r.status + ". ¿Está desplegada la versión con /api/plan?");
+  if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ("Staffing ha respondido " + r.status + ". ¿Está desplegada la versión con /api/plan?"));
   return j;
 };
 // Real: mismas lecturas y mismo cálculo que Gestión de carga
@@ -10677,20 +10649,9 @@ const rvpLeerReal = async (empleados, archivados) => {
   const c = cfgSnap.exists ? cfgSnap.data() : {};
   const meses = c.meses || [];
   const snaps = await Promise.all(meses.map(m => db.collection("appData").doc(cargaMesDoc(m)).get()));
-  const cfg = {
-    mapeo: [],
-    proyectos: [],
-    ddnProyectos: [],
-    excluidos: [],
-    historial: [],
-    ...c,
-    meses
-  };
+  const cfg = { mapeo: [], proyectos: [], ddnProyectos: [], excluidos: [], historial: [], ...c, meses };
   const filas = snaps.flatMap((s, i) => s.exists ? cargaDecodificarMes(meses[i], s.data()) : []);
-  return {
-    cfg,
-    datos: cargaEnriquecer(filas, cfg, empleados, archivados)
-  };
+  return { cfg, datos: cargaEnriquecer(filas, cfg, empleados, archivados) };
 };
 // Cruce plan ↔ real → conjunto de datos listo para pintar
 const rvpCombinar = (real, plan, empleados, archivados, cfg) => {
@@ -10698,191 +10659,92 @@ const rvpCombinar = (real, plan, empleados, archivados, cfg) => {
   const ddnSet = new Set((cfg.ddnProyectos || []).map(cargaNorm));
   const reclSet = cargaReclSet(cfg);
   const hoyMes = cargaMesActual();
-  const claveProy = (cod, nombre) => cod && String(cod).trim() || "n:" + cargaNorm(nombre);
-  const claveEmp = (nombre, origen) => {
-    if (origen) return "e:" + origen;
-    const e = resolver(nombre);
-    return e ? "e:" + e.id : "n:" + rvpTok(nombre);
-  };
-  const catPlan = p => p.categoria && CARGA_CAT_GRUPO[p.categoria] ? p.categoria : cargaEsRecl(reclSet, p.cod, p.nombre) ? "Proyecto" : cargaCategoria(p.nombre, ddnSet);
+  const claveProy = (cod, nombre) => (cod && String(cod).trim()) || "n:" + cargaNorm(nombre);
+  const claveEmp = (nombre, origen) => { if (origen) return "e:" + origen; const e = resolver(nombre); return e ? "e:" + e.id : "n:" + rvpTok(nombre); };
+  const catPlan = p => p.categoria && CARGA_CAT_GRUPO[p.categoria] ? p.categoria : (cargaEsRecl(reclSet, p.cod, p.nombre) ? "Proyecto" : cargaCategoria(p.nombre, ddnSet));
   const PRO = {};
-  const nuevo = () => ({
-    proj: 0,
-    vac: 0,
-    rest: 0,
-    total: 0,
-    byPro: {},
-    nombre: "",
-    equipo: "",
-    modulo: "",
-    sector: ""
-  });
+  const nuevo = () => ({ proj: 0, vac: 0, disp: 0, ddn: 0, otros: 0, total: 0, byPro: {}, nombre: "", equipo: "", modulo: "", sector: "" });
   // ---- plan ----
   const planPersona = new Map((plan.personas || []).map(p => [p.id, p]));
   const planProy = new Map((plan.proyectos || []).map(p => [p.id, p]));
-  const pl = new Map(),
-    planMeses = new Set(),
-    proySinCodigo = new Map();
+  const pl = new Map(), planMeses = new Set(), proySinCodigo = new Map();
   for (const a of plan.asignaciones || []) {
-    const p = planPersona.get(a.persona),
-      pr = planProy.get(a.proyecto);
+    const p = planPersona.get(a.persona), pr = planProy.get(a.proyecto);
     if (!p || !pr || !(a.pct > 0)) continue;
     const clave = claveEmp(p.nombre, p.origen);
     planMeses.add(a.mes);
     const key = clave + "|" + a.mes;
     let o = pl.get(key);
-    if (!o) {
-      o = nuevo();
-      o.nombre = p.nombre;
-      o.equipo = p.equipo;
-      o.modulo = p.modulo;
-      o.vinculada = !!p.origen || clave.startsWith("e:");
-      pl.set(key, o);
-    }
+    if (!o) { o = nuevo(); o.nombre = p.nombre; o.equipo = p.equipo; o.modulo = p.modulo; o.vinculada = !!p.origen || clave.startsWith("e:"); pl.set(key, o); }
     const g = CARGA_CAT_GRUPO[catPlan(pr)];
     if (g === "proy") {
       const pk = claveProy(pr.cod, pr.nombre);
-      o.proj += a.pct;
-      o.byPro[pk] = (o.byPro[pk] || 0) + a.pct;
-      if (!PRO[pk]) PRO[pk] = {
-        name: pr.nombre,
-        code: pr.cod || ""
-      };
+      o.proj += a.pct; o.byPro[pk] = (o.byPro[pk] || 0) + a.pct;
+      if (!PRO[pk]) PRO[pk] = { name: pr.nombre, code: pr.cod || "" };
       if (!pr.cod) proySinCodigo.set(pk, pr.nombre);
-    } else if (g === "vac") o.vac += a.pct;else o.rest += a.pct;
+    } else if (g === "vac") o.vac += a.pct; else if (g in o) o[g] += a.pct;
   }
   // ---- real ----
-  const re = new Map(),
-    realMeses = new Set();
+  const re = new Map(), realMeses = new Set();
   for (const d of real) {
     if (!d.h) continue;
-    const e = resolver(d.persona),
-      clave = e ? "e:" + e.id : "n:" + rvpTok(d.persona);
+    const e = resolver(d.persona), clave = e ? "e:" + e.id : "n:" + rvpTok(d.persona);
     const key = clave + "|" + d.mes;
     let o = re.get(key);
-    if (!o) {
-      o = nuevo();
-      o.nombre = e ? e.nombre : d.persona;
-      o.sector = d.sector;
-      o.modulo = d.modulo;
-      o.vinculada = !!e;
-      re.set(key, o);
-    }
-    o.total += d.h;
-    realMeses.add(d.mes);
+    if (!o) { o = nuevo(); o.nombre = e ? e.nombre : d.persona; o.sector = d.sector; o.modulo = d.modulo; o.vinculada = !!e; re.set(key, o); }
+    o.total += d.h; realMeses.add(d.mes);
     if (d.grupo === "proy") {
       const pk = claveProy(d.cod, d.pro);
-      o.proj += d.h;
-      o.byPro[pk] = (o.byPro[pk] || 0) + d.h;
-      if (!PRO[pk]) PRO[pk] = {
-        name: d.pro,
-        code: d.cod || ""
-      };
-    } else if (d.grupo === "vac") o.vac += d.h;else o.rest += d.h;
+      o.proj += d.h; o.byPro[pk] = (o.byPro[pk] || 0) + d.h;
+      if (!PRO[pk]) PRO[pk] = { name: d.pro, code: d.cod || "" };
+    } else if (d.grupo === "vac") o.vac += d.h; else if (d.grupo in o) o[d.grupo] += d.h;
   }
   const mesesOk = [...planMeses].filter(m => realMeses.has(m) && m <= hoyMes).sort();
   const mesIdx = new Map(mesesOk.map((m, i) => [m, i]));
   const r1 = x => Math.round(x * 10) / 10;
-  const personasIdx = new Map(),
-    P = [],
-    rows = [];
-  let sinReal = new Map(),
-    sinPlan = new Map();
+  const personasIdx = new Map(), P = [], rows = [];
+  let sinReal = new Map(), sinPlan = new Map();
   for (const [key, p] of pl) {
-    const sep = key.lastIndexOf("|"),
-      clave = key.slice(0, sep),
-      mes = key.slice(sep + 1);
+    const sep = key.lastIndexOf("|"), clave = key.slice(0, sep), mes = key.slice(sep + 1);
     if (!mesIdx.has(mes)) continue;
     const r = re.get(key);
-    if (!r || !(r.total > 0)) {
-      sinReal.set(clave, p.nombre);
-      continue;
-    }
+    if (!r || !(r.total > 0)) { sinReal.set(clave, p.nombre); continue; }
     let pi = personasIdx.get(clave);
     if (pi === undefined) {
-      pi = P.length;
-      personasIdx.set(clave, pi);
+      pi = P.length; personasIdx.set(clave, pi);
       const eq = RVP_EQUIPOS[p.equipo] ? p.equipo : rvpEquipo(r.sector);
-      P.push({
-        i: pi,
-        key: clave,
-        name: r.nombre || p.nombre,
-        eq,
-        mod: p.modulo || r.modulo || "",
-        vinculada: p.vinculada && r.vinculada
-      });
+      P.push({ i: pi, key: clave, name: r.nombre || p.nombre, eq, mod: p.modulo || r.modulo || "", vinculada: p.vinculada && r.vinculada });
     }
     const T = r.total;
-    const plan_ = {},
-      real_ = {};
+    const plan_ = {}, real_ = {};
     for (const k in p.byPro) if (p.byPro[k] > 0) plan_[k] = r1(p.byPro[k]);
-    for (const k in r.byPro) {
-      const v = r1(r.byPro[k] / T * 100);
-      if (v > 0) real_[k] = v;
-    }
-    const planProj = r1(p.proj),
-      planV = r1(p.vac);
-    const realProj = r1(r.proj / T * 100),
-      realV = r1(r.vac / T * 100);
-    rows.push({
-      p: pi,
-      m: mesIdx.get(mes),
-      planProj,
-      realProj,
-      planV,
-      realV,
-      planD: r1(Math.max(0, 100 - planProj - planV)),
-      realD: r1(Math.max(0, 100 - realProj - realV)),
-      plan: plan_,
-      real: real_,
-      hh: T
-    });
+    for (const k in r.byPro) { const v = r1(r.byPro[k] / T * 100); if (v > 0) real_[k] = v; }
+    const planProj = r1(p.proj), planV = r1(p.vac);
+    const realProj = r1(r.proj / T * 100), realV = r1(r.vac / T * 100);
+    rows.push({ p: pi, m: mesIdx.get(mes), planProj, realProj, planV, realV, planDisp: r1(p.disp + Math.max(0, 100 - p.proj - p.vac - p.disp - p.ddn - p.otros)), planDdn: r1(p.ddn), planOtros: r1(p.otros), realDisp: r1(r.disp / T * 100), realDdn: r1(r.ddn / T * 100), realOtros: r1(r.otros / T * 100), planD: r1(Math.max(0, 100 - planProj - planV)), realD: r1(Math.max(0, 100 - realProj - realV)), plan: plan_, real: real_, hh: T });
   }
   for (const [key, r] of re) {
-    const sep = key.lastIndexOf("|"),
-      clave = key.slice(0, sep),
-      mes = key.slice(sep + 1);
+    const sep = key.lastIndexOf("|"), clave = key.slice(0, sep), mes = key.slice(sep + 1);
     if (mesIdx.has(mes) && !pl.has(key)) sinPlan.set(clave, r.nombre);
   }
   const eqIds = [...new Set(P.map(p => p.eq))].sort((a, b) => Object.keys(RVP_EQUIPOS).indexOf(a) - Object.keys(RVP_EQUIPOS).indexOf(b));
-  const equipos = eqIds.map(id => ({
-    id,
-    n: RVP_EQUIPOS[id][0],
-    c: RVP_EQUIPOS[id][1]
-  }));
-  P.forEach(p => {
-    p.t = eqIds.indexOf(p.eq);
-  });
-  const meses = mesesOk.map(k => ({
-    k,
-    l: cargaMesLabel(k),
-    partial: k === hoyMes
-  }));
+  const equipos = eqIds.map(id => ({ id, n: RVP_EQUIPOS[id][0], c: RVP_EQUIPOS[id][1] }));
+  P.forEach(p => { p.t = eqIds.indexOf(p.eq); });
+  const meses = mesesOk.map(k => ({ k, l: cargaMesLabel(k), partial: k === hoyMes }));
   const planPers = new Set([...pl.keys()].filter(k => mesIdx.has(k.slice(k.lastIndexOf("|") + 1))).map(k => k.slice(0, k.lastIndexOf("|"))));
   const planSinVinculo = [...planPers].filter(k => k.startsWith("n:")).length;
   const avgH = rows.length ? rows.reduce((s, r) => s + r.hh, 0) / rows.length : 168;
   return {
-    meses,
-    equipos,
-    P,
-    PRO,
-    rows,
-    avgH,
-    generado: plan.generado || "",
+    meses, equipos, P, PRO, rows, avgH, generado: plan.generado || "",
     calidad: {
       mesesComparables: meses.map(m => m.l),
       mesesSinPlan: [...realMeses].filter(m => m <= hoyMes && !planMeses.has(m)).sort().map(cargaMesLabel),
       mesesSinReal: [...planMeses].filter(m => m <= hoyMes && !realMeses.has(m)).sort().map(cargaMesLabel),
-      casos: rows.length,
-      personas: P.length,
-      planPersonas: planPers.size,
-      planSinVinculo,
-      proySinCodigo: [...proySinCodigo.values()].slice(0, 6),
-      nProySinCodigo: proySinCodigo.size,
-      sinReal: [...sinReal.values()].slice(0, 8),
-      nSinReal: sinReal.size,
-      sinPlan: [...sinPlan.values()].slice(0, 8),
-      nSinPlan: sinPlan.size,
+      casos: rows.length, personas: P.length,
+      planPersonas: planPers.size, planSinVinculo,
+      proySinCodigo: [...proySinCodigo.values()].slice(0, 6), nProySinCodigo: proySinCodigo.size,
+      sinReal: [...sinReal.values()].slice(0, 8), nSinReal: sinReal.size,
+      sinPlan: [...sinPlan.values()].slice(0, 8), nSinPlan: sinPlan.size,
       realSinVinculo: [...new Set([...re.keys()].filter(k => k.startsWith("n:") && mesIdx.has(k.slice(k.lastIndexOf("|") + 1))).map(k => k.slice(0, k.lastIndexOf("|"))))].length
     }
   };
@@ -11013,25 +10875,14 @@ table.t tr.click:hover td{background:rgba(1,51,210,.05)}
 .empty{padding:40px;text-align:center;color:var(--mut)}
 .stk{display:flex;height:16px;border-radius:5px;overflow:hidden;background:var(--line)}
 `;
-const RVP_CSS_FINAL = RVP_CSS.replace(/([^{}]+)\{([^{}]*)\}/g, (m, sel, body) => sel.split(",").map(s => {
-  s = s.trim();
-  return s === ":root" ? ".rvp-root" : s.startsWith(".rvp") ? s : ".rvp-root " + s;
-}).join(",") + "{" + body + "}");
+const RVP_CSS_FINAL = RVP_CSS.replace(/([^{}]+)\{([^{}]*)\}/g, (m, sel, body) => sel.split(",").map(s => { s = s.trim(); return s === ":root" ? ".rvp-root" : s.startsWith(".rvp") ? s : ".rvp-root " + s; }).join(",") + "{" + body + "}");
 
 // ---------- Motor de pantalla: recibe los datos cruzados y el estado, devuelve HTML ----------
 const rvpMotor = D => {
-  const M = D.meses,
-    nM = M.length,
-    P = D.P,
-    PRO = D.PRO,
-    rows = D.rows,
-    TEAMS = D.equipos;
+  const M = D.meses, nM = M.length, P = D.P, PRO = D.PRO, rows = D.rows, TEAMS = D.equipos;
   const rowMap = new Map(rows.map(r => [r.p + "|" + r.m, r]));
   let S = null;
-  const f1 = (n, d = 1) => (isFinite(n) ? n : 0).toLocaleString("es-ES", {
-    minimumFractionDigits: d,
-    maximumFractionDigits: d
-  });
+  const f1 = (n, d = 1) => (isFinite(n) ? n : 0).toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d });
   const sgn = (n, d = 1) => (n > 0.049 ? "+" : n < -0.049 ? "−" : "") + f1(Math.abs(n), d);
   const E = s => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const dcol = d => Math.abs(d) < 3 ? "var(--mut)" : d > 0 ? "var(--over)" : "var(--under)";
@@ -11043,34 +10894,13 @@ const rvpMotor = D => {
   const pname = k => (PRO[k].code ? PRO[k].code + " · " : "") + PRO[k].name;
   const visiblePersons = () => P.filter(p => S.teams.has(p.t) && (!S.mod || p.mod === S.mod));
   const GL = {
-    FTE: {
-      t: "FTE",
-      d: "Full-Time Equivalent: <b>equivale a una persona a jornada completa durante un mes</b>. Dos personas a media jornada son 1 FTE. Si decimos «8 FTE de capacidad libre», es como si 8 personas estuvieran un mes entero sin trabajo de proyecto."
-    },
-    pts: {
-      t: "Punto",
-      d: "Punto porcentual: <b>1 punto = 1 % del tiempo del mes de una persona</b> (unas 1,7 horas). Si el plan decía 80 % y se hizo 60 %, la diferencia es de 20 puntos, unas 34 horas."
-    },
-    caso: {
-      t: "Persona-mes («caso»)",
-      d: "Una persona en un mes <b>con plan en Staffing e imputaciones en Gestión de carga</b>. Es la unidad con la que medimos si el plan acertó."
-    },
-    acierto: {
-      t: "Acertar",
-      d: `Decimos que el plan <b>acierta</b> en un caso cuando lo real queda a menos de ${RVP_ACIERTO} puntos (≈ ${nf(RVP_ACIERTO / 100 * D.avgH)} h) de lo planificado.`
-    },
-    sinplan: {
-      t: "Fuera de plan",
-      d: "Horas que una persona imputa a un proyecto en el que <b>no tenía asignación ese mes en Staffing</b>: soporte urgente, trabajo no previsto o plan incompleto."
-    },
-    infra: {
-      t: "Plan no ejecutado",
-      d: "Horas que Staffing daba por ocupadas en un proyecto y que <b>nadie imputó</b> a ese proyecto."
-    },
-    vinc: {
-      t: "Vinculado",
-      d: "Persona o proyecto cuyo identificador coincide en Staffing y en Gestión de carga (id de empleado / código de proyecto), por lo que se pueden comparar. Lo no vinculado se muestra aparte."
-    }
+    FTE: { t: "FTE", d: "Full-Time Equivalent: <b>equivale a una persona a jornada completa durante un mes</b>. Dos personas a media jornada son 1 FTE. Si decimos «8 FTE de capacidad libre», es como si 8 personas estuvieran un mes entero sin trabajo de proyecto." },
+    pts: { t: "Punto", d: "Punto porcentual: <b>1 punto = 1 % del tiempo del mes de una persona</b> (unas 1,7 horas). Si el plan decía 80 % y se hizo 60 %, la diferencia es de 20 puntos, unas 34 horas." },
+    caso: { t: "Persona-mes («caso»)", d: "Una persona en un mes <b>con plan en Staffing e imputaciones en Gestión de carga</b>. Es la unidad con la que medimos si el plan acertó." },
+    acierto: { t: "Acertar", d: `Decimos que el plan <b>acierta</b> en un caso cuando lo real queda a menos de ${RVP_ACIERTO} puntos (≈ ${nf(RVP_ACIERTO / 100 * D.avgH)} h) de lo planificado.` },
+    sinplan: { t: "Fuera de plan", d: "Horas que una persona imputa a un proyecto en el que <b>no tenía asignación ese mes en Staffing</b>: soporte urgente, trabajo no previsto o plan incompleto." },
+    infra: { t: "Plan no ejecutado", d: "Horas que Staffing daba por ocupadas en un proyecto y que <b>nadie imputó</b> a ese proyecto." },
+    vinc: { t: "Vinculado", d: "Persona o proyecto cuyo identificador coincide en Staffing y en Gestión de carga (id de empleado / código de proyecto), por lo que se pueden comparar. Lo no vinculado se muestra aparte." }
   };
   const g = (k, txt) => `<span class="gl" data-tip="${E("<b>" + GL[k].t + "</b><br>" + GL[k].d)}">${txt || GL[k].t}</span>`;
   const tone = {
@@ -11080,126 +10910,36 @@ const rvpMotor = D => {
     unp: v => v < 5 ? "ok" : v < 12 ? "warn" : "bad",
     fte: v => v < 4 ? "ok" : v < 10 ? "warn" : "bad"
   };
-  const TL = {
-    ok: "Bien",
-    warn: "Atención",
-    bad: "Alerta"
-  };
+  const TL = { ok: "Bien", warn: "Atención", bad: "Alerta" };
+
   function stats(rs) {
     if (!rs.length) return null;
-    let pH = 0,
-      rH = 0,
-      bH = 0,
-      ds = 0,
-      ad = 0,
-      hit = 0,
-      under = 0,
-      exc = 0,
-      unp = 0,
-      uP = 0;
-    const ms = new Set(),
-      ps = new Set();
+    let pH = 0, rH = 0, bH = 0, ds = 0, ad = 0, hit = 0, under = 0, exc = 0, unp = 0, uP = 0; const ms = new Set(), ps = new Set();
     rs.forEach(r => {
-      const hh = r.hh,
-        k = hh / 100;
-      ms.add(r.m);
-      ps.add(r.p);
-      pH += r.planProj * k;
-      rH += r.realProj * k;
-      bH += hh;
-      const d = r.realProj - r.planProj;
-      ds += d;
-      ad += Math.abs(d);
-      if (Math.abs(d) <= RVP_ACIERTO) hit++;
-      for (const id in r.plan) {
-        const a = r.plan[id],
-          b = r.real[id] || 0;
-        if (b < a) {
-          under += (a - b) * k;
-          uP += a - b;
-        } else exc += (b - a) * k;
-      }
-      for (const id in r.real) {
-        if (!(id in r.plan)) unp += r.real[id] * k;
-      }
+      const hh = r.hh, k = hh / 100; ms.add(r.m); ps.add(r.p);
+      pH += r.planProj * k; rH += r.realProj * k; bH += hh;
+      const d = r.realProj - r.planProj; ds += d; ad += Math.abs(d); if (Math.abs(d) <= RVP_ACIERTO) hit++;
+      for (const id in r.plan) { const a = r.plan[id], b = r.real[id] || 0; if (b < a) { under += (a - b) * k; uP += a - b; } else exc += (b - a) * k; }
+      for (const id in r.real) { if (!(id in r.plan)) unp += r.real[id] * k; }
     });
     const n = rs.length;
-    return {
-      n,
-      planH: pH,
-      realH: rH,
-      planPct: pH / bH * 100,
-      realPct: rH / bH * 100,
-      cump: pH ? rH / pH * 100 : 100,
-      bias: ds / n,
-      mae: ad / n,
-      hit: hit / n * 100,
-      under,
-      exc,
-      unp,
-      fte: uP / 100 / ms.size,
-      nm: ms.size,
-      np: ps.size
-    };
+    return { n, planH: pH, realH: rH, planPct: pH / bH * 100, realPct: rH / bH * 100, cump: pH ? rH / pH * 100 : 100, bias: ds / n, mae: ad / n, hit: hit / n * 100, under, exc, unp, fte: uP / 100 / ms.size, nm: ms.size, np: ps.size };
   }
   function personAgg(rs) {
     const m = {};
-    rs.forEach(r => {
-      const o = m[r.p] || (m[r.p] = {
-        p: r.p,
-        n: 0,
-        pl: 0,
-        re: 0,
-        ad: 0,
-        ds: 0
-      });
-      o.n++;
-      o.pl += r.planProj;
-      o.re += r.realProj;
-      const d = r.realProj - r.planProj;
-      o.ad += Math.abs(d);
-      o.ds += d;
-    });
-    return Object.values(m).map(o => ({
-      ...o,
-      plan: o.pl / o.n,
-      real: o.re / o.n,
-      mae: o.ad / o.n,
-      bias: o.ds / o.n
-    }));
+    rs.forEach(r => { const o = m[r.p] || (m[r.p] = { p: r.p, n: 0, pl: 0, re: 0, ad: 0, ds: 0 }); o.n++; o.pl += r.planProj; o.re += r.realProj; const d = r.realProj - r.planProj; o.ad += Math.abs(d); o.ds += d; });
+    return Object.values(m).map(o => ({ ...o, plan: o.pl / o.n, real: o.re / o.n, mae: o.ad / o.n, bias: o.ds / o.n }));
   }
   function projAgg(rs) {
     const m = {};
     rs.forEach(r => {
       const k = r.hh / 100;
       new Set([...Object.keys(r.plan), ...Object.keys(r.real)]).forEach(id => {
-        const o = m[id] || (m[id] = {
-          id,
-          planH: 0,
-          realH: 0,
-          pl: new Set(),
-          re: new Set(),
-          byM: {},
-          pp: {}
-        });
-        const a = r.plan[id] || 0,
-          b = r.real[id] || 0;
-        o.planH += a * k;
-        o.realH += b * k;
-        if (a > 0) o.pl.add(r.p);
-        if (b > 0) o.re.add(r.p);
-        const q = o.byM[r.m] || (o.byM[r.m] = {
-          p: 0,
-          r: 0
-        });
-        q.p += a * k;
-        q.r += b * k;
-        const z = o.pp[r.p] || (o.pp[r.p] = {
-          p: 0,
-          r: 0
-        });
-        z.p += a * k;
-        z.r += b * k;
+        const o = m[id] || (m[id] = { id, planH: 0, realH: 0, pl: new Set(), re: new Set(), byM: {}, pp: {} });
+        const a = r.plan[id] || 0, b = r.real[id] || 0;
+        o.planH += a * k; o.realH += b * k; if (a > 0) o.pl.add(r.p); if (b > 0) o.re.add(r.p);
+        const q = o.byM[r.m] || (o.byM[r.m] = { p: 0, r: 0 }); q.p += a * k; q.r += b * k;
+        const z = o.pp[r.p] || (o.pp[r.p] = { p: 0, r: 0 }); z.p += a * k; z.r += b * k;
       });
     });
     return Object.values(m);
@@ -11208,47 +10948,23 @@ const rvpMotor = D => {
 
   // ----- gráficos -----
   function spark(vals, o = {}) {
-    const w = o.w || 80,
-      h = o.h || 28,
-      col = o.c || "var(--real)";
+    const w = o.w || 80, h = o.h || 28, col = o.c || "var(--real)";
     const v = vals.map(x => isFinite(x) ? x : 0);
     if (v.length < 2) return "";
-    const mn = Math.min(...v, o.zero ? 0 : Infinity),
-      mx = Math.max(...v, o.zero ? 0 : -Infinity),
-      rg = mx - mn || 1;
+    const mn = Math.min(...v, o.zero ? 0 : Infinity), mx = Math.max(...v, o.zero ? 0 : -Infinity), rg = (mx - mn) || 1;
     const pts = v.map((x, i) => [3 + i * (w - 6) / (v.length - 1), h - 3 - (x - mn) / rg * (h - 6)]);
     const d = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join("");
-    let z = "";
-    if (o.zero) {
-      const y = h - 3 - (0 - mn) / rg * (h - 6);
-      z = `<line x1="0" x2="${w}" y1="${y}" y2="${y}" stroke="var(--mut)" stroke-opacity=".4" stroke-dasharray="3 3"/>`;
-    }
+    let z = ""; if (o.zero) { const y = h - 3 - (0 - mn) / rg * (h - 6); z = `<line x1="0" x2="${w}" y1="${y}" y2="${y}" stroke="var(--mut)" stroke-opacity=".4" stroke-dasharray="3 3"/>`; }
     const l = pts[pts.length - 1];
     return `<svg viewBox="0 0 ${w} ${h}" class="spark" style="width:${w}px;flex:none" data-tip="${E(o.tip || "Evolución mes a mes")}">${z}<path d="${d}" fill="none" stroke="${col}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${l[0]}" cy="${l[1]}" r="3" fill="${col}"/></svg>`;
   }
   function chartMonths() {
-    const W = 640,
-      H = 300,
-      L = 36,
-      R = 8,
-      T = 34,
-      B = 58,
-      pw = W - L - R,
-      ph = H - T - B,
-      gw = pw / nM,
-      bw = Math.min(30, gw / 2 - 6);
+    const W = 640, H = 300, L = 36, R = 8, T = 34, B = 58, pw = W - L - R, ph = H - T - B, gw = pw / nM, bw = Math.min(30, gw / 2 - 6);
     let s = `<svg viewBox="0 0 ${W} ${H}" class="ch">`;
-    for (const gg of [0, 25, 50, 75, 100]) {
-      const y = T + ph - gg / 100 * ph;
-      s += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" class="grid"/><text x="${L - 6}" y="${y + 4}" text-anchor="end">${gg}%</text>`;
-    }
+    for (const gg of [0, 25, 50, 75, 100]) { const y = T + ph - gg / 100 * ph; s += `<line x1="${L}" x2="${W - R}" y1="${y}" y2="${y}" class="grid"/><text x="${L - 6}" y="${y + 4}" text-anchor="end">${gg}%</text>`; }
     M.forEach((m, mi) => {
-      const st = stats(rowsF([mi]));
-      if (!st) return;
-      const gx = L + mi * gw + gw / 2,
-        hp = clamp(st.planPct, 0, 100) / 100 * ph,
-        hr = clamp(st.realPct, 0, 100) / 100 * ph,
-        d = st.realPct - st.planPct;
+      const st = stats(rowsF([mi])); if (!st) return;
+      const gx = L + mi * gw + gw / 2, hp = clamp(st.planPct, 0, 100) / 100 * ph, hr = clamp(st.realPct, 0, 100) / 100 * ph, d = st.realPct - st.planPct;
       s += `<g opacity="${S.months.has(mi) ? 1 : .3}" data-tip="${E(`<b>${E(m.l)}</b><br>Plan: ${f1(st.planPct)} % del tiempo en proyecto<br>Real: ${f1(st.realPct)} %<br>Diferencia: ${sgn(d)} puntos (≈ ${sgn(ptsH(d), 0)} h por persona)<br>El plan acierta en ${f1(st.hit, 0)} de cada 100 casos`)}">
         <rect x="${gx - bw - 2}" y="${T + ph - hp}" width="${bw}" height="${hp}" rx="4" fill="var(--plan)"/>
         <rect x="${gx + 2}" y="${T + ph - hr}" width="${bw}" height="${hr}" rx="4" fill="var(--real)"/>
@@ -11261,65 +10977,21 @@ const rvpMotor = D => {
     return s + `<text x="${W - R}" y="${H - 4}" text-anchor="end">* mes en curso (el real es hasta hoy; % sobre las horas imputadas)</text></svg>`;
   }
   function chartWater(st) {
-    const steps = [{
-      l: ["Plan de", "proyecto"],
-      v: st.planH,
-      tot: 1,
-      c: "var(--plan)"
-    }, {
-      l: ["Plan no", "ejecutado"],
-      v: -st.under,
-      c: "var(--under)"
-    }, {
-      l: ["Exceso en", "planificados"],
-      v: st.exc,
-      c: "var(--over)"
-    }, {
-      l: ["Proyectos no", "planificados"],
-      v: st.unp,
-      c: "var(--over)"
-    }, {
-      l: ["Real de", "proyecto"],
-      v: st.realH,
-      tot: 1,
-      c: "var(--real)"
-    }];
-    const W = 640,
-      H = 290,
-      L = 10,
-      R = 10,
-      T = 34,
-      B = 44,
-      pw = W - L - R,
-      ph = H - T - B,
-      n = steps.length,
-      gw = pw / n,
-      bw = 64;
-    let cum = 0,
-      mx = st.planH;
-    steps.forEach(s => {
-      if (s.tot) cum = s.v;else cum += s.v;
-      mx = Math.max(mx, cum);
-    });
+    const steps = [
+      { l: ["Plan de", "proyecto"], v: st.planH, tot: 1, c: "var(--plan)" },
+      { l: ["Plan no", "ejecutado"], v: -st.under, c: "var(--under)" },
+      { l: ["Exceso en", "planificados"], v: st.exc, c: "var(--over)" },
+      { l: ["Proyectos no", "planificados"], v: st.unp, c: "var(--over)" },
+      { l: ["Real de", "proyecto"], v: st.realH, tot: 1, c: "var(--real)" }];
+    const W = 640, H = 290, L = 10, R = 10, T = 34, B = 44, pw = W - L - R, ph = H - T - B, n = steps.length, gw = pw / n, bw = 64;
+    let cum = 0, mx = st.planH; steps.forEach(s => { if (s.tot) cum = s.v; else cum += s.v; mx = Math.max(mx, cum); });
     const base = Math.max(0, Math.floor(Math.min(st.planH, st.realH) * .8 / 500) * 500);
-    const Y = v => T + ph - (v - base) / (mx * 1.06 - base || 1) * ph;
-    let o = `<svg viewBox="0 0 ${W} ${H}" class="ch">`;
-    cum = 0;
-    let prevY = null;
+    const Y = v => T + ph - (v - base) / ((mx * 1.06 - base) || 1) * ph;
+    let o = `<svg viewBox="0 0 ${W} ${H}" class="ch">`; cum = 0; let prevY = null;
     steps.forEach((s, i) => {
-      const x = L + i * gw + (gw - bw) / 2;
-      let a, b;
-      if (s.tot) {
-        a = base;
-        b = s.v;
-        cum = s.v;
-      } else {
-        a = cum;
-        b = cum + s.v;
-        cum = b;
-      }
-      const y1 = Y(Math.max(a, b)),
-        y2 = Y(Math.min(a, b));
+      const x = L + i * gw + (gw - bw) / 2; let a, b;
+      if (s.tot) { a = base; b = s.v; cum = s.v; } else { a = cum; b = cum + s.v; cum = b; }
+      const y1 = Y(Math.max(a, b)), y2 = Y(Math.min(a, b));
       o += `<rect x="${x}" y="${y1}" width="${bw}" height="${Math.max(2, y2 - y1)}" rx="5" fill="${s.c}" data-tip="${E(`<b>${s.l.join(" ")}</b><br>${nf(Math.abs(s.v))} h · ${f1(Math.abs(s.v) / (st.planH || 1) * 100, 0)} % de lo planificado`)}"/>`;
       if (prevY !== null) o += `<line x1="${x - (gw - bw)}" x2="${x}" y1="${prevY}" y2="${prevY}" stroke="var(--mut)" stroke-dasharray="3 3" opacity=".6"/>`;
       prevY = Y(cum);
@@ -11329,59 +11001,35 @@ const rvpMotor = D => {
     return o + `<text x="${W - R}" y="${H - 4}" text-anchor="end" style="font-size:10px">Eje cortado en ${nf(base)} h para apreciar las diferencias</text></svg>`;
   }
   function scatter(o) {
-    const W = 560,
-      H = 440,
-      L = 46,
-      R = 14,
-      T = 14,
-      B = 46,
-      pw = W - L - R,
-      ph = H - T - B,
-      MX = o.max,
-      b = o.band,
-      N = o.min || 0;
-    const X = v => L + (v - N) / (MX - N) * pw,
-      Y = v => T + ph - (v - N) / (MX - N) * ph;
+    const W = 560, H = 440, L = 46, R = 14, T = 14, B = 46, pw = W - L - R, ph = H - T - B, MX = o.max, b = o.band, N = o.min || 0;
+    const X = v => L + (v - N) / (MX - N) * pw, Y = v => T + ph - (v - N) / (MX - N) * ph;
     let s = `<svg viewBox="0 0 ${W} ${H}" class="ch">`;
-    o.ticks.forEach(t => {
-      s += `<line x1="${L}" x2="${W - R}" y1="${Y(t)}" y2="${Y(t)}" class="grid"/><line y1="${T}" y2="${T + ph}" x1="${X(t)}" x2="${X(t)}" class="grid"/><text x="${L - 6}" y="${Y(t) + 4}" text-anchor="end">${nf(t)}${o.unit}</text><text x="${X(t)}" y="${H - B + 16}" text-anchor="middle">${nf(t)}${o.unit}</text>`;
-    });
+    o.ticks.forEach(t => { s += `<line x1="${L}" x2="${W - R}" y1="${Y(t)}" y2="${Y(t)}" class="grid"/><line y1="${T}" y2="${T + ph}" x1="${X(t)}" x2="${X(t)}" class="grid"/><text x="${L - 6}" y="${Y(t) + 4}" text-anchor="end">${nf(t)}${o.unit}</text><text x="${X(t)}" y="${H - B + 16}" text-anchor="middle">${nf(t)}${o.unit}</text>`; });
     s += `<polygon points="${X(N)},${Y(N + b)} ${X(MX - b)},${Y(MX)} ${X(MX)},${Y(MX)} ${X(MX)},${Y(MX - b)} ${X(N + b)},${Y(N)} ${X(N)},${Y(N)}" fill="var(--ok)" opacity=".10"/>`;
     s += `<line x1="${X(N)}" y1="${Y(N)}" x2="${X(MX)}" y2="${Y(MX)}" stroke="var(--mut)" stroke-dasharray="5 4"/>`;
     s += `<text x="${X(N + (MX - N) * .02)}" y="${Y(N + (MX - N) * .97)}" style="fill:var(--over)" class="b">Se trabajó MÁS de lo planificado</text><text x="${X(N + (MX - N) * .98)}" y="${Y(N + (MX - N) * .04)}" text-anchor="end" style="fill:var(--under)" class="b">Se trabajó MENOS de lo planificado</text>`;
     s += `<text x="${L + pw / 2}" y="${H - 6}" text-anchor="middle">${o.xl}</text><text transform="translate(12 ${T + ph / 2}) rotate(-90)" text-anchor="middle">${o.yl}</text>`;
     const sorted = o.pts.slice().sort((a, c) => Math.abs(c.y - c.x) - Math.abs(a.y - a.x));
-    const lab = new Set(sorted.slice(0, o.labelN || 5).map(p => p.id)),
-      placed = [];
+    const lab = new Set(sorted.slice(0, o.labelN || 5).map(p => p.id)), placed = [];
     o.pts.forEach(p => {
-      const px0 = X(clamp(p.x, N, MX)),
-        py0 = Y(clamp(p.y, N, MX));
+      const px0 = X(clamp(p.x, N, MX)), py0 = Y(clamp(p.y, N, MX));
       s += `<circle cx="${px0}" cy="${py0}" r="${p.r || 5.5}" fill="${p.c}" stroke="#fff" stroke-width="1.6" style="cursor:pointer" data-a="${o.act}" data-v="${E(p.id)}" data-tip="${E(p.tip)}"/>`;
-      if (lab.has(p.id) && !placed.some(q => Math.abs(q[1] - py0) < 13 && Math.abs(q[0] - px0) < 150)) {
-        placed.push([px0, py0]);
-        const en = px0 > W - 150;
-        s += `<text x="${px0 + (en ? -9 : 9)}" y="${py0 + 4}" text-anchor="${en ? "end" : "start"}" style="font-size:10.5px;fill:var(--ink)">${E(p.lab || "")}</text>`;
-      }
+      if (lab.has(p.id) && !placed.some(q => Math.abs(q[1] - py0) < 13 && Math.abs(q[0] - px0) < 150)) { placed.push([px0, py0]); const en = px0 > W - 150; s += `<text x="${px0 + (en ? -9 : 9)}" y="${py0 + 4}" text-anchor="${en ? "end" : "start"}" style="font-size:10.5px;fill:var(--ink)">${E(p.lab || "")}</text>`; }
     });
     return s + "</svg>";
   }
   function heatmap(rs) {
     const agg = personAgg(rs).sort((a, b) => b.mae - a.mae);
-    const list = S.heatAll ? agg : agg.slice(0, 14);
+    const list = (S.heatAll ? agg : agg.slice(0, 14)).sort((a, b) => P[a.p].name.localeCompare(P[b.p].name, "es", { sensitivity: "base" }));
     let h = `<div class="scale"><span>Azul: se hizo MENOS de lo planificado</span><i></i><span>Rojo: se hizo MÁS</span></div><div class="heat" style="grid-template-columns:minmax(120px,1.4fr) repeat(${nM},minmax(34px,1fr)) 50px"><div></div>`;
-    M.forEach(m => h += `<div class="hd">${E(m.l)}</div>`);
-    h += `<div class="hd">media</div>`;
+    M.forEach(m => h += `<div class="hd">${E(m.l)}</div>`); h += `<div class="hd">media</div>`;
     list.forEach(a => {
       const p = P[a.p];
       h += `<div class="nm" data-a="person" data-v="${p.i}"><span class="dot" style="background:${TEAMS[p.t].c}"></span>${E(p.name)}</div>`;
       M.forEach((m, mi) => {
         const r = rowMap.get(p.i + "|" + mi);
-        if (!r) {
-          h += `<div class="c" style="background:rgba(86,98,131,.06);color:var(--mut)" data-tip="Sin datos comparables este mes">·</div>`;
-          return;
-        }
-        const d = r.realProj - r.planProj,
-          al = Math.min(Math.abs(d) / 25, 1) * 82 + (Math.abs(d) > 1 ? 6 : 0);
+        if (!r) { h += `<div class="c" style="background:rgba(86,98,131,.06);color:var(--mut)" data-tip="Sin datos comparables este mes">·</div>`; return; }
+        const d = r.realProj - r.planProj, al = Math.min(Math.abs(d) / 25, 1) * 82 + (Math.abs(d) > 1 ? 6 : 0);
         h += `<div class="c" style="background:color-mix(in srgb,${d > 0 ? "var(--over)" : "var(--under)"} ${al}%,#fff);opacity:${S.months.has(mi) ? 1 : .35};color:${al > 55 ? "#fff" : "var(--ink)"}" data-tip="${E(`<b>${E(p.name)} · ${E(m.l)}</b><br>Plan ${f1(r.planProj, 0)} % · Real ${f1(r.realProj, 0)} %<br>${sgn(d, 0)} puntos (≈ ${sgn(ptsH(d), 0)} h)`)}">${sgn(d, 0)}</div>`;
       });
       h += `<div class="m" data-tip="Desviación media (sin signo) de esta persona en los meses seleccionados">${f1(a.mae, 0)}</div>`;
@@ -11398,120 +11046,43 @@ const rvpMotor = D => {
     <div class="say">${o.say}</div><div class="how"><b>Cómo leerlo.</b> ${o.how}</div>
     <div class="rule"><span class="g">${o.g}</span><span class="a">${o.a}</span><span class="r">${o.r}</span></div></div>`;
   function verdict(st) {
-    const c = st.cump,
-      vol = Math.abs(c - 100) <= 7,
-      acc = st.hit >= 75;
-    let t, h, p;
-    if (vol && acc) {
-      t = "ok";
-      h = "El plan es fiable";
-      p = `Se trabajó el ${f1(c, 0)} % de lo planificado y el plan acierta persona a persona en ${f1(st.hit, 0)} de cada 100 casos.`;
-    } else if (vol) {
-      t = st.hit >= 55 ? "warn" : "bad";
-      h = "En total el plan cuadra, pero falla persona a persona";
-      p = `Entre todos se trabajó el ${f1(c, 0)} % de lo planificado, un total casi correcto. Pero solo en ${f1(st.hit, 0)} de cada 100 casos el plan de una persona acertó: los errores de unos equipos (que planifican de más) se compensan con los de otros (que planifican de menos). Para gestionar capacidad no sirve que el total cuadre si cada persona está mal asignada.`;
-    } else if (c < 100) {
-      t = c >= 85 ? "warn" : "bad";
-      h = "Se planifica más trabajo del que se ejecuta";
-      p = `Por cada 100 h planificadas se trabajaron ${f1(c, 0)}. Staffing da por ocupadas ≈ ${f1(st.fte, 0)} personas que en realidad no tienen proyecto.`;
-    } else {
-      t = c <= 115 ? "warn" : "bad";
-      h = "Se trabaja más de lo planificado";
-      p = `Por cada 100 h planificadas se trabajaron ${f1(c, 0)}: el plan se queda corto y hay trabajo que Staffing no ve.`;
-    }
+    const c = st.cump, vol = Math.abs(c - 100) <= 7, acc = st.hit >= 75; let t, h, p;
+    if (vol && acc) { t = "ok"; h = "El plan es fiable"; p = `Se trabajó el ${f1(c, 0)} % de lo planificado y el plan acierta persona a persona en ${f1(st.hit, 0)} de cada 100 casos.`; }
+    else if (vol) { t = st.hit >= 55 ? "warn" : "bad"; h = "En total el plan cuadra, pero falla persona a persona"; p = `Entre todos se trabajó el ${f1(c, 0)} % de lo planificado, un total casi correcto. Pero solo en ${f1(st.hit, 0)} de cada 100 casos el plan de una persona acertó: los errores de unos equipos (que planifican de más) se compensan con los de otros (que planifican de menos). Para gestionar capacidad no sirve que el total cuadre si cada persona está mal asignada.`; }
+    else if (c < 100) { t = c >= 85 ? "warn" : "bad"; h = "Se planifica más trabajo del que se ejecuta"; p = `Por cada 100 h planificadas se trabajaron ${f1(c, 0)}. Staffing da por ocupadas ≈ ${f1(st.fte, 0)} personas que en realidad no tienen proyecto.`; }
+    else { t = c <= 115 ? "warn" : "bad"; h = "Se trabaja más de lo planificado"; p = `Por cada 100 h planificadas se trabajaron ${f1(c, 0)}: el plan se queda corto y hay trabajo que Staffing no ve.`; }
     return `<div class="verdict ${t}"><div class="vt"><span class="st ${t}">${TL[t]}</span><h2>${h}</h2></div><p>${p}</p></div>`;
   }
-  const teamStats = rs => TEAMS.map((T, ti) => {
-    const r = rs.filter(x => P[x.p].t === ti);
-    return r.length ? {
-      ti,
-      T,
-      s: stats(r),
-      r
-    } : null;
-  }).filter(Boolean);
+  const teamStats = rs => TEAMS.map((T, ti) => { const r = rs.filter(x => P[x.p].t === ti); return r.length ? { ti, T, s: stats(r), r } : null; }).filter(Boolean);
   function actions(rs) {
-    const a = [],
-      ms = selMonths(),
-      pa = projAgg(rs);
-    pa.forEach(o => {
-      o.tag = tagOf(o);
-      o.dev = o.realH - o.planH;
-    });
+    const a = [], ms = selMonths(), pa = projAgg(rs); pa.forEach(o => { o.tag = tagOf(o); o.dev = o.realH - o.planH; });
     const tm = teamStats(rs).sort((x, y) => Math.abs(y.s.cump - 100) - Math.abs(x.s.cump - 100));
     if (tm.length) {
-      const w = tm[0],
-        c = w.s.cump;
+      const w = tm[0], c = w.s.cump;
       if (Math.abs(c - 100) > 7) {
-        let tr = "";
-        if (ms.length > 1) {
-          const f = stats(w.r.filter(x => x.m === ms[0])),
-            l = stats(w.r.filter(x => x.m === ms[ms.length - 1]));
-          if (f && l) tr = ` En ${E(M[ms[0]].l)} trabajaban el ${f1(f.cump, 0)} % de lo planificado y en ${E(M[ms[ms.length - 1]].l)} el ${f1(l.cump, 0)} %.`;
-        }
-        a.push({
-          sev: "bad",
-          t: `Revisar la planificación de ${E(w.T.n)}`,
-          p: `Por cada 100 h planificadas trabajan ${f1(c, 0)}: ${c < 100 ? "se planifica de más" : "se planifica de menos"}.${tr} Conviene hablar con sus responsables de proyecto.`,
-          b: ["Ver solo este equipo", "onlyteam", w.ti]
-        });
+        let tr = ""; if (ms.length > 1) { const f = stats(w.r.filter(x => x.m === ms[0])), l = stats(w.r.filter(x => x.m === ms[ms.length - 1])); if (f && l) tr = ` En ${E(M[ms[0]].l)} trabajaban el ${f1(f.cump, 0)} % de lo planificado y en ${E(M[ms[ms.length - 1]].l)} el ${f1(l.cump, 0)} %.`; }
+        a.push({ sev: "bad", t: `Revisar la planificación de ${E(w.T.n)}`, p: `Por cada 100 h planificadas trabajan ${f1(c, 0)}: ${c < 100 ? "se planifica de más" : "se planifica de menos"}.${tr} Conviene hablar con sus responsables de proyecto.`, b: ["Ver solo este equipo", "onlyteam", w.ti] });
       }
     }
     const sin = pa.filter(o => o.tag[0] === "sin").sort((x, y) => y.realH - x.realH);
-    if (sin.length) a.push({
-      sev: "warn",
-      t: `Dar de alta en Staffing ${sin.length} proyecto${sin.length > 1 ? "s" : ""} que reciben horas sin estar planificados`,
-      p: `El mayor es «${E(PRO[sin[0].id].name)}» con ${nf(sin[0].realH)} h imputadas y ninguna asignación. En total son ${nf(sin.reduce((s, o) => s + o.realH, 0))} h que hoy Staffing no ve.`,
-      b: ["Ver proyectos sin plan", "gopro", "sin"]
-    });
+    if (sin.length) a.push({ sev: "warn", t: `Dar de alta en Staffing ${sin.length} proyecto${sin.length > 1 ? "s" : ""} que reciben horas sin estar planificados`, p: `El mayor es «${E(PRO[sin[0].id].name)}» con ${nf(sin[0].realH)} h imputadas y ninguna asignación. En total son ${nf(sin.reduce((s, o) => s + o.realH, 0))} h que hoy Staffing no ve.`, b: ["Ver proyectos sin plan", "gopro", "sin"] });
     const inf = pa.filter(o => o.tag[0] === "under" && o.planH > 0).sort((x, y) => x.dev - y.dev);
-    if (inf.length) a.push({
-      sev: "warn",
-      t: `Comprobar ${inf.length} proyecto${inf.length > 1 ? "s" : ""} que no consume${inf.length > 1 ? "n" : ""} lo planificado`,
-      p: `Los mayores: ${inf.slice(0, 3).map(o => `«${E(PRO[o.id].name)}» (${sgn(o.dev, 0)} h)`).join(", ")}. Si están pausados o retrasados hay capacidad que reasignar; si no, el plan está inflado.`,
-      b: ["Ver infraejecutados", "gopro", "under"]
-    });
+    if (inf.length) a.push({ sev: "warn", t: `Comprobar ${inf.length} proyecto${inf.length > 1 ? "s" : ""} que no consume${inf.length > 1 ? "n" : ""} lo planificado`, p: `Los mayores: ${inf.slice(0, 3).map(o => `«${E(PRO[o.id].name)}» (${sgn(o.dev, 0)} h)`).join(", ")}. Si están pausados o retrasados hay capacidad que reasignar; si no, el plan está inflado.`, b: ["Ver infraejecutados", "gopro", "under"] });
     const ov = pa.filter(o => o.tag[0] === "over").sort((x, y) => y.dev - x.dev);
-    if (ov.length) a.push({
-      sev: "bad",
-      t: `Vigilar ${ov.length} proyecto${ov.length > 1 ? "s" : ""} que se pasa${ov.length > 1 ? "n" : ""} de horas`,
-      p: `${ov.slice(0, 3).map(o => `«${E(PRO[o.id].name)}» (${sgn(o.dev, 0)} h)`).join(", ")}. Riesgo de sobrecoste: ampliar el plan o hablar con el cliente.`,
-      b: ["Ver sobreejecutados", "gopro", "over"]
-    });
-    const ag = personAgg(rs).sort((x, y) => y.ad - x.ad),
-      tot = ag.reduce((s, x) => s + x.ad, 0);
-    let cum = 0,
-      k = 0;
-    for (const x of ag) {
-      cum += x.ad;
-      k++;
-      if (cum >= tot * .5) break;
-    }
-    if (ag.length > 6) a.push({
-      sev: "info",
-      t: `Empezar por ${k} personas: concentran la mitad del desajuste`,
-      p: `Son el ${f1(k / ag.length * 100, 0)} % de la plantilla filtrada. Ajustar su planificación mejora más el conjunto que revisar a todos.`,
-      b: ["Ver personas", "gotab", "per"]
-    });
-    const order = {
-      bad: 0,
-      warn: 1,
-      info: 2
-    };
-    a.sort((x, y) => order[x.sev] - order[y.sev]);
+    if (ov.length) a.push({ sev: "bad", t: `Vigilar ${ov.length} proyecto${ov.length > 1 ? "s" : ""} que se pasa${ov.length > 1 ? "n" : ""} de horas`, p: `${ov.slice(0, 3).map(o => `«${E(PRO[o.id].name)}» (${sgn(o.dev, 0)} h)`).join(", ")}. Riesgo de sobrecoste: ampliar el plan o hablar con el cliente.`, b: ["Ver sobreejecutados", "gopro", "over"] });
+    const ag = personAgg(rs).sort((x, y) => y.ad - x.ad), tot = ag.reduce((s, x) => s + x.ad, 0); let cum = 0, k = 0; for (const x of ag) { cum += x.ad; k++; if (cum >= tot * .5) break; }
+    if (ag.length > 6) a.push({ sev: "info", t: `Empezar por ${k} personas: concentran la mitad del desajuste`, p: `Son el ${f1(k / ag.length * 100, 0)} % de la plantilla filtrada. Ajustar su planificación mejora más el conjunto que revisar a todos.`, b: ["Ver personas", "gotab", "per"] });
+    const order = { bad: 0, warn: 1, info: 2 }; a.sort((x, y) => order[x.sev] - order[y.sev]);
     return a.slice(0, 5);
   }
 
   // ----- vistas -----
   function viewRes() {
-    const ms = selMonths(),
-      rs = rowsF(ms),
-      st = stats(rs);
+    const ms = selMonths(), rs = rowsF(ms), st = stats(rs);
     if (!st) return '<div class="card empty">Sin datos con estos filtros.</div>';
     const allM = M.map((_, i) => stats(rowsF([i])));
     const ser = f => allM.map(x => x ? f(x) : 0);
-    const fPct = st.fte / st.np * 100,
-      unpP = st.realH ? st.unp / st.realH * 100 : 0;
+    const fPct = st.fte / st.np * 100, unpP = st.realH ? st.unp / st.realH * 100 : 0;
     let h = `<details class="intro" open><summary>Cómo leer esta pantalla (30 segundos)</summary><div class="how3">
       <div class="h"><b>Plan</b>Lo que Staffing dice que cada persona va a hacer cada mes, en % de su tiempo por proyecto.</div>
       <div class="h"><b>Real</b>Lo que esa persona ha imputado de verdad (horas de Gestión de carga, convertidas a % de sus horas del mes).</div>
@@ -11519,92 +11090,16 @@ const rvpMotor = D => {
         <div class="demo"><div class="r"><span>Plan</span><div class="tr"><i style="width:80%;background:var(--plan)"></i></div><b>80 %</b></div><div class="r"><span>Real</span><div class="tr"><i style="width:60%;background:var(--real)"></i></div><b>60 %</b></div><span>Ejemplo: −20 puntos ≈ 34 h menos de lo previsto en el mes.</span></div></div></div></details>`;
     h += verdict(st);
     h += `<div class="sec">Las 5 preguntas clave</div><div class="qs5">`;
-    h += qcard({
-      q: "¿Se cumple el plan en volumen?",
-      tone: tone.cump(st.cump),
-      val: `${f1(st.cump, 0)} %`,
-      unit: "de las horas planificadas se trabajaron",
-      say: `Por cada 100 h planificadas de proyecto se trabajaron ${f1(st.cump, 0)}.`,
-      how: "Suma de todas las horas reales de proyecto dividida entre las planificadas. 100 % = se hizo justo lo previsto. Ojo: un 100 % puede esconder errores que se compensan entre personas (ver pregunta 2).",
-      g: "93–107 %",
-      a: "85–115 %",
-      r: "fuera",
-      spark: spark(ser(x => x.cump), {
-        c: "var(--real)",
-        tip: "Cumplimiento mes a mes"
-      })
-    });
-    h += qcard({
-      q: "¿Acertamos persona a persona?",
-      tone: tone.hit(st.hit),
-      val: `${f1(st.hit, 0)} de 100`,
-      unit: "casos en los que el plan acertó",
-      say: `En ${f1(st.hit, 0)} de cada 100 ${g("caso", "casos (persona y mes)")} lo real quedó a menos de ${RVP_ACIERTO} puntos (≈ ${f1(ptsH(RVP_ACIERTO), 0)} h) de lo planificado.`,
-      how: "Es la medida más exigente: cada persona y mes cuenta como un acierto o un fallo. Si es baja, el plan no sirve para decidir a quién asignar trabajo, aunque el total cuadre.",
-      g: "≥ 75",
-      a: "55–74",
-      r: "< 55",
-      spark: spark(ser(x => x.hit), {
-        c: "var(--ok)",
-        tip: "Aciertos mes a mes"
-      })
-    });
-    h += qcard({
-      q: "¿Hacia qué lado nos equivocamos?",
-      tone: tone.bias(st.bias),
-      val: `${f1(Math.abs(st.bias))} pts`,
-      unit: `planificamos ${st.bias < 0 ? "de más" : "de menos"}`,
-      say: `De media, cada persona hizo ${f1(Math.abs(st.bias))} ${g("pts", "puntos")} (≈ ${f1(Math.abs(ptsH(st.bias)), 0)} h al mes) ${st.bias < 0 ? "menos" : "más"} de lo planificado.`,
-      how: "Media de las diferencias real − plan. Si el plan «infla» la ocupación el resultado es «planificamos de más»; si se queda corto, «de menos». Un valor cercano a 0 puede esconder dos errores opuestos: mira la tabla de equipos.",
-      g: "hasta 3",
-      a: "3–6",
-      r: "> 6",
-      spark: spark(ser(x => x.bias), {
-        c: dcol(st.bias),
-        zero: 1,
-        tip: "Diferencia media mes a mes"
-      })
-    });
-    h += qcard({
-      q: "¿Cuánto trabajo no estaba en el plan?",
-      tone: tone.unp(unpP),
-      val: `${f1(unpP, 0)} %`,
-      unit: "del real de proyecto, fuera de plan",
-      say: `${nf(st.unp)} h se imputaron a proyectos que la persona no tenía asignados ese mes.`,
-      how: `Mide trabajo ${g("sinplan", "fuera de plan")}: soporte urgente, proyectos que no se dieron de alta en Staffing o asignaciones olvidadas. Son horas que hoy Staffing no ve.`,
-      g: "< 5 %",
-      a: "5–12 %",
-      r: "> 12 %",
-      spark: spark(ser(x => x.realH ? x.unp / x.realH * 100 : 0), {
-        c: "var(--over)",
-        tip: "% fuera de plan mes a mes"
-      })
-    });
-    h += qcard({
-      q: "¿Cuánta capacidad está libre sin que Staffing lo sepa?",
-      tone: tone.fte(fPct),
-      val: `≈ ${f1(st.fte, 0)} personas`,
-      unit: `${f1(st.fte)} FTE · ${f1(fPct, 0)} % de la plantilla`,
-      say: `Se planificó proyecto que luego no se imputó: equivale al tiempo de ${f1(st.fte, 0)} personas a jornada completa cada mes.`,
-      how: `${g("FTE", "FTE")} = una persona a jornada completa. Sumamos las horas de ${g("infra", "plan no ejecutado")} y las dividimos entre una jornada de mes (≈ ${f1(D.avgH, 0)} h). Es capacidad que Staffing da por ocupada y que en la práctica se podría reasignar.`,
-      g: "< 4 %",
-      a: "4–10 %",
-      r: "> 10 %",
-      spark: spark(ser(x => x.fte / x.np * 100), {
-        c: "var(--under)",
-        tip: "% de plantilla con plan sin ejecutar"
-      })
-    });
+    h += qcard({ q: "¿Se cumple el plan en volumen?", tone: tone.cump(st.cump), val: `${f1(st.cump, 0)} %`, unit: "de las horas planificadas se trabajaron", say: `Por cada 100 h planificadas de proyecto se trabajaron ${f1(st.cump, 0)}.`, how: "Suma de todas las horas reales de proyecto dividida entre las planificadas. 100 % = se hizo justo lo previsto. Ojo: un 100 % puede esconder errores que se compensan entre personas (ver pregunta 2).", g: "93–107 %", a: "85–115 %", r: "fuera", spark: spark(ser(x => x.cump), { c: "var(--real)", tip: "Cumplimiento mes a mes" }) });
+    h += qcard({ q: "¿Acertamos persona a persona?", tone: tone.hit(st.hit), val: `${f1(st.hit, 0)} de 100`, unit: "casos en los que el plan acertó", say: `En ${f1(st.hit, 0)} de cada 100 ${g("caso", "casos (persona y mes)")} lo real quedó a menos de ${RVP_ACIERTO} puntos (≈ ${f1(ptsH(RVP_ACIERTO), 0)} h) de lo planificado.`, how: "Es la medida más exigente: cada persona y mes cuenta como un acierto o un fallo. Si es baja, el plan no sirve para decidir a quién asignar trabajo, aunque el total cuadre.", g: "≥ 75", a: "55–74", r: "< 55", spark: spark(ser(x => x.hit), { c: "var(--ok)", tip: "Aciertos mes a mes" }) });
+    h += qcard({ q: "¿Hacia qué lado nos equivocamos?", tone: tone.bias(st.bias), val: `${f1(Math.abs(st.bias))} pts`, unit: `planificamos ${st.bias < 0 ? "de más" : "de menos"}`, say: `De media, cada persona hizo ${f1(Math.abs(st.bias))} ${g("pts", "puntos")} (≈ ${f1(Math.abs(ptsH(st.bias)), 0)} h al mes) ${st.bias < 0 ? "menos" : "más"} de lo planificado.`, how: "Media de las diferencias real − plan. Si el plan «infla» la ocupación el resultado es «planificamos de más»; si se queda corto, «de menos». Un valor cercano a 0 puede esconder dos errores opuestos: mira la tabla de equipos.", g: "hasta 3", a: "3–6", r: "> 6", spark: spark(ser(x => x.bias), { c: dcol(st.bias), zero: 1, tip: "Diferencia media mes a mes" }) });
+    h += qcard({ q: "¿Cuánto trabajo no estaba en el plan?", tone: tone.unp(unpP), val: `${f1(unpP, 0)} %`, unit: "del real de proyecto, fuera de plan", say: `${nf(st.unp)} h se imputaron a proyectos que la persona no tenía asignados ese mes.`, how: `Mide trabajo ${g("sinplan", "fuera de plan")}: soporte urgente, proyectos que no se dieron de alta en Staffing o asignaciones olvidadas. Son horas que hoy Staffing no ve.`, g: "< 5 %", a: "5–12 %", r: "> 12 %", spark: spark(ser(x => x.realH ? x.unp / x.realH * 100 : 0), { c: "var(--over)", tip: "% fuera de plan mes a mes" }) });
+    h += qcard({ q: "¿Cuánta capacidad está libre sin que Staffing lo sepa?", tone: tone.fte(fPct), val: `≈ ${f1(st.fte, 0)} personas`, unit: `${f1(st.fte)} FTE · ${f1(fPct, 0)} % de la plantilla`, say: `Se planificó proyecto que luego no se imputó: equivale al tiempo de ${f1(st.fte, 0)} personas a jornada completa cada mes.`, how: `${g("FTE", "FTE")} = una persona a jornada completa. Sumamos las horas de ${g("infra", "plan no ejecutado")} y las dividimos entre una jornada de mes (≈ ${f1(D.avgH, 0)} h). Es capacidad que Staffing da por ocupada y que en la práctica se podría reasignar.`, g: "< 4 %", a: "4–10 %", r: "> 10 %", spark: spark(ser(x => x.fte / x.np * 100), { c: "var(--under)", tip: "% de plantilla con plan sin ejecutar" }) });
     h += `</div>`;
     const ac = actions(rs);
     h += `<div class="sec">Dónde actuar primero</div><div class="card"><div class="sub">Se generan solas a partir de los datos y los filtros activos, ordenadas por gravedad.</div><div class="acts">${ac.length ? ac.map((x, i) => `<div class="act ${x.sev}"><div class="n">${i + 1}</div><div><b>${x.t}</b><span>${x.p}</span></div><button class="btn" data-a="${x.b[1]}" data-v="${x.b[2]}">${x.b[0]}</button></div>`).join("") : '<div class="note">No hay nada que requiera acción con estos filtros.</div>'}</div></div>`;
-    const mm = allM.map((s, i) => ({
-      i,
-      s
-    })).filter(x => x.s);
-    const neg = mm.filter(x => x.s.realPct < x.s.planPct).length;
-    const worst = mm.slice().sort((a, b) => Math.abs(b.s.realPct - b.s.planPct) - Math.abs(a.s.realPct - a.s.planPct))[0];
-    const wd = worst.s.realPct - worst.s.planPct;
+    const mm = allM.map((s, i) => ({ i, s })).filter(x => x.s); const neg = mm.filter(x => x.s.realPct < x.s.planPct).length;
+    const worst = mm.slice().sort((a, b) => Math.abs(b.s.realPct - b.s.planPct) - Math.abs(a.s.realPct - a.s.planPct))[0]; const wd = worst.s.realPct - worst.s.planPct;
     h += `<div class="sec">Qué ha pasado mes a mes</div><div class="grid g2"><div class="card"><h3>Plan frente a real</h3><div class="sub">% del tiempo dedicado a proyecto. Encima de cada mes, la diferencia en puntos.</div>
       <div class="legend"><span><i style="background:var(--plan)"></i>Planificado (Staffing)</span><span><i style="background:var(--real)"></i>Real (imputaciones)</span></div>${chartMonths()}
       ${ex("Cada pareja de barras es un mes: gris lo planificado, azul lo realmente trabajado. Cuanto más parecidas, mejor. Debajo, el % de casos en que el plan acertó.", `${neg === mm.length ? "En todos los meses" : `En ${neg} de ${mm.length} meses`} el real queda ${neg > mm.length / 2 ? "por debajo" : "por encima"} del plan. El mayor desajuste fue en ${E(M[worst.i].l)} (${sgn(wd)} puntos, ≈ ${sgn(ptsH(wd), 0)} h por persona).`)}</div>`;
@@ -11613,45 +11108,33 @@ const rvpMotor = D => {
       <div><i style="background:var(--over)"></i><b>Exceso en planificados (+${nf(st.exc)} h):</b> se imputó más de lo previsto en proyectos que sí estaban en el plan.</div>
       <div><i style="background:var(--over)"></i><b>Proyectos no planificados (+${nf(st.unp)} h):</b> horas en proyectos que esa persona no tenía asignados.</div></div>
       ${ex("Empieza en el plan (gris). Resta lo que no se ejecutó (azul claro), suma lo que sobró o no estaba previsto (rojo) y llegas al real (azul oscuro).", `De ${nf(st.planH)} h planificadas se dejaron de ejecutar ${nf(st.under)} h, pero aparecieron ${nf(st.exc + st.unp)} h no previstas. El resultado neto (${sgn(st.realH - st.planH, 0)} h) ${Math.abs(st.realH - st.planH) < (st.under + st.exc + st.unp) / 2 ? "parece pequeño, pero tapa mucho movimiento por dentro." : "refleja el desajuste global."}`)}</div></div>`;
-    const tm = teamStats(rs),
-      tw = tm.slice().sort((a, b) => Math.abs(b.s.cump - 100) - Math.abs(a.s.cump - 100))[0];
+    const tm = teamStats(rs), tw = tm.slice().sort((a, b) => Math.abs(b.s.cump - 100) - Math.abs(a.s.cump - 100))[0];
     h += `<div class="sec">Quién planifica mejor</div><div class="card"><h3>Comparativa por equipos</h3><div class="sub">«Hacen» = horas reales por cada 100 h planificadas. La marca vertical es el 100 %: el plan perfecto.</div>
      <table class="t"><thead><tr><th>Equipo</th><th class="num">Personas</th><th style="min-width:200px">Por cada 100 h planificadas, hacen…</th><th>Veredicto</th><th class="num">${g("acierto", "Acierta")}</th><th>Evolución</th></tr></thead><tbody>`;
     tm.forEach(x => {
-      const c = x.s.cump,
-        vt = Math.abs(c - 100) <= 7 ? ["ok", "Acierta en volumen"] : c < 100 ? ["under", "Planifica de más"] : ["over", "Planifica de menos"];
-      const series = M.map((_, mi) => {
-        const s = stats(rowsF([mi]).filter(y => P[y.p].t === x.ti));
-        return s ? s.cump - 100 : 0;
-      });
+      const c = x.s.cump, vt = Math.abs(c - 100) <= 7 ? ["ok", "Acierta en volumen"] : c < 100 ? ["under", "Planifica de más"] : ["over", "Planifica de menos"];
+      const series = M.map((_, mi) => { const s = stats(rowsF([mi]).filter(y => P[y.p].t === x.ti)); return s ? s.cump - 100 : 0; });
       h += `<tr class="click" data-a="onlyteam" data-v="${x.ti}" data-tip="Clic para quedarte solo con este equipo"><td><span class="dot" style="background:${x.T.c}"></span> ${E(x.T.n)}</td><td class="num">${x.s.np}</td>
       <td><div style="display:flex;align-items:center;gap:8px"><div class="bar" style="flex:1"><i style="width:${Math.min(c / 150 * 100, 100)}%;background:${dcol((c - 100) * 2)}"></i><u style="left:${100 / 150 * 100}%"></u></div><b style="min-width:42px;text-align:right">${f1(c, 0)} h</b></div></td>
-      <td><span class="tag ${vt[0]}">${vt[1]}</span></td><td class="num">${f1(x.s.hit, 0)} %</td><td>${spark(series, {
-        w: 90,
-        h: 26,
-        c: dcol(series[series.length - 1] * 2),
-        zero: 1,
-        tip: "Cumplimiento mensual respecto al 100 %"
-      })}</td></tr>`;
+      <td><span class="tag ${vt[0]}">${vt[1]}</span></td><td class="num">${f1(x.s.hit, 0)} %</td><td>${spark(series, { w: 90, h: 26, c: dcol(series[series.length - 1] * 2), zero: 1, tip: "Cumplimiento mensual respecto al 100 %" })}</td></tr>`;
     });
     h += `</tbody></table>${ex("Si un equipo hace 85 h por cada 100 planificadas, planifica de más (el plan infla su ocupación). Si hace 110, planifica de menos. La mini-gráfica muestra si mejora o empeora cada mes.", tw ? `${E(tw.T.n)} es el que más se aleja: hace ${f1(tw.s.cump, 0)} h por cada 100 planificadas (${tw.s.cump < 100 ? "planifica de más" : "planifica de menos"}) y solo acierta en ${f1(tw.s.hit, 0)} de cada 100 casos.` : "")}</div>`;
     const ag = personAgg(rs);
-    const menos = ag.filter(a => a.bias < -3).sort((a, b) => a.bias - b.bias).slice(0, 6),
-      mas = ag.filter(a => a.bias > 3).sort((a, b) => b.bias - a.bias).slice(0, 6);
+    const menos = ag.filter(a => a.bias < -3).sort((a, b) => a.bias - b.bias).slice(0, 6), mas = ag.filter(a => a.bias > 3).sort((a, b) => b.bias - a.bias).slice(0, 6);
+    menos.sort((a, b) => P[a.p].name.localeCompare(P[b.p].name, "es", { sensitivity: "base" })); mas.sort((a, b) => P[a.p].name.localeCompare(P[b.p].name, "es", { sensitivity: "base" }));
     const li = a => `<div class="li" data-a="person" data-v="${a.p}" data-tip="Clic para ver su ficha"><div class="nm"><span class="dot" style="background:${TEAMS[P[a.p].t].c}"></span>${E(P[a.p].name)}</div>
       <div class="pb"><div class="tr"><i style="width:${clamp(a.plan, 0, 100)}%;background:var(--plan)"></i></div><div class="tr"><i style="width:${clamp(a.real, 0, 100)}%;background:var(--real)"></i></div></div><div class="v" style="color:${dcol(a.bias)}">${sgn(ptsH(a.bias), 0)} h/mes</div></div>`;
     h += `<div class="sec">Qué personas revisar</div><div class="grid g2"><div class="card"><h3>Se planifica más de lo que hacen</h3><div class="sub">Capacidad que Staffing da por ocupada y no lo está. Barra gris = plan, azul = real.</div><div class="lst">${menos.map(li).join("") || '<div class="note">Nadie con los filtros actuales.</div>'}</div></div>
      <div class="card"><h3>Hacen más de lo planificado</h3><div class="sub">Trabajo que Staffing no ve: riesgo de sobrecarga o de plan incompleto.</div><div class="lst">${mas.map(li).join("") || '<div class="note">Nadie con los filtros actuales.</div>'}</div></div></div>`;
     const cnt = ag.filter(a => Math.abs(a.bias) <= 3).length;
-    h += `<div class="card"><h3>Mapa de calor persona × mes</h3><div class="sub">Cada celda es la diferencia en puntos entre real y plan para esa persona y mes. Ordenado de mayor a menor desajuste medio.</div>${heatmap(rs)}
+    h += `<div class="card"><h3>Mapa de calor persona × mes</h3><div class="sub">Cada celda es la diferencia en puntos entre real y plan para esa persona y mes. Las personas se muestran en orden alfabético; inicialmente se incluyen las 14 con mayor desajuste.</div>${heatmap(rs)}
      ${ex("Busca manchas de un mismo color en una fila (persona con el mismo error mes tras mes) o en un bloque de nombres (equipo entero). Una fila gris es una persona bien planificada.", `${cnt} de ${ag.length} personas tienen un desajuste medio inferior a 3 puntos (bien planificadas). Las demás muestran un patrón sostenido, no un mes puntual.`)}</div>`;
     h += calidad();
     h += `<div class="sec">Glosario</div><div class="glos">${Object.values(GL).map(x => `<div><b>${x.t}</b>${x.d}</div>`).join("")}</div>`;
     return h;
   }
   function calidad() {
-    const q = D.calidad,
-      pv = q.planPersonas ? (q.planPersonas - q.planSinVinculo) / q.planPersonas * 100 : 100;
+    const q = D.calidad, pv = q.planPersonas ? (q.planPersonas - q.planSinVinculo) / q.planPersonas * 100 : 100;
     const li = (arr, n) => arr.length ? `<div class="note" style="margin-top:4px">${arr.map(E).join(", ")}${n > arr.length ? ` y ${n - arr.length} más` : ""}</div>` : "";
     return `<div class="sec">Fiabilidad de los datos</div><div class="card"><h3>Calidad del cruce plan ↔ real</h3><div class="sub">Para comparar, cada persona y proyecto debe estar ${g("vinc", "vinculado")} entre Staffing y Gestión de carga. Lo que no cruza no se descarta: se cuenta aquí.</div>
       <div class="grid g2" style="margin:8px 0 0"><div><div style="display:flex;justify-content:space-between"><span>Personas del plan vinculadas a un empleado</span><b>${q.planPersonas - q.planSinVinculo} de ${q.planPersonas}</b></div><div class="stk"><div style="width:${pv}%;background:var(--ok)"></div><div style="width:${100 - pv}%;background:var(--bad)"></div></div></div>
@@ -11665,124 +11148,45 @@ const rvpMotor = D => {
        ${q.mesesSinReal.length ? `<li>Meses con plan pero <b>sin imputaciones</b> (excluidos): ${q.mesesSinReal.map(E).join(", ")}.</li>` : ""}</ul></div>`;
   }
   function viewPer() {
-    const ms = selMonths(),
-      rs = rowsF(ms),
-      vis = visiblePersons();
-    const agg = personAgg(rs).sort((a, b) => b.mae - a.mae);
+    const ms = selMonths(), rs = rowsF(ms), vis = visiblePersons();
+    const agg = personAgg(rs).sort((a, b) => P[a.p].name.localeCompare(P[b.p].name, "es", { sensitivity: "base" }));
     if (!agg.length) return '<div class="card empty">Sin datos con estos filtros.</div>';
     if (S.person === null || !agg.find(a => a.p === S.person)) S.person = agg[0].p;
-    const p = P[S.person],
-      T = TEAMS[p.t];
+    const p = P[S.person], T = TEAMS[p.t];
     const pr = M.map((_, mi) => rowMap.get(p.i + "|" + mi) || null);
-    const list = agg.map(a => {
-      const q = P[a.p];
-      const se = M.map((_, mi) => {
-        const r = rowMap.get(q.i + "|" + mi);
-        return r ? r.realProj - r.planProj : 0;
-      });
-      return `<div class="pi ${a.p === S.person ? "on" : ""}" data-a="person" data-v="${a.p}"><div><div class="n"><span class="dot" style="background:${TEAMS[q.t].c}"></span>${E(q.name)}</div><div class="d">${E(TEAMS[q.t].id)} · ${E(q.mod)} · <span style="color:${dcol(a.bias)};font-weight:600">${Math.abs(a.bias) <= 3 ? "bien planificado" : a.bias < 0 ? "hace menos" : "hace más"}</span></div></div>${spark(se, {
-        w: 70,
-        h: 26,
-        c: dcol(a.bias),
-        zero: 1,
-        tip: "Diferencia mensual real − plan"
-      })}</div>`;
-    }).join("");
-    const own = rowsF(ms).filter(r => r.p === p.i),
-      st = stats(own);
-    const devs = own.map(r => r.realProj - r.planProj),
-      menosN = devs.filter(d => d < -3).length,
-      masN = devs.filter(d => d > 3).length,
-      hitN = devs.filter(d => Math.abs(d) <= RVP_ACIERTO).length;
-    const first = devs[0],
-      last = devs[devs.length - 1];
+    const list = agg.map(a => { const q = P[a.p]; const se = M.map((_, mi) => { const r = rowMap.get(q.i + "|" + mi); return r ? r.realProj - r.planProj : 0; });
+      return `<div class="pi ${a.p === S.person ? "on" : ""}" data-a="person" data-v="${a.p}"><div><div class="n"><span class="dot" style="background:${TEAMS[q.t].c}"></span>${E(q.name)}</div><div class="d">${E(TEAMS[q.t].id)} · ${E(q.mod)} · <span style="color:${dcol(a.bias)};font-weight:600">${Math.abs(a.bias) <= 3 ? "bien planificado" : a.bias < 0 ? "hace menos" : "hace más"}</span></div></div>${spark(se, { w: 70, h: 26, c: dcol(a.bias), zero: 1, tip: "Diferencia mensual real − plan" })}</div>`; }).join("");
+    const own = rowsF(ms).filter(r => r.p === p.i), st = stats(own);
+    const devs = own.map(r => r.realProj - r.planProj), menosN = devs.filter(d => d < -3).length, masN = devs.filter(d => d > 3).length, hitN = devs.filter(d => Math.abs(d) <= RVP_ACIERTO).length;
+    const first = devs[0], last = devs[devs.length - 1];
     let vt, vh;
-    if (Math.abs(st.bias) <= 3) {
-      vt = "ok";
-      vh = "Está bien planificado";
-    } else if (st.bias < 0) {
-      vt = Math.abs(st.bias) > 6 ? "bad" : "warn";
-      vh = "Se planifica más de lo que hace";
-    } else {
-      vt = st.bias > 6 ? "bad" : "warn";
-      vh = "Hace más de lo que se planifica";
-    }
-    const peor = devs.slice().sort((a, b) => Math.abs(b) - Math.abs(a))[0],
-      peorM = own[devs.indexOf(peor)];
-    let h = `<div class="split"><div class="card"><h3>Personas</h3><div class="sub">Las que más se desvían, primero (${vis.length} con los filtros).</div><div class="plist">${list}</div></div><div>`;
-    h += `<div class="verdict ${vt}"><div class="vt"><span class="st ${vt}">${TL[vt]}</span><h2>${E(p.name)}: ${vh.toLowerCase()}</h2></div><p>${E(T.n)} · módulo ${E(p.mod || "—")}. De media hizo el ${f1(st.cump, 0)} % de lo planificado (${f1(st.realPct, 0)} % real frente a ${f1(st.planPct, 0)} % plan). ${menosN ? `En ${menosN} de ${devs.length} meses hizo menos de lo previsto` : ""}${menosN && masN ? " y " : ""}${masN ? `en ${masN} hizo más` : ""}${!menosN && !masN ? "En todos los meses estuvo dentro de lo previsto" : ""}. ${devs.length > 1 ? Math.abs(last) < Math.abs(first) ? "La tendencia es a mejorar." : Math.abs(last) > Math.abs(first) + 3 ? "La tendencia es a empeorar." : "La tendencia es estable." : ""}</p></div>`;
+    if (Math.abs(st.bias) <= 3) { vt = "ok"; vh = "Está bien planificado"; }
+    else if (st.bias < 0) { vt = Math.abs(st.bias) > 6 ? "bad" : "warn"; vh = "Se planifica más de lo que hace"; }
+    else { vt = st.bias > 6 ? "bad" : "warn"; vh = "Hace más de lo que se planifica"; }
+    const peor = devs.slice().sort((a, b) => Math.abs(b) - Math.abs(a))[0], peorM = own[devs.indexOf(peor)];
+    let h = `<div class="split"><div class="card"><h3>Personas</h3><div class="sub">Orden alfabético (${vis.length} con los filtros).</div><div class="plist">${list}</div></div><div>`;
+    h += `<div class="verdict ${vt}"><div class="vt"><span class="st ${vt}">${TL[vt]}</span><h2>${E(p.name)}: ${vh.toLowerCase()}</h2></div><p>${E(T.n)} · módulo ${E(p.mod || "—")}. De media hizo el ${f1(st.cump, 0)} % de lo planificado (${f1(st.realPct, 0)} % real frente a ${f1(st.planPct, 0)} % plan). ${menosN ? `En ${menosN} de ${devs.length} meses hizo menos de lo previsto` : ""}${menosN && masN ? " y " : ""}${masN ? `en ${masN} hizo más` : ""}${!menosN && !masN ? "En todos los meses estuvo dentro de lo previsto" : ""}. ${devs.length > 1 ? (Math.abs(last) < Math.abs(first) ? "La tendencia es a mejorar." : Math.abs(last) > Math.abs(first) + 3 ? "La tendencia es a empeorar." : "La tendencia es estable.") : ""}</p></div>`;
     h += `<div class="qs5">`;
-    h += qcard({
-      q: "¿Cumple su plan?",
-      tone: tone.cump(st.cump),
-      val: `${f1(st.cump, 0)} %`,
-      unit: "de lo planificado",
-      say: `Por cada 100 h planificadas hizo ${f1(st.cump, 0)}.`,
-      how: "Horas reales de proyecto entre horas planificadas de esta persona en los meses seleccionados.",
-      g: "93–107 %",
-      a: "85–115 %",
-      r: "fuera"
-    });
-    h += qcard({
-      q: "¿En cuántos meses acertó el plan?",
-      tone: tone.hit(hitN / devs.length * 100),
-      val: `${hitN} de ${devs.length}`,
-      unit: `meses dentro de ±${RVP_ACIERTO} puntos`,
-      say: `Acertar = quedar a menos de ${RVP_ACIERTO} puntos (≈ ${f1(ptsH(RVP_ACIERTO), 0)} h) de lo planificado.`,
-      how: "Cuenta los meses en que el plan de esta persona fue razonablemente bueno.",
-      g: "≥ 75 %",
-      a: "55–74 %",
-      r: "< 55 %"
-    });
-    h += qcard({
-      q: "¿Trabaja fuera de plan?",
-      tone: tone.unp(st.realH ? st.unp / st.realH * 100 : 0),
-      val: `${f1(st.realH ? st.unp / st.realH * 100 : 0, 0)} %`,
-      unit: "de su real de proyecto",
-      say: `${nf(st.unp)} h en proyectos que no tenía asignados.`,
-      how: "Horas imputadas a proyectos distintos de los que Staffing le asignó ese mes.",
-      g: "< 5 %",
-      a: "5–12 %",
-      r: "> 12 %"
-    });
+    h += qcard({ q: "¿Cumple su plan?", tone: tone.cump(st.cump), val: `${f1(st.cump, 0)} %`, unit: "de lo planificado", say: `Por cada 100 h planificadas hizo ${f1(st.cump, 0)}.`, how: "Horas reales de proyecto entre horas planificadas de esta persona en los meses seleccionados.", g: "93–107 %", a: "85–115 %", r: "fuera" });
+    h += qcard({ q: "¿En cuántos meses acertó el plan?", tone: tone.hit(hitN / devs.length * 100), val: `${hitN} de ${devs.length}`, unit: `meses dentro de ±${RVP_ACIERTO} puntos`, say: `Acertar = quedar a menos de ${RVP_ACIERTO} puntos (≈ ${f1(ptsH(RVP_ACIERTO), 0)} h) de lo planificado.`, how: "Cuenta los meses en que el plan de esta persona fue razonablemente bueno.", g: "≥ 75 %", a: "55–74 %", r: "< 55 %" });
+    h += qcard({ q: "¿Trabaja fuera de plan?", tone: tone.unp(st.realH ? st.unp / st.realH * 100 : 0), val: `${f1(st.realH ? st.unp / st.realH * 100 : 0, 0)} %`, unit: "de su real de proyecto", say: `${nf(st.unp)} h en proyectos que no tenía asignados.`, how: "Horas imputadas a proyectos distintos de los que Staffing le asignó ese mes.", g: "< 5 %", a: "5–12 %", r: "> 12 %" });
     h += `</div>`;
     h += `<div class="grid g2"><div class="card"><h3>Plan frente a real, mes a mes</h3><div class="sub">Punto hueco = plan, punto azul = real. El tramo de color los une.</div>${chartDumbbell(pr)}
       ${ex("Cuanto más corto el tramo entre el punto hueco y el azul, mejor planificado está ese mes. Tramo azul claro: se hizo menos de lo previsto. Rojo: más. Encima, la diferencia en puntos.", peorM ? `Mayor desajuste en ${E(M[peorM.m].l)}: ${sgn(peor, 0)} puntos (≈ ${sgn(ptsH(peor), 0)} h).` : "Sin datos.")}</div>
      <div class="card"><h3>En qué se va el tiempo</h3><div class="sub">Composición de cada mes: P = plan, R = real.</div>
-     <div class="legend"><span><i style="background:#3b5bdb"></i>Proyecto</span><span><i style="background:#a78bfa"></i>Vacaciones/bajas</span><span><i style="background:#f5b942"></i>Disponibilidad y otros</span></div>${chartComp(pr)}
-     ${ex("Cada mes tiene dos columnas: la planificada (P) y la real (R). Si la parte amarilla (disponibilidad y otros) crece en la real, esa persona tuvo más tiempo sin proyecto del que decía el plan.", "Cada color es una parte del mes; compara P con R para ver dónde se fue el tiempo.")}</div></div>`;
+     <div class="legend"><span><i style="background:#3b5bdb"></i>Proyecto</span><span><i style="background:#a78bfa"></i>Vacaciones/bajas</span><span><i style="background:#f5b942"></i>Disponibilidad</span><span><i style="background:#1baf7a"></i>Desarrollo de negocio</span><span><i style="background:#8b919e"></i>Otros</span></div>${chartComp(pr)}
+     ${ex("Cada mes tiene dos columnas: la planificada (P) y la real (R). Disponibilidad incluye el tiempo sin asignar en el plan. Desarrollo de negocio y otros se muestran por separado según su clasificación en Gestión de carga.", "Cada color es una parte del mes; compara P con R para ver dónde se fue el tiempo.")}</div></div>`;
     const sel = pr[S.pm];
     h += `<div class="card"><h3>Detalle por proyecto</h3><div class="sub">Mes: ${M.map((m, i) => `<button class="chip ${S.pm === i ? "on" : ""}" data-a="pm" data-v="${i}" style="padding:2px 9px">${E(m.l)}</button>`).join(" ")}</div>${sel ? projTablePerson(sel) : '<div class="note">Esta persona no tiene datos comparables en el mes elegido.</div>'}
       ${ex("Cada fila es un proyecto de este mes. La barra azul es lo real; la marca negra, lo planificado. «Sin plan» = imputó horas a un proyecto que no tenía asignado; «No imputado» = tenía asignación y no imputó nada.", "Los estados te dicen qué hablar con la persona o con su responsable de proyecto.")}</div>`;
     return h + `</div></div>`;
   }
   function chartDumbbell(pr) {
-    const W = 600,
-      H = 290,
-      L = 36,
-      R = 14,
-      T = 30,
-      B = 34,
-      pw = W - L - R,
-      ph = H - T - B,
-      gw = pw / nM;
-    const Y = v => T + ph - clamp(v, 0, 100) / 100 * ph,
-      X = i => L + (i + .5) * gw;
+    const W = 600, H = 290, L = 36, R = 14, T = 30, B = 34, pw = W - L - R, ph = H - T - B, gw = pw / nM;
+    const Y = v => T + ph - clamp(v, 0, 100) / 100 * ph, X = i => L + (i + .5) * gw;
     let s = `<svg viewBox="0 0 ${W} ${H}" class="ch">`;
     [0, 25, 50, 75, 100].forEach(gg => s += `<line x1="${L}" x2="${W - R}" y1="${Y(gg)}" y2="${Y(gg)}" class="grid"/><text x="${L - 6}" y="${Y(gg) + 4}" text-anchor="end">${gg}%</text>`);
-    const path = key => {
-      let d = "",
-        pen = false;
-      pr.forEach((r, i) => {
-        if (!r) {
-          pen = false;
-          return;
-        }
-        d += `${pen ? "L" : "M"}${X(i)},${Y(r[key])}`;
-        pen = true;
-      });
-      return d;
-    };
+    const path = key => { let d = "", pen = false; pr.forEach((r, i) => { if (!r) { pen = false; return; } d += `${pen ? "L" : "M"}${X(i)},${Y(r[key])}`; pen = true; }); return d; };
     s += `<path d="${path("planProj")}" fill="none" stroke="var(--plan)" stroke-width="2" stroke-dasharray="5 4"/><path d="${path("realProj")}" fill="none" stroke="var(--real)" stroke-width="2.4"/>`;
     pr.forEach((r, i) => {
       s += `<text x="${X(i)}" y="${H - B + 18}" text-anchor="middle" class="b">${E(M[i].l)}</text>`;
@@ -11795,34 +11199,15 @@ const rvpMotor = D => {
     return s + "</svg>";
   }
   function chartComp(pr) {
-    const W = 600,
-      H = 290,
-      L = 36,
-      R = 14,
-      T = 14,
-      B = 40,
-      pw = W - L - R,
-      ph = H - T - B,
-      gw = pw / nM,
-      bw = Math.min(20, gw / 2 - 5),
-      Y = v => T + ph - v / 100 * ph;
+    const W = 600, H = 290, L = 36, R = 14, T = 14, B = 40, pw = W - L - R, ph = H - T - B, gw = pw / nM, bw = Math.min(20, gw / 2 - 5), Y = v => T + ph - v / 100 * ph;
     let s = `<svg viewBox="0 0 ${W} ${H}" class="ch">`;
     [0, 25, 50, 75, 100].forEach(gg => s += `<line x1="${L}" x2="${W - R}" y1="${Y(gg)}" y2="${Y(gg)}" class="grid"/><text x="${L - 6}" y="${Y(gg) + 4}" text-anchor="end">${gg}%</text>`);
-    const stack = (x, p, v, d, lbl) => {
-      let y = 0,
-        o = "";
-      [[p, "#3b5bdb", "Proyecto"], [v, "#a78bfa", "Vacaciones/bajas"], [d, "#f5b942", "Disponibilidad y otros"]].forEach(([val, c, n]) => {
-        const hh = val / 100 * ph;
-        o += `<rect x="${x}" y="${Y(y + val)}" width="${bw}" height="${hh}" fill="${c}" data-tip="${E(`<b>${E(lbl)}</b> · ${n}: ${f1(val, 0)} %`)}"/>`;
-        y += val;
-      });
-      return o;
-    };
+    const stack = (x, p, v, d, n, otros, lbl) => { let y = 0, o = ""; [[p, "#3b5bdb", "Proyecto"], [v, "#a78bfa", "Vacaciones/bajas"], [d, "#f5b942", "Disponibilidad"], [n, "#1baf7a", "Desarrollo de negocio"], [otros, "#8b919e", "Otros"]].forEach(([val, c, n]) => { const hh = val / 100 * ph; o += `<rect x="${x}" y="${Y(y + val)}" width="${bw}" height="${hh}" fill="${c}" data-tip="${E(`<b>${E(lbl)}</b> · ${n}: ${f1(val, 0)} %`)}"/>`; y += val; }); return o; };
     pr.forEach((r, i) => {
       const gx = L + (i + .5) * gw;
       s += `<text x="${gx}" y="${H - B + 28}" text-anchor="middle" class="b">${E(M[i].l)}</text>`;
       if (!r) return;
-      s += stack(gx - bw - 2, r.planProj, r.planV, r.planD, "Plan " + M[i].l) + stack(gx + 2, r.realProj, r.realV, r.realD, "Real " + M[i].l);
+      s += stack(gx - bw - 2, r.planProj, r.planV, r.planDisp, r.planDdn, r.planOtros, "Plan " + M[i].l) + stack(gx + 2, r.realProj, r.realV, r.realDisp, r.realDdn, r.realOtros, "Real " + M[i].l);
       s += `<text x="${gx - bw / 2 - 2}" y="${H - B + 13}" text-anchor="middle" style="font-size:10px">P</text><text x="${gx + bw / 2 + 2}" y="${H - B + 13}" text-anchor="middle" style="font-size:10px" class="b">R</text>`;
     });
     return s + "</svg>";
@@ -11831,68 +11216,30 @@ const rvpMotor = D => {
     const ids = [...new Set([...Object.keys(r.plan), ...Object.keys(r.real)])].sort((a, b) => Math.abs((r.real[b] || 0) - (r.plan[b] || 0)) - Math.abs((r.real[a] || 0) - (r.plan[a] || 0)));
     let h = `<table class="t"><thead><tr><th>Proyecto</th><th class="num">Plan</th><th class="num">Real</th><th style="min-width:170px">Plan (marca) vs real (barra)</th><th>Estado</th></tr></thead><tbody>`;
     ids.forEach(id => {
-      const a = r.plan[id] || 0,
-        b = r.real[id] || 0,
-        d = b - a;
+      const a = r.plan[id] || 0, b = r.real[id] || 0, d = b - a;
       const tg = a === 0 ? ["sin", "Sin plan"] : b === 0 ? ["under", "No imputado"] : d > 10 ? ["over", "Más de lo previsto"] : d < -10 ? ["under", "Menos de lo previsto"] : ["ok", "En plan"];
       h += `<tr><td>${E(pname(id))}</td><td class="num">${f1(a, 0)} %</td><td class="num"><b>${f1(b, 0)} %</b></td><td><div class="bar"><i style="width:${Math.min(b, 100)}%;background:var(--real)"></i><u style="left:${Math.min(a, 100)}%"></u></div></td><td><span class="tag ${tg[0]}">${tg[1]}</span></td></tr>`;
     });
     h += `</tbody></table>`;
-    return h + `<p class="note" style="margin:8px 0 0">Resto del mes · Vacaciones: plan ${f1(r.planV, 0)} % → real ${f1(r.realV, 0)} % · Disponibilidad y otros: plan ${f1(r.planD, 0)} % → real ${f1(r.realD, 0)} %</p>`;
+    return h + `<p class="note" style="margin:8px 0 0">Resto del mes · Vacaciones: plan ${f1(r.planV, 0)} % → real ${f1(r.realV, 0)} % · Disponibilidad: plan ${f1(r.planDisp, 0)} % → real ${f1(r.realDisp, 0)} % · Desarrollo de negocio: plan ${f1(r.planDdn, 0)} % → real ${f1(r.realDdn, 0)} % · Otros: plan ${f1(r.planOtros, 0)} % → real ${f1(r.realOtros, 0)} %</p>`;
   }
   function viewPro() {
-    const rs = rowsF(selMonths());
-    const pa = projAgg(rs);
+    const rs = rowsF(selMonths()); const pa = projAgg(rs);
     if (!pa.length) return '<div class="card empty">Sin datos con estos filtros.</div>';
-    pa.forEach(o => {
-      o.tag = tagOf(o);
-      o.dev = o.realH - o.planH;
-    });
-    const cnt = {
-      all: pa.length,
-      ok: 0,
-      under: 0,
-      over: 0,
-      sin: 0
-    };
-    pa.forEach(o => cnt[o.tag[0]]++);
-    const tc = {
-      sin: "#9333ea",
-      under: "var(--under)",
-      over: "var(--over)",
-      ok: "var(--ok)"
-    };
+    pa.forEach(o => { o.tag = tagOf(o); o.dev = o.realH - o.planH; });
+    const cnt = { all: pa.length, ok: 0, under: 0, over: 0, sin: 0 }; pa.forEach(o => cnt[o.tag[0]]++);
+    const tc = { sin: "#9333ea", under: "var(--under)", over: "var(--over)", ok: "var(--ok)" };
     const mx = Math.max(...pa.map(o => Math.max(o.planH, o.realH)), 1);
-    const sinH = pa.filter(o => o.tag[0] === "sin").reduce((s, o) => s + o.realH, 0),
-      ovH = pa.filter(o => o.tag[0] === "over").reduce((s, o) => s + o.dev, 0),
-      unH = pa.filter(o => o.tag[0] === "under").reduce((s, o) => s - o.dev, 0);
-    const bad = cnt.over + cnt.sin,
-      t = bad >= 5 ? "bad" : bad >= 2 ? "warn" : "ok";
+    const sinH = pa.filter(o => o.tag[0] === "sin").reduce((s, o) => s + o.realH, 0), ovH = pa.filter(o => o.tag[0] === "over").reduce((s, o) => s + o.dev, 0), unH = pa.filter(o => o.tag[0] === "under").reduce((s, o) => s - o.dev, 0);
+    const bad = cnt.over + cnt.sin, t = bad >= 5 ? "bad" : bad >= 2 ? "warn" : "ok";
     let h = `<div class="verdict ${t}"><div class="vt"><span class="st ${t}">${TL[t]}</span><h2>${cnt.ok} de ${cnt.all} proyectos están en plan; ${cnt.all - cnt.ok} necesitan revisión</h2></div>
      <p>${cnt.over} se pasan de horas (+${nf(ovH)} h), ${cnt.under} consumen menos de lo planificado (${nf(unH)} h sin ejecutar) y ${cnt.sin} reciben ${nf(sinH)} h sin estar en Staffing.</p></div>`;
     h += `<div class="qs5">` + [["ok", "En plan", cnt.ok, "Dentro de ±20 % de las horas planificadas.", "Nada que hacer: seguir igual."], ["under", "Infraejecutados", cnt.under, "Menos del 80 % de las horas planificadas.", "Qué hacer: comprobar si el proyecto está pausado o retrasado (reasignar capacidad) o si el plan estaba inflado (corregirlo)."], ["over", "Sobreejecutados", cnt.over, "Más del 120 % de las horas planificadas.", "Qué hacer: ampliar el plan, avisar al responsable y vigilar el sobrecoste."], ["sin", "Sin plan", cnt.sin, "Hay horas imputadas pero ninguna asignación en Staffing.", "Qué hacer: dar de alta el proyecto y sus asignaciones en Staffing, o imputar las horas al proyecto correcto."]].map(x => `<div class="q ${x[0] === "ok" ? "ok" : x[0] === "sin" ? "warn" : x[0] === "over" ? "bad" : "warn"}" style="--c:${tc[x[0]]}"><div class="qh"><span class="qq">${x[1]}</span></div><div class="qrow"><div class="qv">${x[2]}</div></div><div class="say">${x[3]}</div><div class="how"><b>${x[4]}</b></div></div>`).join("") + `</div>`;
     const top = Math.max(200, Math.ceil(mx / 200) * 200);
-    const pts = pa.map(o => ({
-      id: o.id,
-      x: o.planH,
-      y: o.realH,
-      c: tc[o.tag[0]],
-      lab: PRO[o.id].name,
-      tip: `<b>${E(pname(o.id))}</b><br>Plan ${nf(o.planH)} h · Real ${nf(o.realH)} h<br>${sgn(o.dev, 0)} h · ${o.tag[1]}<br><i>Clic para ver el detalle</i>`
-    }));
+    const pts = pa.map(o => ({ id: o.id, x: o.planH, y: o.realH, c: tc[o.tag[0]], lab: PRO[o.id].name, tip: `<b>${E(pname(o.id))}</b><br>Plan ${nf(o.planH)} h · Real ${nf(o.realH)} h<br>${sgn(o.dev, 0)} h · ${o.tag[1]}<br><i>Clic para ver el detalle</i>` }));
     h += `<div class="grid g2"><div class="card"><h3>Cada proyecto: horas planificadas frente a reales</h3><div class="sub">Cada punto es un proyecto. Clic para abrir su detalle.</div>
      <div class="legend"><span><i style="background:var(--ok);border-radius:50%"></i>En plan</span><span><i style="background:var(--under);border-radius:50%"></i>Infraejecutado</span><span><i style="background:var(--over);border-radius:50%"></i>Sobreejecutado</span><span><i style="background:#9333ea;border-radius:50%"></i>Sin plan</span></div>
-     ${scatter({
-      pts,
-      max: top,
-      band: top * .2,
-      ticks: [0, .25, .5, .75, 1].map(f => Math.round(top * f)),
-      unit: " h",
-      xl: "Horas planificadas",
-      yl: "Horas reales",
-      act: "proj",
-      labelN: 6
-    })}
+     ${scatter({ pts, max: top, band: top * .2, ticks: [0, .25, .5, .75, 1].map(f => Math.round(top * f)), unit: " h", xl: "Horas planificadas", yl: "Horas reales", act: "proj", labelN: 6 })}
      ${ex("La línea discontinua es el plan perfecto (real = plan). Por encima se trabajó más de lo previsto; por debajo, menos. La banda verde es ±20 %. Los puntos pegados al eje izquierdo son proyectos sin plan.", `${cnt.over + cnt.under + cnt.sin} de ${cnt.all} proyectos quedan fuera de la banda verde. ${cnt.sin ? `Los ${cnt.sin} de la izquierda (sin plan) suman ${nf(sinH)} h.` : ""}`)}</div>`;
     h += `<div class="card"><h3>Detalle por proyecto</h3><div class="sub">Filtra por estado:</div><div style="margin-bottom:8px">${[["all", "Todos"], ["over", "Sobreejecutados"], ["under", "Infraejecutados"], ["sin", "Sin plan"], ["ok", "En plan"]].map(f => `<button class="chip ${S.pf === f[0] ? "on" : ""}" data-a="pf" data-v="${f[0]}" style="padding:2px 10px">${f[1]}${f[0] === "all" ? "" : " · " + cnt[f[0]]}</button>`).join(" ")}</div>`;
     const lst = pa.filter(o => S.pf === "all" || o.tag[0] === S.pf).sort((a, b) => Math.abs(b.dev) - Math.abs(a.dev));
@@ -11907,36 +11254,16 @@ const rvpMotor = D => {
     return h + `</div></div>`;
   }
   function projDetail(o) {
-    const W = 360,
-      H = 190,
-      L = 34,
-      T = 14,
-      B = 30,
-      gw = (W - L - 8) / nM,
-      mx = Math.max(1, ...Object.values(o.byM).map(v => Math.max(v.p, v.r))),
-      Y = v => T + (H - T - B) * (1 - v / mx);
+    const W = 360, H = 190, L = 34, T = 14, B = 30, gw = (W - L - 8) / nM, mx = Math.max(1, ...Object.values(o.byM).map(v => Math.max(v.p, v.r))), Y = v => T + (H - T - B) * (1 - v / mx);
     let s = `<svg viewBox="0 0 ${W} ${H}" class="ch" style="max-width:420px">`;
     [0, .5, 1].forEach(f => s += `<line x1="${L}" x2="${W - 6}" y1="${Y(mx * f)}" y2="${Y(mx * f)}" class="grid"/><text x="${L - 5}" y="${Y(mx * f) + 4}" text-anchor="end">${nf(mx * f)}</text>`);
-    M.forEach((m, i) => {
-      const v = o.byM[i] || {
-          p: 0,
-          r: 0
-        },
-        gx = L + i * gw + gw / 2,
-        bw = Math.min(12, gw / 2 - 2);
-      s += `<rect x="${gx - bw - 1}" y="${Y(v.p)}" width="${bw}" height="${H - B - Y(v.p)}" rx="2" fill="var(--plan)" data-tip="${E(`${m.l}: plan ${nf(v.p)} h`)}"/><rect x="${gx + 1}" y="${Y(v.r)}" width="${bw}" height="${H - B - Y(v.r)}" rx="2" fill="var(--real)" data-tip="${E(`${m.l}: real ${nf(v.r)} h`)}"/><text x="${gx}" y="${H - B + 15}" text-anchor="middle">${E(m.l)}</text>`;
-    });
+    M.forEach((m, i) => { const v = o.byM[i] || { p: 0, r: 0 }, gx = L + i * gw + gw / 2, bw = Math.min(12, gw / 2 - 2);
+      s += `<rect x="${gx - bw - 1}" y="${Y(v.p)}" width="${bw}" height="${H - B - Y(v.p)}" rx="2" fill="var(--plan)" data-tip="${E(`${m.l}: plan ${nf(v.p)} h`)}"/><rect x="${gx + 1}" y="${Y(v.r)}" width="${bw}" height="${H - B - Y(v.r)}" rx="2" fill="var(--real)" data-tip="${E(`${m.l}: real ${nf(v.r)} h`)}"/><text x="${gx}" y="${H - B + 15}" text-anchor="middle">${E(m.l)}</text>`; });
     s += "</svg>";
-    const ppl = Object.entries(o.pp).map(([id, v]) => ({
-      id,
-      ...v,
-      d: v.r - v.p
-    })).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 8);
+    const ppl = Object.entries(o.pp).map(([id, v]) => ({ id, ...v, d: v.r - v.p })).sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 8).sort((a, b) => P[a.id].name.localeCompare(P[b.id].name, "es", { sensitivity: "base" }));
     let t = `<table class="t"><thead><tr><th>Persona</th><th class="num">Plan h</th><th class="num">Real h</th><th>Estado</th></tr></thead><tbody>`;
-    ppl.forEach(x => {
-      const tg = x.p === 0 ? ["sin", "Sin plan"] : x.r === 0 ? ["under", "No imputado"] : x.r / x.p > 1.2 ? ["over", "Más de lo previsto"] : x.r / x.p < .8 ? ["under", "Menos de lo previsto"] : ["ok", "En plan"];
-      t += `<tr><td><a href="#" class="bt" data-a="person" data-v="${E(x.id)}">${E(P[x.id].name)}</a></td><td class="num">${nf(x.p)}</td><td class="num"><b>${nf(x.r)}</b></td><td><span class="tag ${tg[0]}">${tg[1]}</span></td></tr>`;
-    });
+    ppl.forEach(x => { const tg = x.p === 0 ? ["sin", "Sin plan"] : x.r === 0 ? ["under", "No imputado"] : x.r / x.p > 1.2 ? ["over", "Más de lo previsto"] : x.r / x.p < .8 ? ["under", "Menos de lo previsto"] : ["ok", "En plan"];
+      t += `<tr><td><a href="#" class="bt" data-a="person" data-v="${E(x.id)}">${E(P[x.id].name)}</a></td><td class="num">${nf(x.p)}</td><td class="num"><b>${nf(x.r)}</b></td><td><span class="tag ${tg[0]}">${tg[1]}</span></td></tr>`; });
     t += "</tbody></table>";
     return `<div class="grid g2" style="margin:6px 0"><div><div class="sub"><b>${E(PRO[o.id].name)}</b> · horas por mes (gris = plan, azul = real)</div>${s}</div><div><div class="sub">Personas con mayor diferencia en este proyecto</div>${t}</div></div>`;
   }
@@ -11944,22 +11271,14 @@ const rvpMotor = D => {
     const mods = [...new Set(P.filter(p => S.teams.has(p.t)).map(p => p.mod).filter(Boolean))].sort();
     if (S.mod && !mods.includes(S.mod)) S.mod = "";
     const filtered = S.teams.size < TEAMS.length || S.months.size < nM || S.mod;
-    return `<div class="filters"><div class="fg"><span class="fl">Equipo</span>${TEAMS.map((T, i) => `<button class="chip ${S.teams.has(i) ? "on" : "off"}" data-a="team" data-v="${i}"><span class="dot" style="background:${T.c}"></span>${E(T.id || "Sin equipo")}</button>`).join("")}</div>
-     <div class="fg"><span class="fl">Mes</span>${M.map((m, i) => `<button class="chip ${S.months.has(i) ? "on" : "off"}" data-a="month" data-v="${i}">${E(m.l)}${m.partial ? " *" : ""}</button>`).join("")}${nM > 3 ? '<button class="chip" data-a="mq" data-v="3">Últ. 3</button>' : ""}<button class="chip" data-a="mq" data-v="all">Todos</button></div>
-     <div class="fg"><span class="fl">Módulo</span><select id="rvp-mod"><option value="">Todos</option>${mods.map(m => `<option ${S.mod === m ? "selected" : ""}>${E(m)}</option>`).join("")}</select></div>
+    const teamValue = S.teams.size === TEAMS.length ? "all" : [...S.teams][0];
+    const monthValue = S.months.size === nM && nM > 1 ? "all" : S.months.size ? [...S.months][0] : "current";
+    return `<div class="filters"><div class="fg"><label class="fl" for="rvp-team">Equipo</label><select id="rvp-team"><option value="all">Todos</option>${TEAMS.map((t, i) => `<option value="${i}" ${String(teamValue) === String(i) ? "selected" : ""}>${E(t.id || "Sin equipo")}</option>`).join("")}</select></div>
+     <div class="fg"><label class="fl" for="rvp-month">Mes</label><select id="rvp-month"><option value="all" ${monthValue === "all" ? "selected" : ""}>Todos</option>${!S.months.size ? '<option value="current" selected>Mes actual (sin datos)</option>' : ""}${M.map((m, i) => `<option value="${i}" ${String(monthValue) === String(i) ? "selected" : ""}>${E(m.l)}${m.partial ? " *" : ""}</option>`).join("")}</select></div>
+     <div class="fg"><label class="fl" for="rvp-mod">Módulo</label><select id="rvp-mod"><option value="">Todos</option>${mods.map(m => `<option ${S.mod === m ? "selected" : ""}>${E(m)}</option>`).join("")}</select></div>
      <div class="fg note">${visiblePersons().length} personas · ${S.months.size} meses ${filtered ? '<button class="bt" data-a="resetf">Quitar filtros</button>' : ""} <button class="bt" data-a="reload">Actualizar datos</button></div></div>`;
   }
-  const estadoInicial = () => ({
-    tab: "res",
-    teams: new Set(TEAMS.map((_, i) => i)),
-    months: new Set(M.map((_, i) => i)),
-    mod: "",
-    person: null,
-    pm: Math.max(0, nM - 1),
-    pf: "all",
-    open: null,
-    heatAll: false
-  });
+  const estadoInicial = () => ({ tab: "res", teams: new Set(TEAMS.map((_, i) => i)), months: new Set(M.map((m, i) => m.partial ? i : -1).filter(i => i >= 0)), mod: "", person: null, pm: Math.max(0, nM - 1), pf: "all", open: null, heatAll: false });
   function html(state) {
     S = state;
     const generado = D.generado ? new Date(D.generado) : null;
@@ -11970,64 +11289,27 @@ const rvpMotor = D => {
   }
   // Interacciones: devuelve true si hay que recargar los datos y un posible destino de scroll
   function accion(state, a, v) {
-    S = state;
-    let scroll = null,
-      reload = false;
-    if (a === "team") {
-      const i = +v;
-      if (S.teams.has(i)) {
-        if (S.teams.size > 1) S.teams.delete(i);
-      } else S.teams.add(i);
-    } else if (a === "month") {
-      const i = +v;
-      if (S.months.has(i)) {
-        if (S.months.size > 1) S.months.delete(i);
-      } else S.months.add(i);
-    } else if (a === "mq") S.months = new Set(v === "all" ? M.map((_, i) => i) : M.map((_, i) => i).slice(-3));else if (a === "onlyteam") {
-      S.teams = new Set([+v]);
-      scroll = 0;
-    } else if (a === "resetf") {
-      S.teams = new Set(TEAMS.map((_, i) => i));
-      S.months = new Set(M.map((_, i) => i));
-      S.mod = "";
-    } else if (a === "gotab") {
-      S.tab = v;
-      scroll = 0;
-    } else if (a === "gopro") {
-      S.tab = "pro";
-      S.pf = v;
-      S.open = null;
-      scroll = 0;
-    } else if (a === "person") {
-      S.person = +v;
-      S.tab = "per";
-      scroll = 0;
-    } else if (a === "proj") {
-      S.tab = "pro";
-      S.open = v;
-      scroll = "rvp-pr-" + v;
-    } else if (a === "toggleproj") S.open = S.open === v ? null : v;else if (a === "heatall") S.heatAll = !S.heatAll;else if (a === "pf") {
-      S.pf = v;
-      S.open = null;
-    } else if (a === "pm") S.pm = +v;else if (a === "reload") reload = true;
-    return {
-      scroll,
-      reload
-    };
+    S = state; let scroll = null, reload = false;
+    if (a === "team") { const i = +v; if (S.teams.has(i)) { if (S.teams.size > 1) S.teams.delete(i); } else S.teams.add(i); }
+    else if (a === "month") { const i = +v; if (S.months.has(i)) { if (S.months.size > 1) S.months.delete(i); } else S.months.add(i); }
+    else if (a === "mq") S.months = new Set(v === "all" ? M.map((_, i) => i) : M.map((_, i) => i).slice(-3));
+    else if (a === "onlyteam") { S.teams = new Set([+v]); scroll = 0; }
+    else if (a === "resetf") { S.teams = new Set(TEAMS.map((_, i) => i)); S.months = new Set(M.map((_, i) => i)); S.mod = ""; }
+    else if (a === "gotab") { S.tab = v; scroll = 0; }
+    else if (a === "gopro") { S.tab = "pro"; S.pf = v; S.open = null; scroll = 0; }
+    else if (a === "person") { S.person = +v; S.tab = "per"; scroll = 0; }
+    else if (a === "proj") { S.tab = "pro"; S.open = v; scroll = "rvp-pr-" + v; }
+    else if (a === "toggleproj") S.open = S.open === v ? null : v;
+    else if (a === "heatall") S.heatAll = !S.heatAll;
+    else if (a === "pf") { S.pf = v; S.open = null; }
+    else if (a === "pm") S.pm = +v;
+    else if (a === "reload") reload = true;
+    return { scroll, reload };
   }
-  return {
-    html,
-    accion,
-    estadoInicial,
-    vacio: !rows.length
-  };
+  return { html, accion, estadoInicial, vacio: !rows.length };
 };
-const RealVsPlanView = ({
-  onBack,
-  onLogout,
-  empleados = [],
-  archivados = []
-}) => {
+
+const RealVsPlanView = ({ onBack, onLogout, empleados = [], archivados = [] }) => {
   const [estado, setEstado] = useState("cargando");
   const [error, setError] = useState("");
   const [datos, setDatos] = useState(null);
@@ -12036,33 +11318,23 @@ const RealVsPlanView = ({
   const motor = useMemo(() => datos ? rvpMotor(datos) : null, [datos]);
   const S = useRef(null);
   const tipRef = useRef(null);
-  const empRef = useRef(empleados);
-  empRef.current = empleados;
-  const arcRef = useRef(archivados);
-  arcRef.current = archivados;
+  const empRef = useRef(empleados); empRef.current = empleados;
+  const arcRef = useRef(archivados); arcRef.current = archivados;
   useEffect(() => {
     let vivo = true;
     (async () => {
-      setEstado("cargando");
-      setError("");
+      setEstado("cargando"); setError("");
       try {
         const [plan, real] = await Promise.all([rvpFetchPlan(), rvpLeerReal(empRef.current, arcRef.current)]);
         if (!vivo) return;
         const d = rvpCombinar(real.datos, plan, empRef.current, arcRef.current, real.cfg);
-        S.current = null;
-        setDatos(d);
-        setEstado("ok");
+        S.current = null; setDatos(d); setEstado("ok");
       } catch (e) {
         console.error("Real vs planificado:", e);
-        if (vivo) {
-          setError(e && e.message ? e.message : String(e));
-          setEstado("error");
-        }
+        if (vivo) { setError(e && e.message ? e.message : String(e)); setEstado("error"); }
       }
     })();
-    return () => {
-      vivo = false;
-    };
+    return () => { vivo = false; };
   }, [tick]);
   if (motor && !S.current) S.current = motor.estadoInicial();
   const onClick = e => {
@@ -12070,141 +11342,46 @@ const RealVsPlanView = ({
     if (!el || !motor) return;
     e.preventDefault();
     const r = motor.accion(S.current, el.dataset.a, el.dataset.v);
-    if (r.reload) {
-      setTick(t => t + 1);
-      return;
-    }
+    if (r.reload) { setTick(t => t + 1); return; }
     setVer(n => n + 1);
     setTimeout(() => {
-      if (r.scroll === 0) window.scrollTo({
-        top: 0,
-        behavior: "smooth"
-      });else if (r.scroll) {
-        const t = document.getElementById(r.scroll);
-        if (t && t.scrollIntoView) t.scrollIntoView({
-          block: "center"
-        });
-      }
+      if (r.scroll === 0) window.scrollTo({ top: 0, behavior: "smooth" });
+      else if (r.scroll) { const t = document.getElementById(r.scroll); if (t && t.scrollIntoView) t.scrollIntoView({ block: "center" }); }
     }, 0);
   };
-  const onChange = e => {
-    if (e.target && e.target.id === "rvp-mod" && motor) {
-      S.current.mod = e.target.value;
-      setVer(n => n + 1);
-    }
-  };
+  const onChange = e => { if (!e.target || !motor) return; const id = e.target.id, v = e.target.value;
+    if (id === "rvp-mod") S.current.mod = v;
+    else if (id === "rvp-team") S.current.teams = new Set(v === "all" ? datos.equipos.map((_, i) => i) : [+v]);
+    else if (id === "rvp-month") S.current.months = new Set(v === "all" ? datos.meses.map((_, i) => i) : v === "current" ? [] : [+v]);
+    else return; setVer(n => n + 1); };
   const onMove = e => {
-    const tip = tipRef.current;
-    if (!tip) return;
+    const tip = tipRef.current; if (!tip) return;
     const t = e.target.closest && e.target.closest("[data-tip]");
-    if (!t) {
-      tip.style.display = "none";
-      return;
-    }
-    tip.innerHTML = t.getAttribute("data-tip");
-    tip.style.display = "block";
-    const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8),
-      y = e.clientY + 16 + tip.offsetHeight > window.innerHeight ? e.clientY - tip.offsetHeight - 12 : e.clientY + 16;
-    tip.style.left = Math.max(4, x) + "px";
-    tip.style.top = y + "px";
+    if (!t) { tip.style.display = "none"; return; }
+    tip.innerHTML = t.getAttribute("data-tip"); tip.style.display = "block";
+    const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8), y = e.clientY + 16 + tip.offsetHeight > window.innerHeight ? e.clientY - tip.offsetHeight - 12 : e.clientY + 16;
+    tip.style.left = Math.max(4, x) + "px"; tip.style.top = y + "px";
   };
-  const centro = txt => React.createElement("div", {
-    style: {
-      padding: "48px 24px",
-      textAlign: "center",
-      color: "#566283",
-      fontSize: "14px"
-    }
-  }, txt);
+  const centro = txt => React.createElement("div", { style: { padding: "48px 24px", textAlign: "center", color: "#566283", fontSize: "14px" } }, txt);
   let cuerpo;
-  if (estado === "cargando") cuerpo = centro("Cargando el plan de Staffing y las imputaciones de Gestión de carga…");else if (estado === "error") cuerpo = React.createElement("div", {
-    style: {
-      maxWidth: "720px",
-      margin: "40px auto",
-      padding: "0 20px"
-    }
-  }, React.createElement("div", {
-    style: {
-      background: "#fff7f7",
-      border: "1px solid #f5c2c7",
-      borderRadius: "12px",
-      padding: "18px 20px",
-      color: "#7a1f2a",
-      fontSize: "14px",
-      lineHeight: 1.5
-    }
-  }, React.createElement("b", null, "No se han podido leer los datos."), React.createElement("div", {
-    style: {
-      margin: "6px 0 12px"
-    }
-  }, error), React.createElement("button", {
-    onClick: () => setTick(t => t + 1),
-    style: {
-      padding: "7px 14px",
-      borderRadius: "8px",
-      border: "1px solid #0133d2",
-      background: "#fff",
-      color: "#0133d2",
-      fontWeight: 600,
-      cursor: "pointer"
-    }
-  }, "Reintentar")));else if (motor && motor.vacio) cuerpo = React.createElement("div", {
-    style: {
-      maxWidth: "760px",
-      margin: "40px auto",
-      padding: "0 20px"
-    }
-  }, React.createElement("div", {
-    style: {
-      background: "#fff",
-      border: "1px solid #e3e8f2",
-      borderRadius: "12px",
-      padding: "20px 22px",
-      fontSize: "14px",
-      lineHeight: 1.55,
-      color: "#0b1437"
-    }
-  }, React.createElement("b", null, "Todavía no hay meses comparables."), React.createElement("div", {
-    style: {
-      margin: "6px 0"
-    }
-  }, "Se necesita un mes que tenga plan en Staffing e imputaciones en Gestión de carga, y personas presentes en los dos. Meses con imputaciones sin plan: " + (datos.calidad.mesesSinPlan.join(", ") || "ninguno") + ". Meses con plan sin imputaciones: " + (datos.calidad.mesesSinReal.join(", ") || "ninguno") + "."), React.createElement("button", {
-    onClick: () => setTick(t => t + 1),
-    style: {
-      marginTop: "6px",
-      padding: "7px 14px",
-      borderRadius: "8px",
-      border: "1px solid #0133d2",
-      background: "#fff",
-      color: "#0133d2",
-      fontWeight: 600,
-      cursor: "pointer"
-    }
-  }, "Actualizar")));else if (motor) cuerpo = React.createElement("div", {
-    onClick,
-    onChange,
-    onMouseMove: onMove,
-    onMouseLeave: () => {
-      if (tipRef.current) tipRef.current.style.display = "none";
-    },
-    dangerouslySetInnerHTML: {
-      __html: motor.html(S.current)
-    }
-  });
-  return React.createElement("div", {
-    className: "rvp-root",
-    style: {
-      minHeight: "100vh"
-    }
-  }, React.createElement("style", null, RVP_CSS_FINAL), React.createElement(HbShellBar, {
-    title: "Real vs planificado",
-    onHome: onBack,
-    onLogout
-  }), cuerpo, React.createElement("div", {
-    ref: tipRef,
-    className: "rvp-tip"
-  }));
+  if (estado === "cargando") cuerpo = centro("Cargando el plan de Staffing y las imputaciones de Gestión de carga…");
+  else if (estado === "error") cuerpo = React.createElement("div", { style: { maxWidth: "720px", margin: "40px auto", padding: "0 20px" } },
+    React.createElement("div", { style: { background: "#fff7f7", border: "1px solid #f5c2c7", borderRadius: "12px", padding: "18px 20px", color: "#7a1f2a", fontSize: "14px", lineHeight: 1.5 } },
+      React.createElement("b", null, "No se han podido leer los datos."), React.createElement("div", { style: { margin: "6px 0 12px" } }, error),
+      React.createElement("button", { onClick: () => setTick(t => t + 1), style: { padding: "7px 14px", borderRadius: "8px", border: "1px solid #0133d2", background: "#fff", color: "#0133d2", fontWeight: 600, cursor: "pointer" } }, "Reintentar")));
+  else if (motor && motor.vacio) cuerpo = React.createElement("div", { style: { maxWidth: "760px", margin: "40px auto", padding: "0 20px" } },
+    React.createElement("div", { style: { background: "#fff", border: "1px solid #e3e8f2", borderRadius: "12px", padding: "20px 22px", fontSize: "14px", lineHeight: 1.55, color: "#0b1437" } },
+      React.createElement("b", null, "Todavía no hay meses comparables."),
+      React.createElement("div", { style: { margin: "6px 0" } }, "Se necesita un mes que tenga plan en Staffing e imputaciones en Gestión de carga, y personas presentes en los dos. Meses con imputaciones sin plan: " + (datos.calidad.mesesSinPlan.join(", ") || "ninguno") + ". Meses con plan sin imputaciones: " + (datos.calidad.mesesSinReal.join(", ") || "ninguno") + "."),
+      React.createElement("button", { onClick: () => setTick(t => t + 1), style: { marginTop: "6px", padding: "7px 14px", borderRadius: "8px", border: "1px solid #0133d2", background: "#fff", color: "#0133d2", fontWeight: 600, cursor: "pointer" } }, "Actualizar")));
+  else if (motor) cuerpo = React.createElement("div", { onClick, onChange, onMouseMove: onMove, onMouseLeave: () => { if (tipRef.current) tipRef.current.style.display = "none"; }, dangerouslySetInnerHTML: { __html: motor.html(S.current) } });
+  return React.createElement("div", { className: "rvp-root", style: { minHeight: "100vh" } },
+    React.createElement("style", null, RVP_CSS_FINAL),
+    React.createElement(HbShellBar, { title: "Real vs planificado", onHome: onBack, onLogout }),
+    cuerpo,
+    React.createElement("div", { ref: tipRef, className: "rvp-tip" }));
 };
+
 const StaffingView = ({
   onHome,
   onLogout,
